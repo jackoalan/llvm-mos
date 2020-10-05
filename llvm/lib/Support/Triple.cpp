@@ -156,6 +156,8 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
 
   case ve:          return "ve";
   case csky:        return "csky";
+
+  case mos:     return "mos";
   }
 }
 
