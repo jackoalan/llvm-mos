@@ -5,14 +5,18 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/TargetOptions.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Support/Compiler.h"
 
 namespace clang {
 namespace targets {
 
 class MOS6502TargetInfo : public TargetInfo {
+private:
  public:
-  MOS6502TargetInfo(const llvm::Triple &Triple, const TargetOptions &) : TargetInfo(Triple) {}
+  MOS6502TargetInfo(const llvm::Triple &Triple, const TargetOptions &) : TargetInfo(Triple) {
+    resetDataLayout("e-p:16:8:8:8-i16:8:8-i32:8:8-i64:8:8-f32:8:8-f64:8:8-a:8:8-Fi8-n8");
+  }
 
   void getTargetDefines(const LangOptions &Opts, MacroBuilder &Builder) const override {}
 
