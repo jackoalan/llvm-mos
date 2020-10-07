@@ -108,3 +108,12 @@ Consult the
 page for detailed information on configuring and compiling LLVM. You can visit
 [Directory Layout](https://llvm.org/docs/GettingStarted.html#directory-layout)
 to learn about the layout of the source code tree.
+
+### 6502 Known Issues
+
+This list is not exhaustive; it contains features that will not be implemented
+until the rest of the compiler is working.
+
+* Floating-point types are not supported.
+* __builtin operations are not supported.
+* Inline assembly is not supported.
