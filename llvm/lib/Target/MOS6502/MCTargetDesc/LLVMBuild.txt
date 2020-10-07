@@ -1,0 +1,6 @@
+[component_0]
+type = Library
+name = MOS6502Desc
+parent = MOS6502
+required_libraries = MC Support
+add_to_library_groups = MOS6502
