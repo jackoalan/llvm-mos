@@ -1,0 +1,12 @@
+#ifndef LLVM_LIB_TARGET_MOS6502_MCTARGETDESC_MOS6502MCASMINFO_H
+#define LLVM_LIB_TARGET_MOS6502_MCTARGETDESC_MOS6502MCASMINFO_H
+
+#include "llvm/MC/MCAsmInfo.h"
+
+namespace llvm {
+
+class MOS6502MCAsmInfo : public llvm::MCAsmInfo {};
+
+}  // namespace llvm
+
+#endif  // not LLVM_LIB_TARGET_MOS6502_MCTARGETDESC_MOS6502MCASMINFO_H

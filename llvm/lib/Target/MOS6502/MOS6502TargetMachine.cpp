@@ -24,4 +24,6 @@ MOS6502TargetMachine::MOS6502TargetMachine(const Target &T, const Triple &TT,
                                            CodeGenOpt::Level OL, bool JIT)
   : LLVMTargetMachine(T, Layout, TT, CPU, FS, Options,
                       getEffectiveRelocModel(RM),
-                      getEffectiveCodeModel(CM, CodeModel::Small), OL) {}
+                      getEffectiveCodeModel(CM, CodeModel::Small), OL) {
+  initAsmInfo();
+}
