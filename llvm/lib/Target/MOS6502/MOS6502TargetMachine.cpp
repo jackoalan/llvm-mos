@@ -26,4 +26,8 @@ MOS6502TargetMachine::MOS6502TargetMachine(const Target &T, const Triple &TT,
                       getEffectiveRelocModel(RM),
                       getEffectiveCodeModel(CM, CodeModel::Small), OL) {
   initAsmInfo();
+  setGlobalISel(true);
+
+  // Prevents fallback to SelectionDAG by allowing direct aborts.
+  setGlobalISelAbort(GlobalISelAbortMode::Enable);
 }
