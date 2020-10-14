@@ -1,10 +1,17 @@
 #include "MOS6502TargetMachine.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
+#include "llvm/CodeGen/GlobalISel/IRTranslator.h"
+#include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
+#include "llvm/CodeGen/GlobalISel/Legalizer.h"
+#include "llvm/CodeGen/GlobalISel/RegBankSelect.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502Target() {
   RegisterTargetMachine<MOS6502TargetMachine> X(getTheMOS6502Target());
+  initializeGlobalISel(*PassRegistry::getPassRegistry());
 }
 
 static const char Layout[] =
@@ -30,4 +37,47 @@ MOS6502TargetMachine::MOS6502TargetMachine(const Target &T, const Triple &TT,
 
   // Prevents fallback to SelectionDAG by allowing direct aborts.
   setGlobalISelAbort(GlobalISelAbortMode::Enable);
+}
+
+namespace {
+
+class MOS6502PassConfig : public TargetPassConfig {
+public:
+  MOS6502PassConfig(MOS6502TargetMachine &TM, PassManagerBase &PM)
+    : TargetPassConfig(TM, PM) {}
+
+  MOS6502TargetMachine &getMOS6502TargetMachine() const {
+    return getTM<MOS6502TargetMachine>();
+  }
+
+  bool addIRTranslator() override;
+  bool addLegalizeMachineIR() override;
+  bool addRegBankSelect() override;
+  bool addGlobalInstructionSelect() override;
+};
+
+}  // namespace
+
+TargetPassConfig *MOS6502TargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new MOS6502PassConfig(*this, PM);
+}
+
+bool MOS6502PassConfig::addIRTranslator() {
+  addPass(new IRTranslator(getOptLevel()));
+  return false;
+}
+
+bool MOS6502PassConfig::addLegalizeMachineIR() {
+  addPass(new Legalizer());
+  return false;
+}
+
+bool MOS6502PassConfig::addRegBankSelect() {
+  addPass(new RegBankSelect());
+  return false;
+}
+
+bool MOS6502PassConfig::addGlobalInstructionSelect() {
+  addPass(new InstructionSelect());
+  return false;
 }

@@ -11,6 +11,8 @@ class MOS6502TargetMachine : public LLVMTargetMachine {
                        StringRef FS, const TargetOptions &Options,
                        Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
                        CodeGenOpt::Level OL, bool JIT);
+
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 };
 
 }  // namespace llvm
