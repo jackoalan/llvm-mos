@@ -1,6 +1,11 @@
 #include "MOS6502MCAsmInfo.h"
+#include "MOS6502MCTargetDesc.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/TargetRegistry.h"
+
+#define GET_SUBTARGETINFO_MC_DESC
+#include "MOS6502GenSubtargetInfo.inc"
 
 using namespace llvm;
 
