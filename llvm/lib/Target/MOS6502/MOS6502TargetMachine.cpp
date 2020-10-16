@@ -35,7 +35,7 @@ MOS6502TargetMachine::MOS6502TargetMachine(const Target &T, const Triple &TT,
   initAsmInfo();
   setGlobalISel(true);
 
-  Subtarget = std::make_unique<MOS6502Subtarget>(TT, CPU, /*TuneCPU=*/CPU, FS);
+  Subtarget = std::make_unique<MOS6502Subtarget>(TT, CPU, FS, *this);
 
   // Prevents fallback to SelectionDAG by allowing direct aborts.
   setGlobalISelAbort(GlobalISelAbortMode::Enable);
