@@ -1,6 +1,7 @@
 #ifndef LLVM_LIB_TARGET_MOS6502_MOS6502SUBTARGET_H
 #define LLVM_LIB_TARGET_MOS6502_MOS6502SUBTARGET_H
 
+#include "MOS6502FrameLowering.h"
 #include "MOS6502ISelLowering.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 
@@ -10,12 +11,16 @@
 namespace llvm {
 
 class MOS6502Subtarget : public MOS6502GenSubtargetInfo {
+  MOS6502FrameLowering FrameLowering;
   MOS6502TargetLowering TLInfo;
 
  public:
   MOS6502Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
                    const TargetMachine& TM);
 
+  const MOS6502FrameLowering *getFrameLowering() const override {
+    return &FrameLowering;
+  }
   const MOS6502TargetLowering *getTargetLowering() const override {
     return &TLInfo;
   }
