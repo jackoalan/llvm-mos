@@ -5,6 +5,7 @@
 #include "MOS6502ISelLowering.h"
 #include "MOS6502InstrInfo.h"
 #include "MOS6502RegisterInfo.h"
+#include "llvm/CodeGen/GlobalISel/CallLowering.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 
 #define GET_SUBTARGETINFO_HEADER
@@ -17,6 +18,8 @@ class MOS6502Subtarget : public MOS6502GenSubtargetInfo {
   MOS6502InstrInfo InstrInfo;
   MOS6502RegisterInfo RegInfo;
   MOS6502TargetLowering TLInfo;
+
+  std::unique_ptr<CallLowering> CallLoweringInfo;
 
  public:
   MOS6502Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
@@ -31,6 +34,10 @@ class MOS6502Subtarget : public MOS6502GenSubtargetInfo {
   }
   const MOS6502TargetLowering *getTargetLowering() const override {
     return &TLInfo;
+  }
+
+  const CallLowering *getCallLowering() const override {
+    return CallLoweringInfo.get();
   }
 };
 

@@ -1,5 +1,7 @@
 #include "MOS6502Subtarget.h"
 
+#include "MOS6502CallLowering.h"
+
 using namespace llvm;
 
 #define DEBUG_TYPE "mos6502-subtarget"
@@ -9,4 +11,6 @@ using namespace llvm;
 
 MOS6502Subtarget::MOS6502Subtarget(const Triple &TT, StringRef CPU,
                                    StringRef FS, const TargetMachine &TM)
-  : MOS6502GenSubtargetInfo(TT, CPU, /*TuneCPU=*/CPU, FS), TLInfo(TM) {}
+  : MOS6502GenSubtargetInfo(TT, CPU, /*TuneCPU=*/CPU, FS), TLInfo(TM) {
+  CallLoweringInfo.reset(new MOS6502CallLowering(getTargetLowering()));
+}
