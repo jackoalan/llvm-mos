@@ -1,8 +1,17 @@
-#include "MOS6502MCAsmInfo.h"
 #include "MOS6502MCTargetDesc.h"
+
+#include "MOS6502MCAsmInfo.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
+#include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/TargetRegistry.h"
+
+#define GET_INSTRINFO_MC_DESC
+#include "MOS6502GenInstrInfo.inc"
+
+#define GET_REGINFO_MC_DESC
+#include "MOS6502GenRegisterInfo.inc"
 
 #define GET_SUBTARGETINFO_MC_DESC
 #include "MOS6502GenSubtargetInfo.inc"
