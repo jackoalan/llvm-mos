@@ -8,6 +8,16 @@ namespace llvm {
 class MOS6502CallLowering : public CallLowering {
  public:
   MOS6502CallLowering(const llvm::TargetLowering* TL) : CallLowering(TL) {}
+
+  bool lowerReturn(MachineIRBuilder &MIRBuiler, const Value *Val,
+                   ArrayRef<Register> VRegs) const override {
+    return true;
+  }
+
+  bool lowerFormalArguments(MachineIRBuilder &MIRBuilder, const Function &F,
+                            ArrayRef<ArrayRef<Register>> VRegs) const override {
+    return true;
+  }
 };
 
 }  // namespace llvm
