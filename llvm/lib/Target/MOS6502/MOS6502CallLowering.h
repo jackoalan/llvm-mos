@@ -10,9 +10,7 @@ class MOS6502CallLowering : public CallLowering {
   MOS6502CallLowering(const llvm::TargetLowering* TL) : CallLowering(TL) {}
 
   bool lowerReturn(MachineIRBuilder &MIRBuiler, const Value *Val,
-                   ArrayRef<Register> VRegs) const override {
-    return true;
-  }
+                   ArrayRef<Register> VRegs) const override;
 
   bool lowerFormalArguments(MachineIRBuilder &MIRBuilder, const Function &F,
                             ArrayRef<ArrayRef<Register>> VRegs) const override {

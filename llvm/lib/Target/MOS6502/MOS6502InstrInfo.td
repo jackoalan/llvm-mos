@@ -1,10 +1,15 @@
-def ADC : Instruction {
+def RETURN : Instruction {
   let Namespace = "MOS6502";
-  dag InOperandList = (ins I8:$rs1, I8:$rs2);
-  dag OutOperandList = (outs I8:$rd);
-  let Uses = [P];
-  let Defs = [P];
+  dag InOperandList = (ins variable_ops);
+  dag OutOperandList = (outs);
+  let Uses = [];
+  let Defs = [];
+
+  let hasCtrlDep = 1;
+  let hasSideEffects = 0;
+  let isPseudo = 1;
+  let isReturn = 1;
+  let isTerminator = 1;
   let mayLoad = 0;
   let mayStore = 0;
-  let hasSideEffects = 0;
 }
