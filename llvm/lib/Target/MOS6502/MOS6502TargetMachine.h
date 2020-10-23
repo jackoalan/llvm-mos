@@ -7,6 +7,7 @@
 namespace llvm {
 
 class MOS6502TargetMachine : public LLVMTargetMachine {
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
   std::unique_ptr<MOS6502Subtarget> Subtarget;
 
  public:
@@ -18,6 +19,10 @@ class MOS6502TargetMachine : public LLVMTargetMachine {
   const MOS6502Subtarget *getSubtargetImpl(const Function &F) const override;
 
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
 };
 
 }  // namespace llvm

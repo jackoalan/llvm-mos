@@ -1,4 +1,5 @@
 #include "MOS6502TargetMachine.h"
+#include "MOS6502TargetObjectFile.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
 #include "llvm/CodeGen/GlobalISel/IRTranslator.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
@@ -31,7 +32,8 @@ MOS6502TargetMachine::MOS6502TargetMachine(const Target &T, const Triple &TT,
                                            CodeGenOpt::Level OL, bool JIT)
   : LLVMTargetMachine(T, Layout, TT, CPU, FS, Options,
                       getEffectiveRelocModel(RM),
-                      getEffectiveCodeModel(CM, CodeModel::Small), OL) {
+                      getEffectiveCodeModel(CM, CodeModel::Small), OL),
+    TLOF(std::make_unique<MOS6502TargetObjectFile>()) {
   initAsmInfo();
   setGlobalISel(true);
 
