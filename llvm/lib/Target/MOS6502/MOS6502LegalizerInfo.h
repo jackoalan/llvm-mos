@@ -7,7 +7,7 @@ namespace llvm {
 
 class MOS6502LegalizerInfo : public LegalizerInfo {
 public:
-  MOS6502LegalizerInfo() { computeTables(); }
+  MOS6502LegalizerInfo();
 };
 
 } // namespace llvm
