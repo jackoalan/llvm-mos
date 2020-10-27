@@ -22,8 +22,9 @@ class MOS6502Subtarget : public MOS6502GenSubtargetInfo {
 
   std::unique_ptr<CallLowering> CallLoweringInfo;
   std::unique_ptr<LegalizerInfo> Legalizer;
+  std::unique_ptr<RegisterBankInfo> RegBankInfo;
 
- public:
+public:
   MOS6502Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
                    const TargetMachine& TM);
 
@@ -43,6 +44,9 @@ class MOS6502Subtarget : public MOS6502GenSubtargetInfo {
   }
   const LegalizerInfo *getLegalizerInfo() const override {
     return Legalizer.get();
+  }
+  const RegisterBankInfo *getRegBankInfo() const override {
+    return RegBankInfo.get();
   }
 };
 

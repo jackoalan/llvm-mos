@@ -1,0 +1,1 @@
+def AnyRegBank : RegisterBank<"Any", [I8, I16]>;
