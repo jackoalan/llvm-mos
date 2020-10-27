@@ -516,6 +516,8 @@ public:
       S = createXCOFFStreamer(Ctx, std::move(TAB), std::move(OW),
                               std::move(Emitter), RelaxAll);
       break;
+    case Triple::MOS6502:
+      report_fatal_error("MOS6502 MCObjectStreamer not implemented yet");
     }
     if (ObjectTargetStreamerCtorFn)
       ObjectTargetStreamerCtorFn(*S, STI);

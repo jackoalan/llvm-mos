@@ -1,6 +1,7 @@
 #include "MOS6502Subtarget.h"
 
 #include "MOS6502CallLowering.h"
+#include "MOS6502InstructionSelector.h"
 #include "MOS6502LegalizerInfo.h"
 #include "MOS6502RegisterBankInfo.h"
 
@@ -17,4 +18,5 @@ MOS6502Subtarget::MOS6502Subtarget(const Triple &TT, StringRef CPU,
   CallLoweringInfo.reset(new MOS6502CallLowering(getTargetLowering()));
   Legalizer.reset(new MOS6502LegalizerInfo);
   RegBankInfo.reset(new MOS6502RegisterBankInfo);
+  InstSelector.reset(new MOS6502InstructionSelector);
 }
