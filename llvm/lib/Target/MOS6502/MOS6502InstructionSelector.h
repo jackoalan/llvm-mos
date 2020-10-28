@@ -8,6 +8,7 @@ namespace llvm {
 class MOS6502InstructionSelector : public InstructionSelector {
  public:
   bool select(MachineInstr &I) override;
+  void setupGeneratedPerFunctionState(MachineFunction &MF) override;
 };
 
 }  // namespace llvm
