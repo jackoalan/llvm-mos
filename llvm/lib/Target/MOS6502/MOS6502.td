@@ -4,6 +4,7 @@ include "MOS6502RegisterInfo.td"
 
 include "MOS6502RegisterBanks.td"
 include "MOS6502InstrInfo.td"
+include "MOS6502InstructionSelector.td"
 
 def : ProcessorModel<"generic", NoSchedModel, []>;
 

@@ -1,5 +1,7 @@
 set(LLVM_TARGET_DEFINITIONS MOS6502.td)
 
+tablegen(LLVM MOS6502GenInstructionSelector.inc -gen-global-isel-combiner
+  -combiners="MOS6502InstructionSelectorCombinerHelper")
 tablegen(LLVM MOS6502GenInstrInfo.inc -gen-instr-info)
 tablegen(LLVM MOS6502GenRegisterBank.inc -gen-register-bank)
 tablegen(LLVM MOS6502GenRegisterInfo.inc -gen-register-info)
