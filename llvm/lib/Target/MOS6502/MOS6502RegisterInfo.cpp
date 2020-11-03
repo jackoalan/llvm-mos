@@ -19,7 +19,7 @@ MOS6502RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 }
 
 BitVector MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
-  return {};
+  return BitVector(getNumRegs());
 }
 
 void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
