@@ -1,0 +1,29 @@
+#include "MOS6502InstructionSelector.h"
+#include "MCTargetDesc/MOS6502MCTargetDesc.h"
+
+#include "llvm/CodeGen/GlobalISel/MIPatternMatch.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/IR/Constants.h"
+
+using namespace llvm;
+
+bool MOS6502InstructionSelector::select(MachineInstr &I) {
+  const TargetInstrInfo& TII = *I.getMF()->getSubtarget().getInstrInfo();
+  const MachineRegisterInfo& MRI = I.getMF()->getRegInfo();
+  const LLT s8 = LLT::scalar(8);
+
+  if (I.getOpcode() == MOS6502::RETURN) return true;
+  if (I.getOpcode() == MOS6502::G_CONSTANT) {
+    assert(MRI.getType(I.getOperand(0).getReg()) == s8);
+    assert(I.getOperand(1).getImm() < 256);
+    I.setDesc(TII.get(MOS6502::CONSTANT));
+    return true;
+  }
+  return false;
+}
+
+void MOS6502InstructionSelector::setupGeneratedPerFunctionState(MachineFunction &MF) {
+  // Disable assertion in base class; we're not using SelectionDAG TableGen.
+}
