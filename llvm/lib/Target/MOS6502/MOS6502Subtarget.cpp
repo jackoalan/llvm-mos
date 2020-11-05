@@ -14,7 +14,7 @@ using namespace llvm;
 
 MOS6502Subtarget::MOS6502Subtarget(const Triple &TT, StringRef CPU,
                                    StringRef FS, const TargetMachine &TM)
-  : MOS6502GenSubtargetInfo(TT, CPU, /*TuneCPU=*/CPU, FS), TLInfo(TM) {
+  : MOS6502GenSubtargetInfo(TT, CPU, /*TuneCPU=*/CPU, FS), TLInfo(TM, *this) {
   CallLoweringInfo.reset(new MOS6502CallLowering(getTargetLowering()));
   Legalizer.reset(new MOS6502LegalizerInfo);
   RegBankInfo.reset(new MOS6502RegisterBankInfo);
