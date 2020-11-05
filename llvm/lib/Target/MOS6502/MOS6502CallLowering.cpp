@@ -37,13 +37,26 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
                                       const Value *Val,
                                       ArrayRef<Register> VRegs) const {
-  if (!Val) return true;
+  if (!Val) llvm_unreachable("Not yet implemented.");
 
   MachineFunction &MF = MIRBuilder.getMF();
   MachineRegisterInfo &MRI = MF.getRegInfo();
+  const TargetLowering &TLI = *getTLI();
+  const DataLayout &DL = MF.getDataLayout();
+  LLVMContext &Ctx = Val->getContext();
+  const Function &F = MF.getFunction();
+
+  SmallVector<EVT, 4> ValueVTs;
+  ComputeValueVTs(TLI, DL, Val->getType(), ValueVTs);
+  assert(ValueVTs.size() == VRegs.size() && "Need one type for each VReg.");
 
   MOS6502OutgoingValueHandler Handler(MIRBuilder, MRI, CC_MOS6502);
   SmallVector<ArgInfo, 4> Args;
+  for (size_t Idx = 0; Idx < VRegs.size(); ++Idx) {
+    Args.emplace_back(VRegs[Idx], ValueVTs[Idx].getTypeForEVT(Ctx));
+    setArgFlags(Args.back(), AttributeList::ReturnIndex, DL, F);
+  }
+
   return handleAssignments(MIRBuilder, Args, Handler);
 
   return true;
