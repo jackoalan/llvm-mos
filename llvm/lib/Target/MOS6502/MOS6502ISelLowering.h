@@ -13,6 +13,13 @@ class MOS6502TargetLowering : public TargetLowering {
  public:
   MOS6502TargetLowering(const TargetMachine &TM,
                         const MOS6502Subtarget& STI);
+
+  MVT getRegisterTypeForCallingConv(LLVMContext &Context,
+                                    CallingConv::ID CC, EVT VT) const override;
+
+  unsigned getNumRegistersForCallingConv(LLVMContext &Context,
+                                         CallingConv::ID CC,
+                                         EVT VT) const override;
 };
 
 }  // namespace llvm
