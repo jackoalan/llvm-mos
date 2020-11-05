@@ -12,6 +12,7 @@ add_public_tablegen_target(MOS6502CommonTableGen)
 
 add_llvm_target(MOS6502CodeGen
   MOS6502AsmPrinter.cpp
+  MOS6502CallingConv.cpp
   MOS6502CallLowering.cpp
   MOS6502FrameLowering.cpp
   MOS6502InstructionSelector.cpp

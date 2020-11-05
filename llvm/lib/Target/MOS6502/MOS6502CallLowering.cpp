@@ -1,4 +1,5 @@
 #include "MOS6502CallLowering.h"
+#include "MOS6502CallingConv.h"
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
 
 #include "llvm/CodeGen/Analysis.h"
@@ -8,44 +9,42 @@
 
 using namespace llvm;
 
+namespace {
+
+struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
+  MOS6502OutgoingValueHandler(MachineIRBuilder &MIRBuilder,
+                              MachineRegisterInfo &MRI, CCAssignFn *AssignFn) :
+    OutgoingValueHandler(MIRBuilder, MRI, AssignFn) {}
+
+  Register getStackAddress(uint64_t Size, int64_t Offset,
+                           MachinePointerInfo &MPO) override {
+    llvm_unreachable("Not yet implemented");
+  }
+
+  void assignValueToReg(Register ValVReg, Register PhysReg,
+                        CCValAssign &VA) override {
+    llvm_unreachable("Not yet implemented");
+  }
+
+  void assignValueToAddress(Register ValVReg, Register Addr, uint64_t Size,
+                            MachinePointerInfo &MPO, CCValAssign &VA) override {
+    llvm_unreachable("Not yet implemented");
+  }
+};
+
+}  // namespace
+
 bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
                                       const Value *Val,
                                       ArrayRef<Register> VRegs) const {
   if (!Val) return true;
 
   MachineFunction &MF = MIRBuilder.getMF();
-  const Function &F = MF.getFunction();
-  const auto &DL = F.getParent()->getDataLayout();
+  MachineRegisterInfo &MRI = MF.getRegInfo();
 
-  SmallVector<LLT, 4> SplitTys;
-  computeValueLLTs(DL, *Val->getType(), SplitTys, nullptr);
+  MOS6502OutgoingValueHandler Handler(MIRBuilder, MRI, CC_MOS6502);
+  SmallVector<ArgInfo, 4> Args;
+  return handleAssignments(MIRBuilder, Args, Handler);
 
-  assert(SplitTys.size() == VRegs.size() &&
-         "Number of VRegs must equal number of types.");
-
-  MachineInstrBuilder Instr = MIRBuilder.buildInstrNoInsert(MOS6502::RETURN);
-
-  for (size_t i = 0; i < VRegs.size(); ++i) {
-    const LLT &Ty = SplitTys[i];
-    const Register VReg = VRegs[i];
-    assert(Ty.isByteSized() && "Must divide evenly into bytes.");
-    unsigned NumBytes = Ty.getSizeInBytes();
-
-    if (NumBytes == 1) {
-      Instr.addUse(VReg);
-      continue;
-    }
-
-    SmallVector<Register, 4> ExpandedVRegs;
-    LLT s8 = LLT::scalar(8);
-    for (unsigned j = 0; j < NumBytes; ++j) {
-      const Register VReg = MIRBuilder.getMRI()->createGenericVirtualRegister(s8);
-      Instr.addUse(VReg);
-      ExpandedVRegs.push_back(VReg);
-    }
-    MIRBuilder.buildUnmerge(ExpandedVRegs, VReg);
-  }
-
-  MIRBuilder.insertInstr(Instr);
   return true;
 }
