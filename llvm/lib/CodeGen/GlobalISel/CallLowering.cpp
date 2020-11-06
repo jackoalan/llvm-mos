@@ -371,15 +371,6 @@ bool CallLowering::handleAssignments(CCState &CCInfo,
       // There should be Regs.size() ArgLocs per argument.
       VA = ArgLocs[j + Part];
       if (VA.isMemLoc()) {
-        // Don't currently support loading/storing a type that needs to be split
-        // to the stack. Should be easy, just not implemented yet.
-        if (NumArgRegs > 1) {
-          LLVM_DEBUG(
-            dbgs()
-            << "Load/store a split arg to/from the stack not implemented yet\n");
-          return false;
-        }
-
         // FIXME: Use correct address space for pointer size
         EVT LocVT = VA.getValVT();
         unsigned MemSize = LocVT == MVT::iPTR ? DL.getPointerSize()
@@ -387,7 +378,7 @@ bool CallLowering::handleAssignments(CCState &CCInfo,
         unsigned Offset = VA.getLocMemOffset();
         MachinePointerInfo MPO;
         Register StackAddr = Handler.getStackAddress(MemSize, Offset, MPO);
-        Handler.assignValueToAddress(Args[i], StackAddr,
+        Handler.assignValueToAddress(Args[i], Part, StackAddr,
                                      MemSize, MPO, VA);
         continue;
       }

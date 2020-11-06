@@ -166,11 +166,10 @@ public:
 
     /// An overload which takes an ArgInfo if additional information about
     /// the arg is needed.
-    virtual void assignValueToAddress(const ArgInfo &Arg, Register Addr,
-                                      uint64_t Size, MachinePointerInfo &MPO,
-                                      CCValAssign &VA) {
-      assert(Arg.Regs.size() == 1);
-      assignValueToAddress(Arg.Regs[0], Addr, Size, MPO, VA);
+    virtual void assignValueToAddress(const ArgInfo &Arg, unsigned PartIdx,
+                                      Register Addr, uint64_t Size,
+                                      MachinePointerInfo &MPO, CCValAssign &VA) {
+      assignValueToAddress(Arg.Regs[PartIdx], Addr, Size, MPO, VA);
     }
 
     /// Handle custom values, which may be passed into one or more of \p VAs.
