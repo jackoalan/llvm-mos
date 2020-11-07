@@ -5,7 +5,7 @@
 using namespace llvm;
 
 MOS6502FrameLowering::MOS6502FrameLowering()
-  : TargetFrameLowering(StackGrowsDown, /*StackAlignment=*/Align(8),
+  : TargetFrameLowering(StackGrowsDown, /*StackAlignment=*/Align(1),
                         /*LocalAreaOffset=*/0) {}
 
 void MOS6502FrameLowering::emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const {
