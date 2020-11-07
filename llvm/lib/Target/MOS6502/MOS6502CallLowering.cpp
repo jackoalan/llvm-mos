@@ -4,7 +4,9 @@
 
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
+#include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
 #include <memory>
 
 using namespace llvm;
@@ -18,7 +20,9 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
-    llvm_unreachable("Not yet implemented");
+    auto &MFI = MIRBuilder.getMF().getFrameInfo();
+    int FI = MFI.CreateFixedObject(Size, Offset, true);
+    return MIRBuilder.buildFrameIndex(LLT::pointer(0, 16), FI).getReg(0);
   }
 
   void assignValueToReg(Register ValVReg, Register PhysReg,
@@ -28,7 +32,12 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 
   void assignValueToAddress(Register ValVReg, Register Addr, uint64_t Size,
                             MachinePointerInfo &MPO, CCValAssign &VA) override {
-    llvm_unreachable("Not yet implemented");
+    MachineFunction &MF = MIRBuilder.getMF();
+    auto *MMO =
+      MF.getMachineMemOperand(MPO,
+                              MachineMemOperand::MOStore,
+                              Size, inferAlignFromPtrInfo(MF, MPO));
+    MIRBuilder.buildStore(ValVReg, Addr, *MMO);
   }
 };
 
