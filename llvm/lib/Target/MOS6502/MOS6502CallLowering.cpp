@@ -14,9 +14,12 @@ using namespace llvm;
 namespace {
 
 struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
+  MachineInstrBuilder& MIB;
+
   MOS6502OutgoingValueHandler(MachineIRBuilder &MIRBuilder,
+                              MachineInstrBuilder& MIB,
                               MachineRegisterInfo &MRI, CCAssignFn *AssignFn) :
-    OutgoingValueHandler(MIRBuilder, MRI, AssignFn) {}
+    OutgoingValueHandler(MIRBuilder, MRI, AssignFn), MIB(MIB) {}
 
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
@@ -27,7 +30,9 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 
   void assignValueToReg(Register ValVReg, Register PhysReg,
                         CCValAssign &VA) override {
-    llvm_unreachable("Not yet implemented");
+    MIB.addUse(PhysReg, RegState::Implicit);
+    Register ExtendReg = extendRegister(ValVReg, VA);
+    MIRBuilder.buildCopy(PhysReg, ExtendReg);
   }
 
   void assignValueToAddress(Register ValVReg, Register Addr, uint64_t Size,
@@ -59,14 +64,15 @@ bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
   ComputeValueVTs(TLI, DL, Val->getType(), ValueVTs);
   assert(ValueVTs.size() == VRegs.size() && "Need one type for each VReg.");
 
-  MOS6502OutgoingValueHandler Handler(MIRBuilder, MRI, CC_MOS6502);
+  auto MIB = MIRBuilder.buildInstrNoInsert(MOS6502::RTS);
+  MOS6502OutgoingValueHandler Handler(MIRBuilder, MIB, MRI, RetCC_MOS6502);
   SmallVector<ArgInfo, 4> Args;
   for (size_t Idx = 0; Idx < VRegs.size(); ++Idx) {
     Args.emplace_back(VRegs[Idx], ValueVTs[Idx].getTypeForEVT(Ctx));
     setArgFlags(Args.back(), AttributeList::ReturnIndex, DL, F);
   }
 
-  return handleAssignments(MIRBuilder, Args, Handler);
-
-  return true;
+  bool Success = handleAssignments(MIRBuilder, Args, Handler);
+  MIRBuilder.insertInstr(MIB);
+  return Success;
 }
