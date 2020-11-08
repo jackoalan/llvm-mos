@@ -12,12 +12,3 @@ def CONSTANT : Pseudo {
   dag InOperandList = (ins i8imm:$src);
   dag OutOperandList = (outs I8:$dst);
 }
-
-def RETURN : Pseudo {
-  dag InOperandList = (ins variable_ops);
-  dag OutOperandList = (outs);
-
-  let hasCtrlDep = 1;
-  let isReturn = 1;
-  let isTerminator = 1;
-}

@@ -21,7 +21,6 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
   const MachineRegisterInfo& MRI = I.getMF()->getRegInfo();
   const LLT s8 = LLT::scalar(8);
 
-  if (I.getOpcode() == MOS6502::RETURN) return true;
   if (I.getOpcode() == MOS6502::G_CONSTANT) {
     assert(MRI.getType(I.getOperand(0).getReg()) == s8);
     assert(I.getOperand(1).getCImm()->getBitWidth() == 8);
