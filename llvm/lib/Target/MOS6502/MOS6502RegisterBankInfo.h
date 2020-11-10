@@ -22,6 +22,9 @@ class MOS6502RegisterBankInfo final : public MOS6502GenRegisterBankInfo {
   getInstrMapping(const MachineInstr &MI) const override;
 
   void applyMappingImpl(const OperandsMapper &OpdMapper) const override;
+
+  const RegisterBank &
+  getRegBankFromRegClass(const TargetRegisterClass &RC, LLT Ty) const override;
 };
 
 }  // namespace llvm

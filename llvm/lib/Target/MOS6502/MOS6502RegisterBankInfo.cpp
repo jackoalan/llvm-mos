@@ -34,3 +34,9 @@ void MOS6502RegisterBankInfo::applyMappingImpl(const OperandsMapper &OpdMapper)
   const {
   applyDefaultMapping(OpdMapper);
 }
+
+const RegisterBank &
+MOS6502RegisterBankInfo::getRegBankFromRegClass(const TargetRegisterClass &RC,
+                                                LLT Ty) const {
+  return MOS6502::AnyRegBank;
+}
