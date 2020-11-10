@@ -1,1 +1,1 @@
-def AnyRegBank : RegisterBank<"Any", [I8, I16]>;
+def AnyRegBank : RegisterBank<"Any", [GPR]>;

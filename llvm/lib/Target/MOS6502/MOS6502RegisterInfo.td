@@ -12,5 +12,5 @@ def X : MOS6502Reg<"%X">;
 class MOS6502RegClass<list<ValueType> regTypes, int alignment, dag regList>
      : RegisterClass<"MOS6502", regTypes, alignment, regList>;
 
-def I8 : MOS6502RegClass<[i8], 8, (add A, X)>;
-def I16 : MOS6502RegClass<[i16], 8, (add FP, SP)>;
+
+def GPR : MOS6502RegClass<[i8], 8, (add A, X)>;

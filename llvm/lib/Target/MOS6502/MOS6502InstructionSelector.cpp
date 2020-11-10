@@ -1,7 +1,10 @@
 #include "MOS6502InstructionSelector.h"
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
+#include "MOS6502RegisterInfo.h"
 
+#include "llvm/ADT/APFloat.h"
 #include "llvm/CodeGen/GlobalISel/MIPatternMatch.h"
+#include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/RegisterBankInfo.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineInstr.h"
@@ -10,10 +13,17 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
+using namespace MIPatternMatch;
 
 bool MOS6502InstructionSelector::select(MachineInstr &I) {
+  switch (I.getOpcode()) {
+  case MOS6502::RTS:
+    return true;
+  }
+
   const TargetSubtargetInfo& TSI = I.getMF()->getSubtarget();
   const TargetInstrInfo& TII = *TSI.getInstrInfo();
   const TargetRegisterInfo& TRI = *TSI.getRegisterInfo();
@@ -21,11 +31,22 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
   const MachineRegisterInfo& MRI = I.getMF()->getRegInfo();
   const LLT s8 = LLT::scalar(8);
 
-  if (I.getOpcode() == MOS6502::G_CONSTANT) {
-    assert(MRI.getType(I.getOperand(0).getReg()) == s8);
-    assert(I.getOperand(1).getCImm()->getBitWidth() == 8);
-    I.setDesc(TII.get(MOS6502::CONSTANT));
-    return constrainSelectedInstRegOperands(I, TII, TRI, RBI);
+  switch (I.getOpcode()) {
+  case MOS6502::COPY: {
+    Register Dst = I.getOperand(0).getReg();
+    if (!MOS6502::GPRRegClass.contains(Dst)) break;
+    Optional<int64_t> Cst = getConstantVRegVal(I.getOperand(1).getReg(), MRI);
+    if (!Cst) break;
+    MachineIRBuilder Builder(I);
+    Builder.buildInstr(MOS6502::LDimm).addReg(Dst).addImm(*Cst);
+    I.removeFromParent();
+    break;
+  }
+  }
+
+  switch (I.getOpcode()) {
+  case MOS6502::COPY:
+    return true;
   }
   return false;
 }

@@ -11,9 +11,10 @@ class Pseudo : Instr {
   let isPseudo = 1;
 }
 
-def CONSTANT : Pseudo {
+def LDimm : Instr {
   dag InOperandList = (ins i8imm:$src);
-  dag OutOperandList = (outs I8:$dst);
+  dag OutOperandList = (outs GPR:$dst);
+  let isMoveImm = 1;
 }
 
 def RTS : Instr {
