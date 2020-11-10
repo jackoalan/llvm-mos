@@ -37,6 +37,7 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     if (!MOS6502::GPRRegClass.contains(Dst)) break;
     Optional<int64_t> Cst = getConstantVRegVal(I.getOperand(1).getReg(), MRI);
     if (!Cst) break;
+    assert(*Cst < 256);
     MachineIRBuilder Builder(I);
     Builder.buildInstr(MOS6502::LDimm).addDef(Dst).addImm(*Cst);
     I.removeFromParent();
