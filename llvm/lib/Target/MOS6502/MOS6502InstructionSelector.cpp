@@ -38,7 +38,7 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     Optional<int64_t> Cst = getConstantVRegVal(I.getOperand(1).getReg(), MRI);
     if (!Cst) break;
     MachineIRBuilder Builder(I);
-    Builder.buildInstr(MOS6502::LDimm).addReg(Dst).addImm(*Cst);
+    Builder.buildInstr(MOS6502::LDimm).addDef(Dst).addImm(*Cst);
     I.removeFromParent();
     break;
   }
