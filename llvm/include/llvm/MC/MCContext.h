@@ -54,6 +54,7 @@ namespace llvm {
   class MCSectionMachO;
   class MCSectionWasm;
   class MCSectionXCOFF;
+  class MCSectionMOS6502;
   class MCStreamer;
   class MCSymbol;
   class MCSymbolELF;
@@ -575,6 +576,8 @@ namespace llvm {
                                     XCOFF::SymbolType CSectType, SectionKind K,
                                     bool MultiSymbolsAllowed = false,
                                     const char *BeginSymName = nullptr);
+
+    MCSectionMOS6502 *getMOS6502Section(const Twine &Section, SectionKind K);
 
     // Create and save a copy of STI and return a reference to the copy.
     MCSubtargetInfo &getSubtargetCopy(const MCSubtargetInfo &STI);

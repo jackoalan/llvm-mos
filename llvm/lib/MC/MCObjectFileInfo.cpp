@@ -17,6 +17,7 @@
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
+#include "llvm/MC/MCSectionMOS6502.h"
 #include "llvm/MC/MCSectionWasm.h"
 #include "llvm/MC/MCSectionXCOFF.h"
 
@@ -912,7 +913,9 @@ void MCObjectFileInfo::initXCOFFMCObjectFileInfo(const Triple &T) {
   DwarfMacinfoSection = nullptr;  // SSUBTYP_DWMAC
 }
 
-void MCObjectFileInfo::initMOS6502MCObjectFileInfo() {}
+void MCObjectFileInfo::initMOS6502MCObjectFileInfo() {
+  TextSection = Ctx->getMOS6502Section(".text", SectionKind::getText());
+}
 
 void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
                                             MCContext &ctx,

@@ -26,6 +26,7 @@
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
+#include "llvm/MC/MCSectionMOS6502.h"
 #include "llvm/MC/MCSectionWasm.h"
 #include "llvm/MC/MCSectionXCOFF.h"
 #include "llvm/MC/MCStreamer.h"
@@ -708,6 +709,11 @@ MCContext::getXCOFFSection(StringRef Section, XCOFF::StorageMappingClass SMC,
     Begin->setFragment(F);
 
   return Result;
+}
+
+MCSectionMOS6502 *
+MCContext::getMOS6502Section(const Twine &Section, SectionKind K) {
+  llvm_unreachable("Not yet implemented.");
 }
 
 MCSubtargetInfo &MCContext::getSubtargetCopy(const MCSubtargetInfo &STI) {
