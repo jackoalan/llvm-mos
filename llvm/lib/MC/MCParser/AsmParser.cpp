@@ -736,6 +736,8 @@ AsmParser::AsmParser(SourceMgr &SM, MCContext &Ctx, MCStreamer &Out,
     report_fatal_error(
         "Need to implement createXCOFFAsmParser for XCOFF format.");
     break;
+  case MCObjectFileInfo::IsMOS6502:
+    llvm_unreachable("Not yet implemented.");
   }
 
   PlatformParser->Initialize(*this);

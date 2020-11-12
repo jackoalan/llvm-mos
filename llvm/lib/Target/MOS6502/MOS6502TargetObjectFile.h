@@ -9,12 +9,12 @@ namespace llvm {
 class MOS6502TargetObjectFile : public TargetLoweringObjectFile {
   MCSection *getExplicitSectionGlobal(const GlobalObject *GO, SectionKind Kind,
                                       const TargetMachine &TM) const override {
-    return nullptr;
+    llvm_unreachable("Not yet implemented.");
   }
 
   MCSection *SelectSectionForGlobal(const GlobalObject *GO, SectionKind Kind,
                                     const TargetMachine &TM) const override {
-    return nullptr;
+    llvm_unreachable("Not yet implemented.");
   }
 };
 
