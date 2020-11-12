@@ -51,7 +51,7 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
                                       const Value *Val,
                                       ArrayRef<Register> VRegs) const {
-  if (!Val) llvm_unreachable("Not yet implemented.");
+  if (!Val) return true;
 
   MachineFunction &MF = MIRBuilder.getMF();
   MachineRegisterInfo &MRI = MF.getRegInfo();

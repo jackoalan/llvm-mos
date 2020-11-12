@@ -14,6 +14,7 @@ class MOS6502CallLowering : public CallLowering {
 
   bool lowerFormalArguments(MachineIRBuilder &MIRBuilder, const Function &F,
                             ArrayRef<ArrayRef<Register>> VRegs) const override {
+    report_fatal_error("Not yet implemented.");
     return true;
   }
 };

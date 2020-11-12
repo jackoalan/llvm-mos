@@ -24,12 +24,7 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return true;
   }
 
-  const TargetSubtargetInfo& TSI = I.getMF()->getSubtarget();
-  const TargetInstrInfo& TII = *TSI.getInstrInfo();
-  const TargetRegisterInfo& TRI = *TSI.getRegisterInfo();
-  const RegisterBankInfo& RBI = *TSI.getRegBankInfo();
   const MachineRegisterInfo& MRI = I.getMF()->getRegInfo();
-  const LLT s8 = LLT::scalar(8);
 
   switch (I.getOpcode()) {
   case MOS6502::COPY: {

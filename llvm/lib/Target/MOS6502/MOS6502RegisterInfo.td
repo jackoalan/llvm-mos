@@ -3,7 +3,6 @@ class MOS6502Reg<string n> : Register<n> {
 }
 
 // Special registers used as the frame and stack pointer.
-def FP : MOS6502Reg<"%FP">;
 def SP : MOS6502Reg<"%SP">;
 
 def A : MOS6502Reg<"%A">;

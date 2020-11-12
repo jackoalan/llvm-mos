@@ -2,6 +2,7 @@
 #include "MOS6502Subtarget.h"
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #define GET_REGINFO_TARGET_DESC
 #include "MOS6502GenRegisterInfo.inc"
@@ -19,13 +20,17 @@ MOS6502RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 }
 
 BitVector MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
-  return BitVector(getNumRegs());
+  BitVector Reserved(getNumRegs());
+  Reserved.set(MOS6502::SP);
+  return Reserved;
 }
 
 void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
                                               int SPAdj, unsigned FIOperandNum,
-                                              RegScavenger *RS) const {}
+                                              RegScavenger *RS) const {
+  report_fatal_error("Not yet implemented.");
+}
 
 Register MOS6502RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  return {};
+  return MOS6502::SP;
 }
