@@ -97,6 +97,7 @@ namespace llvm {
     SpecificBumpPtrAllocator<MCSectionCOFF> COFFAllocator;
     SpecificBumpPtrAllocator<MCSectionELF> ELFAllocator;
     SpecificBumpPtrAllocator<MCSectionMachO> MachOAllocator;
+    SpecificBumpPtrAllocator<MCSectionMOS6502> MOS6502Allocator;
     SpecificBumpPtrAllocator<MCSectionWasm> WasmAllocator;
     SpecificBumpPtrAllocator<MCSectionXCOFF> XCOFFAllocator;
     SpecificBumpPtrAllocator<MCInst> MCInstAllocator;
@@ -284,11 +285,15 @@ namespace llvm {
       }
     };
 
+    typedef std::string MOS6502SectionKey;
+
+
     StringMap<MCSectionMachO *> MachOUniquingMap;
     std::map<ELFSectionKey, MCSectionELF *> ELFUniquingMap;
     std::map<COFFSectionKey, MCSectionCOFF *> COFFUniquingMap;
     std::map<WasmSectionKey, MCSectionWasm *> WasmUniquingMap;
     std::map<XCOFFSectionKey, MCSectionXCOFF *> XCOFFUniquingMap;
+    std::map<MOS6502SectionKey, MCSectionMOS6502 *> MOS6502UniquingMap;
     StringMap<bool> RelSecNames;
 
     SpecificBumpPtrAllocator<MCSubtargetInfo> MCSubtargetAllocator;
@@ -577,7 +582,7 @@ namespace llvm {
                                     bool MultiSymbolsAllowed = false,
                                     const char *BeginSymName = nullptr);
 
-    MCSectionMOS6502 *getMOS6502Section(const Twine &Section, SectionKind K);
+    MCSectionMOS6502 *getMOS6502Section(const Twine &Section, SectionKind Kind);
 
     // Create and save a copy of STI and return a reference to the copy.
     MCSubtargetInfo &getSubtargetCopy(const MCSubtargetInfo &STI);

@@ -5,7 +5,17 @@
 
 namespace llvm {
 
-class MCSectionMOS6502 : public MCSection {};
+class MCSectionMOS6502 : public MCSection {
+public:
+  MCSectionMOS6502(StringRef Name, SectionKind Kind, MCSymbol* Begin);
+
+  void PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
+                            raw_ostream &OS,
+                            const MCExpr *Subsection) const override;
+
+  bool UseCodeAlign() const override { return false; }
+  bool isVirtualSection() const override { return false; }
+};
 
 } //  namespace llvm
 

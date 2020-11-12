@@ -194,7 +194,7 @@ MCSymbol *MCContext::createSymbolImpl(const StringMapEntry<bool> *Name,
     case MCObjectFileInfo::IsXCOFF:
       return createXCOFFSymbolImpl(Name, IsTemporary);
     case MCObjectFileInfo::IsMOS6502:
-      llvm_unreachable("Not yet implemented.");
+      report_fatal_error("Not yet implemented.");
     }
   }
   return new (Name, *this) MCSymbol(MCSymbol::SymbolKindUnset, Name,
@@ -712,8 +712,26 @@ MCContext::getXCOFFSection(StringRef Section, XCOFF::StorageMappingClass SMC,
 }
 
 MCSectionMOS6502 *
-MCContext::getMOS6502Section(const Twine &Section, SectionKind K) {
-  llvm_unreachable("Not yet implemented.");
+MCContext::getMOS6502Section(const Twine &Section, SectionKind Kind) {
+  // Do the lookup, if we have a hit, return it.
+  auto IterBool = MOS6502UniquingMap.insert(std::make_pair(Section.str(), nullptr));
+  auto &Entry = *IterBool.first;
+  if (!IterBool.second)
+    return Entry.second;
+
+  StringRef CachedName = Entry.first;
+  MCSymbol *Begin = createSymbol(CachedName, false, false);
+
+  MCSectionMOS6502 *Result = new (MOS6502Allocator.Allocate())
+    MCSectionMOS6502(CachedName, Kind, Begin);
+  Entry.second = Result;
+
+  auto *F = new MCDataFragment();
+  Result->getFragmentList().insert(Result->begin(), F);
+  F->setParent(Result);
+  Begin->setFragment(F);
+
+  return Result;
 }
 
 MCSubtargetInfo &MCContext::getSubtargetCopy(const MCSubtargetInfo &STI) {
