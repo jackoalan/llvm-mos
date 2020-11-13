@@ -194,7 +194,8 @@ MCSymbol *MCContext::createSymbolImpl(const StringMapEntry<bool> *Name,
     case MCObjectFileInfo::IsXCOFF:
       return createXCOFFSymbolImpl(Name, IsTemporary);
     case MCObjectFileInfo::IsMOS6502:
-      report_fatal_error("Not yet implemented.");
+      return new (Name, *this)
+        MCSymbol(MCSymbol::SymbolKindUnset, Name, IsTemporary);
     }
   }
   return new (Name, *this) MCSymbol(MCSymbol::SymbolKindUnset, Name,
