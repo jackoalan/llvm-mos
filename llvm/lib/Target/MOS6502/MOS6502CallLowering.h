@@ -6,19 +6,16 @@
 namespace llvm {
 
 class MOS6502CallLowering : public CallLowering {
- public:
-  MOS6502CallLowering(const llvm::TargetLowering* TL) : CallLowering(TL) {}
+public:
+  MOS6502CallLowering(const llvm::TargetLowering *TL) : CallLowering(TL) {}
 
   bool lowerReturn(MachineIRBuilder &MIRBuiler, const Value *Val,
                    ArrayRef<Register> VRegs) const override;
 
   bool lowerFormalArguments(MachineIRBuilder &MIRBuilder, const Function &F,
-                            ArrayRef<ArrayRef<Register>> VRegs) const override {
-    report_fatal_error("Not yet implemented.");
-    return true;
-  }
+                            ArrayRef<ArrayRef<Register>> VRegs) const override;
 };
 
-}  // namespace llvm
+} // namespace llvm
 
-#endif  // not LLVM_LIB_TARGET_MOS6502_MOS6502CALLLOWERING_H
+#endif // not LLVM_LIB_TARGET_MOS6502_MOS6502CALLLOWERING_H

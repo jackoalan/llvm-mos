@@ -1,6 +1,6 @@
 #include "MOS6502CallLowering.h"
-#include "MOS6502CallingConv.h"
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
+#include "MOS6502CallingConv.h"
 
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
@@ -14,12 +14,12 @@ using namespace llvm;
 namespace {
 
 struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
-  MachineInstrBuilder& MIB;
+  MachineInstrBuilder &MIB;
 
   MOS6502OutgoingValueHandler(MachineIRBuilder &MIRBuilder,
-                              MachineInstrBuilder& MIB,
-                              MachineRegisterInfo &MRI, CCAssignFn *AssignFn) :
-    OutgoingValueHandler(MIRBuilder, MRI, AssignFn), MIB(MIB) {}
+                              MachineInstrBuilder &MIB,
+                              MachineRegisterInfo &MRI, CCAssignFn *AssignFn)
+      : OutgoingValueHandler(MIRBuilder, MRI, AssignFn), MIB(MIB) {}
 
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
@@ -38,20 +38,19 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
   void assignValueToAddress(Register ValVReg, Register Addr, uint64_t Size,
                             MachinePointerInfo &MPO, CCValAssign &VA) override {
     MachineFunction &MF = MIRBuilder.getMF();
-    auto *MMO =
-      MF.getMachineMemOperand(MPO,
-                              MachineMemOperand::MOStore,
-                              Size, inferAlignFromPtrInfo(MF, MPO));
+    auto *MMO = MF.getMachineMemOperand(MPO, MachineMemOperand::MOStore, Size,
+                                        inferAlignFromPtrInfo(MF, MPO));
     MIRBuilder.buildStore(ValVReg, Addr, *MMO);
   }
 };
 
-}  // namespace
+} // namespace
 
 bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
                                       const Value *Val,
                                       ArrayRef<Register> VRegs) const {
-  if (!Val) return true;
+  if (!Val)
+    return true;
 
   MachineFunction &MF = MIRBuilder.getMF();
   MachineRegisterInfo &MRI = MF.getRegInfo();
@@ -75,4 +74,14 @@ bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
   bool Success = handleAssignments(MIRBuilder, Args, Handler);
   MIRBuilder.insertInstr(MIB);
   return Success;
+}
+
+bool MOS6502CallLowering::lowerFormalArguments(
+    MachineIRBuilder &MIRBuilder, const Function &F,
+    ArrayRef<ArrayRef<Register>> VRegs) const {
+  if (F.getNumOperands() == 0) {
+    assert(VRegs.empty());
+    return true;
+  }
+  return false;
 }
