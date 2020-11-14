@@ -23,6 +23,7 @@ add_llvm_target(MOS6502CodeGen
   MOS6502RegisterInfo.cpp
   MOS6502Subtarget.cpp
   MOS6502TargetMachine.cpp
+  MOS6502TargetObjectFile.cpp
 )
 
 add_subdirectory(MCTargetDesc)
