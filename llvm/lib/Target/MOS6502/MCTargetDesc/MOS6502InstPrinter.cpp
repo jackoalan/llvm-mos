@@ -1,4 +1,4 @@
-#include "MOS6502MCInstPrinter.h"
+#include "MOS6502InstPrinter.h"
 
 #include "llvm/MC/MCInst.h"
 #include "llvm/Support/raw_ostream.h"
