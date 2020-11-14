@@ -17,7 +17,7 @@ MOS6502MCAsmInfo::MOS6502MCAsmInfo() {
   Data16bitsDirective = ".word";
   Data32bitsDirective = nullptr;
   Data64bitsDirective = nullptr;
-  GlobalDirective = nullptr;
+  GlobalDirective = ";";
   HasDotTypeDotSizeDirective = false;
   HasSingleParameterDotFile = false;
   WeakDirective = nullptr;
