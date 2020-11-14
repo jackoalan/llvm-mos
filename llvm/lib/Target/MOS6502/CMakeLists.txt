@@ -1,5 +1,6 @@
 set(LLVM_TARGET_DEFINITIONS MOS6502.td)
 
+tablegen(LLVM MOS6502GenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM MOS6502GenCallingConv.inc -gen-callingconv)
 tablegen(LLVM MOS6502GenInstructionSelector.inc -gen-global-isel-combiner
   -combiners="MOS6502InstructionSelectorCombinerHelper")
