@@ -12,5 +12,21 @@ using namespace llvm;
 void MOS6502InstPrinter::printInst(const MCInst *MI, uint64_t Address,
                                    StringRef Annot, const MCSubtargetInfo &STI,
                                    raw_ostream &O) {
-  report_fatal_error("Not yet implemented.");
+  printInstruction(MI, Address, O);
+}
+
+void MOS6502InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
+                                      raw_ostream &O) {
+  const MCOperand &MO = MI->getOperand(OpNo);
+  if (MO.isReg()) {
+    printRegName(O, MO.getReg());
+  } else if (MO.isImm()) {
+    O << MO.getImm();
+  } else {
+    report_fatal_error("Unknown operand kind.");
+  }
+}
+
+void MOS6502InstPrinter::printRegName(raw_ostream &O, unsigned RegNo) const {
+  O << getRegisterName(RegNo);
 }

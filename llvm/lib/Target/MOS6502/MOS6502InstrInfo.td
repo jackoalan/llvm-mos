@@ -14,12 +14,16 @@ class Pseudo : Instr {
 def LDimm : Instr {
   dag InOperandList = (ins i8imm:$src);
   dag OutOperandList = (outs GPR:$dst);
+  let AsmString = "LD$dst #$src";
+
   let isMoveImm = 1;
 }
 
 def RTS : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs);
+  let AsmString = "RTS";
+
   let isReturn = 1;
   let isBarrier = 1;
   let isTerminator = 1;
