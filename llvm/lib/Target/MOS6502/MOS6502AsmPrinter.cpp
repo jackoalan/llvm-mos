@@ -1,3 +1,4 @@
+#include "MOS6502MCInstLower.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/MC/MCStreamer.h"
@@ -12,11 +13,19 @@ namespace {
 class MOS6502AsmPrinter : public AsmPrinter {
 public:
   explicit MOS6502AsmPrinter(TargetMachine &TM,
-                           std::unique_ptr<MCStreamer> Streamer)
+                             std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)) {}
+
+  void emitInstruction(const MachineInstr *MI) override;
 };
 
-}  // namespace
+void MOS6502AsmPrinter ::emitInstruction(const MachineInstr *MI) {
+  MCInst Inst;
+  LowerMOS6502MachineInstrToMCInst(MI, Inst, *this);
+  EmitToStreamer(*OutStreamer, Inst);
+}
+
+} // namespace
 
 // Force static initialization.
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502AsmPrinter() {
