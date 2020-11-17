@@ -10,5 +10,5 @@ parent = Target
 type = Library
 name = MOS6502CodeGen
 parent = MOS6502
-required_libraries = GlobalISel MOS6502Info MOS6502Desc Support Target
+required_libraries = AsmPrinter GlobalISel MOS6502Info MOS6502Desc Support Target
 add_to_library_groups = MOS6502

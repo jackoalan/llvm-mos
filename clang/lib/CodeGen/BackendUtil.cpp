@@ -263,6 +263,8 @@ static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
     llvm::report_fatal_error("ASan not implemented for GOFF");
   case Triple::XCOFF:
     llvm::report_fatal_error("ASan not implemented for XCOFF.");
+  case Triple::MOS6502:
+    llvm::report_fatal_error("ASan not implemented for MOS6502.");
   case Triple::Wasm:
   case Triple::UnknownObjectFormat:
     break;
