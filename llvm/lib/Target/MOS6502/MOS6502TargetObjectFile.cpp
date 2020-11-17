@@ -12,7 +12,7 @@ MCSection *MOS6502TargetObjectFile::SelectSectionForGlobal(
   }
   StringRef Name;
   if (Kind.isText()) {
-    Name = ".text";
+    Name = "CODE";
   } else {
     report_fatal_error("Section kind not supported.");
   }

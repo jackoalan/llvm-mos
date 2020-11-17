@@ -7,9 +7,9 @@ MOS6502MCAsmInfo::MOS6502MCAsmInfo() {
   CodePointerSize = 2;
   CalleeSaveStackSlotSize = 1;
   MaxInstLength = 3;
-  SeparatorString = ":";
+  SeparatorString = nullptr;
   CommentString = ";";
-  ZeroDirective = ".dsb";
+  ZeroDirective = ".res";
   AsciiDirective = nullptr;
   AscizDirective = nullptr;
   ByteListDirective = ".byt";
@@ -17,7 +17,7 @@ MOS6502MCAsmInfo::MOS6502MCAsmInfo() {
   Data16bitsDirective = ".word";
   Data32bitsDirective = nullptr;
   Data64bitsDirective = nullptr;
-  GlobalDirective = ";";
+  GlobalDirective = ".global\t";
   HasDotTypeDotSizeDirective = false;
   HasSingleParameterDotFile = false;
   WeakDirective = nullptr;

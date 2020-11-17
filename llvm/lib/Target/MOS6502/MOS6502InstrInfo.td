@@ -14,7 +14,7 @@ class Pseudo : Instr {
 def LDimm : Instr {
   dag InOperandList = (ins i8imm:$src);
   dag OutOperandList = (outs GPR:$dst);
-  let AsmString = "LD$dst #$src";
+  let AsmString = "LD$dst\t#$src";
 
   let isMoveImm = 1;
 }
