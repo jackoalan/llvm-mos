@@ -7,9 +7,9 @@ def SP : MOS6502Reg<"SP">;
 
 def A : MOS6502Reg<"A">;
 def X : MOS6502Reg<"X">;
+def Y : MOS6502Reg<"Y">;
 
 class MOS6502RegClass<list<ValueType> regTypes, int alignment, dag regList>
      : RegisterClass<"MOS6502", regTypes, alignment, regList>;
 
-
-def GPR : MOS6502RegClass<[i8], 8, (add A, X)>;
+def GPR : MOS6502RegClass<[i8], 8, (add A, X, Y)>;
