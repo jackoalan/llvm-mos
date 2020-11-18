@@ -17,6 +17,7 @@ def LDimm : Instr {
   let AsmString = "LD$dst\t#$src";
 
   let isMoveImm = 1;
+  let isReMaterializable = 1;
 }
 
 def RTS : Instr {
