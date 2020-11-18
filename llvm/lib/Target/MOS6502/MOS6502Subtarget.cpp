@@ -4,6 +4,7 @@
 #include "MOS6502InstructionSelector.h"
 #include "MOS6502LegalizerInfo.h"
 #include "MOS6502RegisterBankInfo.h"
+#include "llvm/CodeGen/GlobalISel/InlineAsmLowering.h"
 
 using namespace llvm;
 
@@ -19,4 +20,5 @@ MOS6502Subtarget::MOS6502Subtarget(const Triple &TT, StringRef CPU,
   Legalizer.reset(new MOS6502LegalizerInfo);
   RegBankInfo.reset(new MOS6502RegisterBankInfo);
   InstSelector.reset(new MOS6502InstructionSelector);
+  InlineAsmLoweringInfo.reset(new InlineAsmLowering(getTargetLowering()));
 }

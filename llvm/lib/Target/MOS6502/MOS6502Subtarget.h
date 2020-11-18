@@ -6,6 +6,7 @@
 #include "MOS6502InstrInfo.h"
 #include "MOS6502RegisterInfo.h"
 #include "llvm/CodeGen/GlobalISel/CallLowering.h"
+#include "llvm/CodeGen/GlobalISel/InlineAsmLowering.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelector.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
 
@@ -26,6 +27,7 @@ class MOS6502Subtarget : public MOS6502GenSubtargetInfo {
   std::unique_ptr<LegalizerInfo> Legalizer;
   std::unique_ptr<RegisterBankInfo> RegBankInfo;
   std::unique_ptr<InstructionSelector> InstSelector;
+  std::unique_ptr<InlineAsmLowering> InlineAsmLoweringInfo;
 
 public:
   MOS6502Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
@@ -53,6 +55,9 @@ public:
   }
   InstructionSelector *getInstructionSelector() const override {
     return InstSelector.get();
+  }
+  const InlineAsmLowering *getInlineAsmLowering() const override {
+    return InlineAsmLoweringInfo.get();
   }
 };
 
