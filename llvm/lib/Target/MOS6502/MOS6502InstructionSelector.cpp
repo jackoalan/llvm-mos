@@ -19,27 +19,28 @@ using namespace llvm;
 using namespace MIPatternMatch;
 
 bool MOS6502InstructionSelector::select(MachineInstr &I) {
-  const MachineRegisterInfo &MRI = I.getMF()->getRegInfo();
-
   if (!I.isPreISelOpcode()) {
-    switch (I.getOpcode()) {
-    case MOS6502::COPY: {
-      Register Dst = I.getOperand(0).getReg();
-      if (!MOS6502::GPRRegClass.contains(Dst))
-        break;
-      Optional<int64_t> Cst = getConstantVRegVal(I.getOperand(1).getReg(), MRI);
-      if (!Cst)
-        break;
-      assert(*Cst < 256);
-      MachineIRBuilder Builder(I);
-      Builder.buildInstr(MOS6502::LDimm).addDef(Dst).addImm(*Cst);
-      I.removeFromParent();
-      break;
-    }
-    }
     return true;
   }
 
+  const TargetSubtargetInfo& TSI = I.getMF()->getSubtarget();
+  const TargetInstrInfo& TII = *TSI.getInstrInfo();
+  const TargetRegisterInfo& TRI = *TSI.getRegisterInfo();
+  const RegisterBankInfo& RBI = *TSI.getRegBankInfo();
+
+  switch (I.getOpcode()) {
+  default:
+    break;
+  case MOS6502::G_CONSTANT: {
+    Register Dst = I.getOperand(0).getReg();
+    assert(Dst.isVirtual());
+    int64_t Cst = I.getOperand(1).getCImm()->getSExtValue();
+    MachineIRBuilder Builder(I);
+    MachineInstrBuilder Ld = Builder.buildInstr(MOS6502::LDimm).addDef(Dst).addImm(Cst);
+    I.removeFromParent();
+    return constrainSelectedInstRegOperands(*Ld, TII, TRI, RBI);
+  }
+  }
   return false;
 }
 
