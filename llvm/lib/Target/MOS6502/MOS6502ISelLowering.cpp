@@ -29,3 +29,18 @@ unsigned MOS6502TargetLowering::getNumRegistersForCallingConv(LLVMContext &Conte
   }
   return TargetLowering::getNumRegistersForCallingConv(Context, CC, VT);
 }
+
+TargetLowering::ConstraintType
+MOS6502TargetLowering::getConstraintType(StringRef Constraint) const {
+  if (Constraint.size() == 1) {
+    switch (Constraint[0]) {
+    default:
+      break;
+    case 'a':
+    case 'x':
+    case 'y':
+      return C_Register;
+    }
+  }
+  return TargetLowering::getConstraintType(Constraint);
+}

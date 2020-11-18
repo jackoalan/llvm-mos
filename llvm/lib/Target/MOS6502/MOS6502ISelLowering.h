@@ -20,6 +20,8 @@ class MOS6502TargetLowering : public TargetLowering {
   unsigned getNumRegistersForCallingConv(LLVMContext &Context,
                                          CallingConv::ID CC,
                                          EVT VT) const override;
+
+  ConstraintType getConstraintType(StringRef Constraint) const override;
 };
 
 }  // namespace llvm
