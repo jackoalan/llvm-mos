@@ -10,20 +10,23 @@ namespace llvm {
 class MOS6502Subtarget;
 
 class MOS6502TargetLowering : public TargetLowering {
- public:
-  MOS6502TargetLowering(const TargetMachine &TM,
-                        const MOS6502Subtarget& STI);
+public:
+  MOS6502TargetLowering(const TargetMachine &TM, const MOS6502Subtarget &STI);
 
-  MVT getRegisterTypeForCallingConv(LLVMContext &Context,
-                                    CallingConv::ID CC, EVT VT) const override;
+  MVT getRegisterTypeForCallingConv(LLVMContext &Context, CallingConv::ID CC,
+                                    EVT VT) const override;
 
   unsigned getNumRegistersForCallingConv(LLVMContext &Context,
                                          CallingConv::ID CC,
                                          EVT VT) const override;
 
   ConstraintType getConstraintType(StringRef Constraint) const override;
+
+  std::pair<unsigned, const TargetRegisterClass *>
+  getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                               StringRef Constraint, MVT VT) const override;
 };
 
-}  // namespace llvm
+} // namespace llvm
 
-#endif  // not LLVM_LIB_TARGET_MOS6502_MOS6502ISELLOWERING_H
+#endif // not LLVM_LIB_TARGET_MOS6502_MOS6502ISELLOWERING_H
