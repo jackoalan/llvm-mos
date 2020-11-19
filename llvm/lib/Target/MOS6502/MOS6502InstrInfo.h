@@ -8,7 +8,13 @@
 
 namespace llvm {
 
-class MOS6502InstrInfo : public MOS6502GenInstrInfo {};
+class MOS6502InstrInfo : public MOS6502GenInstrInfo {
+public:
+  void copyPhysReg(MachineBasicBlock &MBB,
+                           MachineBasicBlock::iterator MI, const DebugLoc &DL,
+                           MCRegister DestReg, MCRegister SrcReg,
+                   bool KillSrc) const override;
+};
 
 }  // namespace llvm
 
