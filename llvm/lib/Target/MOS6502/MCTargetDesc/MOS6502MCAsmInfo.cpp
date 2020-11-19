@@ -24,4 +24,5 @@ MOS6502MCAsmInfo::MOS6502MCAsmInfo() {
   HiddenVisibilityAttr = MCSA_Invalid;
   HiddenDeclarationVisibilityAttr = MCSA_Invalid;
   ProtectedVisibilityAttr = MCSA_Invalid;
+  UseIntegratedAssembler = false;
 }
