@@ -1,4 +1,4 @@
-; RUN: llc -O0 --filetype=asm -o - %s | FileCheck %s
+; RUN: llc -O0 --filetype=asm < %s | FileCheck %s
 target triple = "mos6502"
 
 define i16 @main() {
