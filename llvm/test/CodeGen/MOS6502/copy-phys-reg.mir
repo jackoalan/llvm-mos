@@ -1,0 +1,61 @@
+# RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -o - %s | FileCheck %s
+---
+name:            test_tax
+# CHECK-LABEL: name: test_tax
+body:             |
+  bb.0.entry:
+    $a = LDimm 0
+    $x = COPY $a
+# CHECK: TA_ $x
+...
+---
+name:            test_txa
+# CHECK-LABEL: name: test_txa
+body:             |
+  bb.0.entry:
+    $x = LDimm 0
+    $a = COPY $x
+# CHECK: T_A $x
+...
+---
+name:            test_tay
+# CHECK-LABEL: name: test_tay
+body:             |
+  bb.0.entry:
+    $a = LDimm 0
+    $y = COPY $a
+# CHECK: TA_ $y
+...
+---
+name:            test_tya
+# CHECK-LABEL: name: test_tya
+body:             |
+  bb.0.entry:
+    $y = LDimm 0
+    $a = COPY $y
+# CHECK: T_A $y
+...
+---
+name:            test_txy
+# CHECK-LABEL: name: test_txy
+body:             |
+  bb.0.entry:
+    $x = LDimm 0
+    $y = COPY $x
+# CHECK:      PHA
+# CHECK-NEXT: T_A $x
+# CHECK-NEXT: TA_ $y
+# CHECK-NEXT: PLA
+...
+---
+name:            test_tyx
+# CHECK-LABEL: name: test_tyx
+body:             |
+  bb.0.entry:
+    $y = LDimm 0
+    $x = COPY $y
+# CHECK:      PHA
+# CHECK-NEXT: T_A $y
+# CHECK-NEXT: TA_ $x
+# CHECK-NEXT: PLA
+...
