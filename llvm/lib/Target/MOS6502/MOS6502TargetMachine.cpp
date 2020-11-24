@@ -18,7 +18,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502Target() {
 }
 
 static const char Layout[] =
-  "e-p:16:8:8:8-i16:8:8-i32:8:8-i64:8:8-f32:8:8-f64:8:8-a:8:8-Fi8-n8";
+    "e-p:16:8:8:8-i16:8:8-i32:8:8-i64:8:8-f32:8:8-f64:8:8-a:8:8-Fi8-n8";
 
 static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
   if (!RM.hasValue())
@@ -32,10 +32,10 @@ MOS6502TargetMachine::MOS6502TargetMachine(const Target &T, const Triple &TT,
                                            Optional<Reloc::Model> RM,
                                            Optional<CodeModel::Model> CM,
                                            CodeGenOpt::Level OL, bool JIT)
-  : LLVMTargetMachine(T, Layout, TT, CPU, FS, Options,
-                      getEffectiveRelocModel(RM),
-                      getEffectiveCodeModel(CM, CodeModel::Small), OL),
-    TLOF(std::make_unique<MOS6502TargetObjectFile>()) {
+    : LLVMTargetMachine(T, Layout, TT, CPU, FS, Options,
+                        getEffectiveRelocModel(RM),
+                        getEffectiveCodeModel(CM, CodeModel::Small), OL),
+      TLOF(std::make_unique<MOS6502TargetObjectFile>()) {
   initAsmInfo();
   setGlobalISel(true);
 
@@ -55,7 +55,7 @@ namespace {
 class MOS6502PassConfig : public TargetPassConfig {
 public:
   MOS6502PassConfig(MOS6502TargetMachine &TM, PassManagerBase &PM)
-    : TargetPassConfig(TM, PM) {}
+      : TargetPassConfig(TM, PM) {}
 
   MOS6502TargetMachine &getMOS6502TargetMachine() const {
     return getTM<MOS6502TargetMachine>();
@@ -68,7 +68,7 @@ public:
   bool addGlobalInstructionSelect() override;
 };
 
-}  // namespace
+} // namespace
 
 TargetPassConfig *MOS6502TargetMachine::createPassConfig(PassManagerBase &PM) {
   return new MOS6502PassConfig(*this, PM);
@@ -82,7 +82,8 @@ bool MOS6502PassConfig::addPreISel() {
 }
 
 bool MOS6502PassConfig::addIRTranslator() {
-  addPass(new IRTranslator(getOptLevel())); return false;
+  addPass(new IRTranslator(getOptLevel()));
+  return false;
 }
 
 bool MOS6502PassConfig::addLegalizeMachineIR() {
