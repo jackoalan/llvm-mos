@@ -79,27 +79,7 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
   if (!I.isPreISelOpcode()) {
     return true;
   }
-
-  const TargetSubtargetInfo &TSI = I.getMF()->getSubtarget();
-  const TargetInstrInfo &TII = *TSI.getInstrInfo();
-  const TargetRegisterInfo &TRI = *TSI.getRegisterInfo();
-  const RegisterBankInfo &RBI = *TSI.getRegBankInfo();
-
-  switch (I.getOpcode()) {
-  default:
-    break;
-  case MOS6502::G_CONSTANT: {
-    Register Dst = I.getOperand(0).getReg();
-    assert(Dst.isVirtual());
-    int64_t Cst = I.getOperand(1).getCImm()->getSExtValue();
-    MachineIRBuilder Builder(I);
-    MachineInstrBuilder Ld =
-        Builder.buildInstr(MOS6502::LDimm).addDef(Dst).addImm(Cst);
-    I.removeFromParent();
-    return constrainSelectedInstRegOperands(*Ld, TII, TRI, RBI);
-  }
-  }
-  return false;
+  return selectImpl(I, *CoverageInfo);
 }
 
 InstructionSelector *
