@@ -1,4 +1,6 @@
 #include "MOS6502TargetMachine.h"
+
+#include "MOS6502PreLegalizerCombiner.h"
 #include "MOS6502TargetObjectFile.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
 #include "llvm/CodeGen/GlobalISel/IRTranslator.h"
@@ -63,6 +65,7 @@ public:
 
   bool addPreISel() override;
   bool addIRTranslator() override;
+  void addPreLegalizeMachineIR() override;
   bool addLegalizeMachineIR() override;
   bool addRegBankSelect() override;
   bool addGlobalInstructionSelect() override;
@@ -84,6 +87,10 @@ bool MOS6502PassConfig::addPreISel() {
 bool MOS6502PassConfig::addIRTranslator() {
   addPass(new IRTranslator(getOptLevel()));
   return false;
+}
+
+void MOS6502PassConfig::addPreLegalizeMachineIR() {
+  addPass(createMOS6502PreLegalizerCombiner());
 }
 
 bool MOS6502PassConfig::addLegalizeMachineIR() {
