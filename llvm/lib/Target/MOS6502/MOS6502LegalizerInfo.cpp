@@ -11,6 +11,11 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
   LLT s1 = LLT::scalar(1);
   LLT s8 = LLT::scalar(8);
   LLT p = LLT::pointer(0, 16);
+
+  getActionDefinitionsBuilder({G_ADD, G_OR, G_XOR})
+      .legalFor({s8})
+      .clampScalar(0, s8, s8);
+
   getActionDefinitionsBuilder(G_BRCOND).legalFor({s1});
 
   getActionDefinitionsBuilder(G_CONSTANT)
@@ -22,9 +27,8 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
       .narrowScalarIf(typeIs(1, p), changeTo(1, s8))
       .clampScalar(1, s8, s8);
 
-  getActionDefinitionsBuilder(G_OR).legalFor({s8}).clampScalar(0, s8, s8);
-
-  getActionDefinitionsBuilder(G_XOR).legalFor({s8}).clampScalar(0, s8, s8);
+  getActionDefinitionsBuilder(G_LOAD).legalFor({{s8, p}}).clampScalar(0, s8,
+                                                                      s8);
 
   computeTables();
 }
