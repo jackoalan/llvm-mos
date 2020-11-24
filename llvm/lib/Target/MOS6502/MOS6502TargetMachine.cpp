@@ -8,6 +8,8 @@
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar.h"
 
 using namespace llvm;
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502Target() {
@@ -59,6 +61,7 @@ public:
     return getTM<MOS6502TargetMachine>();
   }
 
+  bool addPreISel() override;
   bool addIRTranslator() override;
   bool addLegalizeMachineIR() override;
   bool addRegBankSelect() override;
@@ -71,9 +74,15 @@ TargetPassConfig *MOS6502TargetMachine::createPassConfig(PassManagerBase &PM) {
   return new MOS6502PassConfig(*this, PM);
 }
 
+bool MOS6502PassConfig::addPreISel() {
+  // Combine any odd instruction sequences produced by loop strength reduction.
+  addPass(createInstructionCombiningPass());
+  addPass(createAggressiveDCEPass());
+  return true;
+}
+
 bool MOS6502PassConfig::addIRTranslator() {
-  addPass(new IRTranslator(getOptLevel()));
-  return false;
+  addPass(new IRTranslator(getOptLevel())); return false;
 }
 
 bool MOS6502PassConfig::addLegalizeMachineIR() {
