@@ -1,3 +1,5 @@
+add_llvm_component_group(MOS6502)
+
 set(LLVM_TARGET_DEFINITIONS MOS6502.td)
 
 tablegen(LLVM MOS6502GenAsmWriter.inc -gen-asm-writer)
@@ -26,6 +28,9 @@ add_llvm_target(MOS6502CodeGen
   MOS6502Subtarget.cpp
   MOS6502TargetMachine.cpp
   MOS6502TargetObjectFile.cpp
+
+  ADD_TO_COMPONENT
+  MOS6502
 )
 
 add_subdirectory(MCTargetDesc)

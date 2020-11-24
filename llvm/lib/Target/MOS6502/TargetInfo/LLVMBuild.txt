@@ -1,6 +1,0 @@
-[component_0]
-type = Library
-name = MOS6502Info
-parent = MOS6502
-required_libraries = Support
-add_to_library_groups = MOS6502
