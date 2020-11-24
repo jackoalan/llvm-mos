@@ -17,6 +17,7 @@ def LDimm : Instr {
   dag InOperandList = (ins i8imm:$src);
   dag OutOperandList = (outs GPR:$dst);
   let AsmString = "LD$dst\t#$src";
+  let Pattern = [(set GPR:$dst, imm:$src)];
 
   let isMoveImm = 1;
 }

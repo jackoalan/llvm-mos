@@ -16,9 +16,7 @@ class MOS6502RegClass<list<ValueType> regTypes, int alignment, dag regList>
 
 def GPR : MOS6502RegClass<[i8], 8, (add A, X, Y)>;
 
-def ZP_PTR : MOS6502RegClass<[i16], 8, (add ZP_PTR_0)> {
-  let CopyCost = 2;
-}
+def ZP_PTR : MOS6502RegClass<[i16], 8, (add ZP_PTR_0)>;
 
 def XY : MOS6502RegClass<[i8], 8, (add X, Y)> {
   let isAllocatable = false;

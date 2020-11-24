@@ -4,6 +4,7 @@ set(LLVM_TARGET_DEFINITIONS MOS6502.td)
 
 tablegen(LLVM MOS6502GenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM MOS6502GenCallingConv.inc -gen-callingconv)
+tablegen(LLVM MOS6502GenGlobalISel.inc -gen-global-isel)
 tablegen(LLVM MOS6502GenPreLegalizeGICombiner.inc -gen-global-isel-combiner
   -combiners="MOS6502PreLegalizerCombinerHelper")
 tablegen(LLVM MOS6502GenInstrInfo.inc -gen-instr-info)
