@@ -1,8 +1,8 @@
 #include "MOS6502ISelLowering.h"
 
+#include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "MOS6502RegisterInfo.h"
 #include "MOS6502Subtarget.h"
-#include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "llvm/CodeGen/TargetLowering.h"
 
 using namespace llvm;
@@ -65,4 +65,19 @@ MOS6502TargetLowering::getRegForInlineAsmConstraint(
   }
 
   return TargetLowering::getRegForInlineAsmConstraint(TRI, Constraint, VT);
+}
+
+bool MOS6502TargetLowering::isLegalAddressingMode(const DataLayout &DL,
+                                                  const AddrMode &AM, Type *Ty,
+                                                  unsigned AddrSpace,
+                                                  Instruction *I) const {
+  if (AM.Scale != 0 && AM.Scale != 1) {
+    return false;
+  }
+
+  // LDA (ZP),Y
+  if (AM.HasBaseReg && AM.Scale == 1) {
+    return AM.BaseGV == nullptr && AM.BaseOffs == 0;
+  }
+  return true;
 }
