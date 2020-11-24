@@ -11,6 +11,7 @@ MOS6502TargetLowering::MOS6502TargetLowering(const TargetMachine &TM,
                                              const MOS6502Subtarget &STI)
     : TargetLowering(TM) {
   addRegisterClass(MVT::i8, &MOS6502::GPRRegClass);
+  addRegisterClass(MVT::i16, &MOS6502::ZP_PTRRegClass);
   computeRegisterProperties(STI.getRegisterInfo());
 }
 
