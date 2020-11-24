@@ -18,9 +18,13 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
       .clampScalar(0, s8, s8);
 
   getActionDefinitionsBuilder(G_ICMP)
-    .legalFor({{s1, s8}})
-    .narrowScalarIf(typeIs(1, p), changeTo(1, s8))
-    .clampScalar(1, s8, s8);
+      .legalFor({{s1, s8}})
+      .narrowScalarIf(typeIs(1, p), changeTo(1, s8))
+      .clampScalar(1, s8, s8);
+
+  getActionDefinitionsBuilder(G_OR).legalFor({s8}).clampScalar(0, s8, s8);
+
+  getActionDefinitionsBuilder(G_XOR).legalFor({s8}).clampScalar(0, s8, s8);
 
   computeTables();
 }
