@@ -1,7 +1,7 @@
 class Instr : Instruction {
   let Namespace = "MOS6502";
   let Uses = [];
-  let Defs = [];
+  let Defs = [P];
   let hasSideEffects = 0;
   let mayLoad = 0;
   let mayStore = 0;
@@ -16,14 +16,25 @@ let isReMaterializable = 1 in {
 def CMPimm : Instr {
   dag InOperandList = (ins GPR:$l, i8imm:$r);
   dag OutOperandList = (outs);
-  let Defs = [P];
 
   let isCompare = true;
+}
+
+def IN_ : Instr {
+  dag InOperandList = (ins XY:$src);
+  dag OutOperandList = (outs XY:$dst);
+  let Constraints = "$src = $dst";
+
+  let AsmString = "IN$src";
+  let Pattern = [(set XY:$dst, (add XY:$src, 1))];
+
+  let isAdd = 1;
 }
 
 def LDimm : Instr {
   dag InOperandList = (ins i8imm:$src);
   dag OutOperandList = (outs GPR:$dst);
+
   let AsmString = "LD$dst\t#$src";
   let Pattern = [(set GPR:$dst, imm:$src)];
 
@@ -35,15 +46,16 @@ let isMoveReg = 1, isAsCheapAsAMove = 1 in {
 def TA_ : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs XY:$dst);
-  let AsmString = "TA$dst";
   let Uses = [A];
+
+  let AsmString = "TA$dst";
 }
 
 def T_A : Instr {
   dag InOperandList = (ins XY:$src);
   dag OutOperandList = (outs);
   let AsmString = "T${src}A";
-  let Defs = [A];
+  let Defs = [A, P];
 }
 
 }
@@ -53,16 +65,21 @@ def T_A : Instr {
 def PHA : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs);
-  let AsmString = "PHA";
   let Uses = [A];
+  let Defs = [];
+
+  let AsmString = "PHA";
+
   let mayStore = 1;
 }
 
 def PLA : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs);
+  let Defs = [A, P];
+
   let AsmString = "PLA";
-  let Defs = [A];
+
   let mayLoad = 1;
 }
 
@@ -75,14 +92,19 @@ let isBranch = 1 in {
 def BNE : Instr {
   dag InOperandList = (ins label:$tgt);
   dag OutOperandList = (outs);
-  let AsmString = "BNE $tgt";
   let Uses = [P];
+  let Defs = [];
+
+  let AsmString = "BNE $tgt";
 }
 
 def JMP : Instr {
   dag InOperandList = (ins label:$tgt);
   dag OutOperandList = (outs);
+  let Defs = [];
+
   let AsmString = "JMP $tgt";
+
   let Pattern = [(br bb:$tgt)];
 }
 
@@ -91,6 +113,8 @@ def JMP : Instr {
 def RTS : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs);
+  let Defs = [];
+
   let AsmString = "RTS";
 
   let isReturn = 1;
