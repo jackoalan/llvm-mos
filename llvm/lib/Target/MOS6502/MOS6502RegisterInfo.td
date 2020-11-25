@@ -9,6 +9,8 @@ def A : MOS6502Reg<"A">;
 def X : MOS6502Reg<"X">;
 def Y : MOS6502Reg<"Y">;
 
+def P : MOS6502Reg<"P">;
+
 def ZP_PTR_0 : MOS6502Reg<"ZP_PTR_0">;
 
 class MOS6502RegClass<list<ValueType> regTypes, int alignment, dag regList>

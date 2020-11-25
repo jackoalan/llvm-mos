@@ -13,6 +13,14 @@ class Pseudo : Instr {
 
 let isReMaterializable = 1 in {
 
+def CMPimm : Instr {
+  dag InOperandList = (ins GPR:$l, i8imm:$r);
+  dag OutOperandList = (outs);
+  let Defs = [P];
+
+  let isCompare = true;
+}
+
 def LDimm : Instr {
   dag InOperandList = (ins i8imm:$src);
   dag OutOperandList = (outs GPR:$dst);
@@ -62,13 +70,22 @@ def label : Operand<OtherVT>;
 
 let isBarrier = 1, isTerminator = 1 in {
 
+let isBranch = 1 in {
+
+def BNE : Instr {
+  dag InOperandList = (ins label:$tgt);
+  dag OutOperandList = (outs);
+  let AsmString = "BNE $tgt";
+  let Uses = [P];
+}
+
 def JMP : Instr {
   dag InOperandList = (ins label:$tgt);
   dag OutOperandList = (outs);
   let AsmString = "JMP $tgt";
   let Pattern = [(br bb:$tgt)];
+}
 
-  let isBranch = 1;
 }
 
 def RTS : Instr {
