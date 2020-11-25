@@ -58,12 +58,25 @@ def PLA : Instr {
   let mayLoad = 1;
 }
 
+def label : Operand<OtherVT>;
+
+let isBarrier = 1, isTerminator = 1 in {
+
+def JMP : Instr {
+  dag InOperandList = (ins label:$tgt);
+  dag OutOperandList = (outs);
+  let AsmString = "JMP $tgt";
+  let Pattern = [(br bb:$tgt)];
+
+  let isBranch = 1;
+}
+
 def RTS : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs);
   let AsmString = "RTS";
 
   let isReturn = 1;
-  let isBarrier = 1;
-  let isTerminator = 1;
+}
+
 }
