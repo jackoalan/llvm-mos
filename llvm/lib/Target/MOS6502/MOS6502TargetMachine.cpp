@@ -2,6 +2,7 @@
 
 #include "MOS6502PreLegalizerCombiner.h"
 #include "MOS6502TargetObjectFile.h"
+#include "MOS6502TargetTransformInfo.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
 #include "llvm/CodeGen/GlobalISel/IRTranslator.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
@@ -50,6 +51,11 @@ MOS6502TargetMachine::MOS6502TargetMachine(const Target &T, const Triple &TT,
 const MOS6502Subtarget *
 MOS6502TargetMachine::getSubtargetImpl(const Function &F) const {
   return Subtarget.get();
+}
+
+TargetTransformInfo
+MOS6502TargetMachine::getTargetTransformInfo(const Function &F) {
+  return TargetTransformInfo(MOS6502TTIImpl(this, F));
 }
 
 namespace {

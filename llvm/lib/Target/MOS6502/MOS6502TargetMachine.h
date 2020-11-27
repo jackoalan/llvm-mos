@@ -23,6 +23,8 @@ class MOS6502TargetMachine : public LLVMTargetMachine {
   TargetLoweringObjectFile *getObjFileLowering() const override {
     return TLOF.get();
   }
+
+  TargetTransformInfo getTargetTransformInfo(const Function &F) override;
 };
 
 }  // namespace llvm
