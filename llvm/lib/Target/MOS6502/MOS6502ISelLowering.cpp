@@ -72,13 +72,18 @@ bool MOS6502TargetLowering::isLegalAddressingMode(const DataLayout &DL,
                                                   const AddrMode &AM, Type *Ty,
                                                   unsigned AddrSpace,
                                                   Instruction *I) const {
-  if (AM.Scale != 0 && AM.Scale != 1) {
-    return false;
+  // In general, the basereg and scalereg are the 16-bit GEP index type, which
+  // cannot be natively supported.
+
+  if (AM.Scale) return false;
+
+  if (AM.HasBaseReg) {
+    // A 16-bit base reg can be placed into a ZP_PTR register, then the base
+    // offset added using the Y indexed addressing mode. This requires the Y
+    // index reg as well as the base reg, but that's what it's there for.
+    return !AM.BaseGV && 0 <= AM.BaseOffs && AM.BaseOffs < 256;
   }
 
-  // LDA (ZP),Y
-  if (AM.HasBaseReg && AM.Scale == 1) {
-    return AM.BaseGV == nullptr && AM.BaseOffs == 0;
-  }
+  // Any other combination of GV and BaseOffset are just global offsets.
   return true;
 }
