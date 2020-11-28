@@ -8,6 +8,8 @@ namespace llvm {
 class MOS6502LegalizerInfo : public LegalizerInfo {
 public:
   MOS6502LegalizerInfo();
+
+  bool legalizeCustom(LegalizerHelper &Helper, MachineInstr &MI) const override;
 };
 
 } // namespace llvm

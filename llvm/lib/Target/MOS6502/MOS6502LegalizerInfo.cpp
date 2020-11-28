@@ -1,5 +1,6 @@
 #include "MOS6502LegalizerInfo.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
+#include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
 
 using namespace llvm;
@@ -36,7 +37,26 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   getActionDefinitionsBuilder({G_MERGE_VALUES, G_SEXT}).legalFor({{s16, s8}});
 
-  getActionDefinitionsBuilder(G_PTR_ADD).legalForCartesianProduct({p}, {s8, s16});
+  getActionDefinitionsBuilder(G_PTR_ADD).customFor({{p, s16}}).unsupported();
+
+  getActionDefinitionsBuilder({G_UADDO, G_UADDE}).legalFor({s8});
+
+  getActionDefinitionsBuilder(G_UNMERGE_VALUES).legalFor({{s8, s16}});
 
   computeTables();
+}
+
+bool MOS6502LegalizerInfo::legalizeCustom(LegalizerHelper &Helper,
+                                          MachineInstr &MI) const {
+  using namespace TargetOpcode;
+  assert(MI.getOpcode() == G_PTR_ADD);
+  MachineIRBuilder Builder(MI);
+  LLT s16 = LLT::scalar(16);
+  Register PtrVal = MI.getMF()->getRegInfo().createGenericVirtualRegister(s16);
+  Builder.buildCopy(PtrVal, MI.getOperand(1));
+  Register Sum = MI.getMF()->getRegInfo().createGenericVirtualRegister(s16);
+  Builder.buildAdd(Sum, PtrVal, MI.getOperand(2));
+  Builder.buildCopy(MI.getOperand(0), Sum);
+  MI.removeFromParent();
+  return true;
 }
