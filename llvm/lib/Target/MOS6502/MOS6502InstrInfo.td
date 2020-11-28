@@ -41,6 +41,17 @@ def LDimm : Instr {
   let isMoveImm = 1;
 }
 
+def LDAyindir : Instr {
+  dag InOperandList = (ins ZP_PTR:$addr);
+  dag OutOperandList = (outs);
+
+  let AsmString = "LDA\t($addr),Y";
+  let Uses = [Y];
+  let Defs = [A, P];
+
+  let mayLoad = 1;
+}
+
 let isMoveReg = 1, isAsCheapAsAMove = 1 in {
 
 def TA_ : Instr {

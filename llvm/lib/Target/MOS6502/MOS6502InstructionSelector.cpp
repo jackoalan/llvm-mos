@@ -45,6 +45,7 @@ private:
   const MOS6502RegisterBankInfo &RBI;
 
   bool selectCompareBranch(MachineInstr &I, MachineRegisterInfo& MRI);
+  bool selectLoad(MachineInstr &I, MachineRegisterInfo& MRI);
 
   /// tblgen-erated 'select' implementation, used as the initial selector for
   /// the patterns that don't require complex C++.
@@ -91,6 +92,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return false;
   case MOS6502::G_BRCOND:
     return selectCompareBranch(I, MRI);
+  case MOS6502::G_LOAD:
+    return selectLoad(I, MRI);
   }
 }
 
@@ -116,6 +119,21 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I, MachineReg
     return false;
   Builder.buildInstr(MOS6502::BNE).addMBB(Tgt);
   I.eraseFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectLoad(MachineInstr &I, MachineRegisterInfo &MRI) {
+  assert(I.getOpcode() == MOS6502::G_LOAD);
+  Register Dst = I.getOperand(0).getReg();
+  Register Addr = I.getOperand(1).getReg();
+
+  MachineIRBuilder Builder(I);
+  Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
+  MachineInstrBuilder Load = Builder.buildInstr(MOS6502::LDAyindir).addUse(Addr);
+  if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
+    return false;
+  Builder.buildInstr(MOS6502::COPY).addDef(Dst).addUse(MOS6502::A);
+  I.removeFromParent();
   return true;
 }
 
