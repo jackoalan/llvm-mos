@@ -44,8 +44,9 @@ private:
   const MOS6502RegisterInfo &TRI;
   const MOS6502RegisterBankInfo &RBI;
 
-  bool selectCompareBranch(MachineInstr &I, MachineRegisterInfo& MRI);
-  bool selectLoad(MachineInstr &I, MachineRegisterInfo& MRI);
+  bool selectCompareBranch(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectLoad(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
 
   /// tblgen-erated 'select' implementation, used as the initial selector for
   /// the patterns that don't require complex C++.
@@ -87,24 +88,29 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
 
   MachineRegisterInfo &MRI = I.getParent()->getParent()->getRegInfo();
 
-  switch(I.getOpcode()) {
+  switch (I.getOpcode()) {
   default:
     return false;
   case MOS6502::G_BRCOND:
     return selectCompareBranch(I, MRI);
   case MOS6502::G_LOAD:
     return selectLoad(I, MRI);
+  case MOS6502::G_MERGE_VALUES:
+    return selectMergeValues(I, MRI);
   }
 }
 
-bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I, MachineRegisterInfo &MRI) {
-  assert(I.getOpcode() == MOS6502::G_BRCOND);
+bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I,
+                                                     MachineRegisterInfo &MRI) {
   Register CondReg = I.getOperand(0).getReg();
   MachineBasicBlock *Tgt = I.getOperand(1).getMBB();
+
   MachineInstr *CCMI = MRI.getVRegDef(CondReg);
+
   if (CCMI->getOpcode() != MOS6502::G_ICMP)
     return false;
-  auto Pred = static_cast<CmpInst::Predicate>(CCMI->getOperand(1).getPredicate());
+  auto Pred =
+      static_cast<CmpInst::Predicate>(CCMI->getOperand(1).getPredicate());
   if (Pred != CmpInst::ICMP_NE)
     return false;
 
@@ -114,7 +120,8 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I, MachineReg
     return false;
 
   MachineIRBuilder Builder(I);
-  MachineInstrBuilder Compare = Builder.buildInstr(MOS6502::CMPimm).addUse(L).addImm(R->Value);
+  MachineInstrBuilder Compare =
+      Builder.buildInstr(MOS6502::CMPimm).addUse(L).addImm(R->Value);
   if (!constrainSelectedInstRegOperands(*Compare, TII, TRI, RBI))
     return false;
   Builder.buildInstr(MOS6502::BNE).addMBB(Tgt);
@@ -122,17 +129,35 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I, MachineReg
   return true;
 }
 
-bool MOS6502InstructionSelector::selectLoad(MachineInstr &I, MachineRegisterInfo &MRI) {
-  assert(I.getOpcode() == MOS6502::G_LOAD);
+bool MOS6502InstructionSelector::selectLoad(MachineInstr &I,
+                                            MachineRegisterInfo &MRI) {
   Register Dst = I.getOperand(0).getReg();
   Register Addr = I.getOperand(1).getReg();
 
   MachineIRBuilder Builder(I);
   Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
-  MachineInstrBuilder Load = Builder.buildInstr(MOS6502::LDAyindir).addUse(Addr);
+  MachineInstrBuilder Load =
+      Builder.buildInstr(MOS6502::LDAyindir).addUse(Addr);
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
     return false;
   Builder.buildInstr(MOS6502::COPY).addDef(Dst).addUse(MOS6502::A);
+  I.removeFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectMergeValues(MachineInstr &I,
+                                                   MachineRegisterInfo &MRI) {
+  Register Dst = I.getOperand(0).getReg();
+  Register Lo = I.getOperand(1).getReg();
+  Register Hi = I.getOperand(2).getReg();
+
+  MachineIRBuilder Builder(I);
+  Builder.buildInstr(MOS6502::REG_SEQUENCE)
+      .addDef(Dst)
+      .addUse(Lo)
+      .addImm(MOS6502::sublo)
+      .addUse(Hi)
+      .addImm(MOS6502::subhi);
   I.removeFromParent();
   return true;
 }

@@ -1,3 +1,10 @@
+let Namespace = "MOS6502" in {
+
+def sublo : SubRegIndex<8>;
+def subhi : SubRegIndex<8>;
+
+}
+
 class MOS6502Reg<string n> : Register<n> {
   let Namespace = "MOS6502";
 }
