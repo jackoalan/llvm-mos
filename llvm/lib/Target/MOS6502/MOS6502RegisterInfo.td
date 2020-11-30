@@ -18,11 +18,21 @@ def Y : MOS6502Reg<"Y">;
 
 def P : MOS6502Reg<"P">;
 
-def ZP_PTR_0 : MOS6502Reg<"ZP_PTR_0">;
+def ZP_0 : MOS6502Reg<"ZP_0">;
+def ZP_1 : MOS6502Reg<"ZP_1">;
+
+def ZP_PTR_0 : MOS6502Reg<"ZP_PTR_0"> {
+  let SubRegs = [ZP_0, ZP_1];
+  let SubRegIndices = [sublo, subhi];
+}
 
 class MOS6502RegClass<list<ValueType> regTypes, int alignment, dag regList>
      : RegisterClass<"MOS6502", regTypes, alignment, regList>;
 
 def GPR : MOS6502RegClass<[i8], 8, (add A, X, Y)>;
-def ZP_PTR : MOS6502RegClass<[i16], 8, (add ZP_PTR_0)>;
+
+def Ac : MOS6502RegClass<[i8], 8, (add A)>;
 def XY : MOS6502RegClass<[i8], 8, (add X, Y)>;
+
+def ZP : MOS6502RegClass<[i8], 8, (add ZP_0, ZP_1)>;
+def ZP_PTR : MOS6502RegClass<[i16], 8, (add ZP_PTR_0)>;

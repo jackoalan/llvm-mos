@@ -47,6 +47,7 @@ private:
   bool selectCompareBranch(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectLoad(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectUAddE(MachineInstr &I, MachineRegisterInfo &MRI);
 
   /// tblgen-erated 'select' implementation, used as the initial selector for
   /// the patterns that don't require complex C++.
@@ -97,6 +98,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return selectLoad(I, MRI);
   case MOS6502::G_MERGE_VALUES:
     return selectMergeValues(I, MRI);
+  case MOS6502::G_UADDE:
+    return selectUAddE(I, MRI);
   }
 }
 
@@ -158,6 +161,36 @@ bool MOS6502InstructionSelector::selectMergeValues(MachineInstr &I,
       .addImm(MOS6502::sublo)
       .addUse(Hi)
       .addImm(MOS6502::subhi);
+  I.removeFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I, MachineRegisterInfo &MRI) {
+  const MachineFunction &MF = *I.getMF();
+  const TargetSubtargetInfo &TSI = MF.getSubtarget();
+  const TargetRegisterInfo &TRI = *TSI.getRegisterInfo();
+  const TargetInstrInfo &TII = *TSI.getInstrInfo();
+  const RegisterBankInfo &RBI = *TSI.getRegBankInfo();
+
+  Register Sum = I.getOperand(0).getReg();
+  Register CarryOut = I.getOperand(1).getReg();
+  Register L = I.getOperand(2).getReg();
+  Register R = I.getOperand(3).getReg();
+  Register CarryIn = I.getOperand(4).getReg();
+
+  MachineIRBuilder Builder(I);
+  Builder.buildInstr(MOS6502::SETC).addUse(CarryIn);
+  MachineInstrBuilder Add = Builder.buildInstr(MOS6502::ADC).addDef(Sum).addUse(L).addUse(R);
+  Builder.buildInstr(MOS6502::GETC).addDef(CarryOut);
+
+  // Order matters, since A may be required to load ZP.
+  if (!constrainOperandRegToRegClass(*Add, 0, MOS6502::AcRegClass, TII, TRI, RBI))
+    return false;
+  if (!constrainOperandRegToRegClass(*Add, 1, MOS6502::AcRegClass, TII, TRI, RBI))
+    return false;
+  if (!constrainOperandRegToRegClass(*Add, 2, MOS6502::ZPRegClass, TII, TRI, RBI))
+    return false;
+
   I.removeFromParent();
   return true;
 }

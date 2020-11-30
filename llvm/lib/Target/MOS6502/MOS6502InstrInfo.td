@@ -8,10 +8,39 @@ class Instr : Instruction {
 }
 
 class Pseudo : Instr {
-  let isPseudo = 1;
+  let isPseudo = true;
 }
 
-let isReMaterializable = 1 in {
+// Note: Written using Ac instead of implicit use/def to allow TwoAddressPass to
+// commute.
+def ADC : Pseudo {
+  dag InOperandList = (ins Ac:$l, ZP:$r);
+  dag OutOperandList = (outs Ac:$sum);
+  let Constraints = "$l = $sum";
+
+  let Uses = [P];
+
+  let isAdd = true;
+  let isCommutable = true;
+  let isReMaterializable = true;
+}
+
+def GETC : Pseudo {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs i1imm:$c);
+
+  let Uses = [P];
+  let Defs = [];
+}
+
+def SETC : Pseudo {
+  dag InOperandList = (ins i1imm:$c);
+  dag OutOperandList = (outs);
+
+  let isMoveImm = true;
+}
+
+let isReMaterializable = true in {
 
 def CMPimm : Instr {
   dag InOperandList = (ins GPR:$l, i8imm:$r);
@@ -28,7 +57,7 @@ def IN_ : Instr {
   let AsmString = "IN$src";
   let Pattern = [(set XY:$dst, (add XY:$src, 1))];
 
-  let isAdd = 1;
+  let isAdd = true;
 }
 
 def LDimm : Instr {
@@ -38,7 +67,7 @@ def LDimm : Instr {
   let AsmString = "LD$dst\t#$src";
   let Pattern = [(set GPR:$dst, imm:$src)];
 
-  let isMoveImm = 1;
+  let isMoveImm = true;
 }
 
 def LDAyindir : Instr {
@@ -49,10 +78,10 @@ def LDAyindir : Instr {
   let Uses = [Y];
   let Defs = [A, P];
 
-  let mayLoad = 1;
+  let mayLoad = true;
 }
 
-let isMoveReg = 1, isAsCheapAsAMove = 1 in {
+let isAsCheapAsAMove = true in {
 
 def TA_ : Instr {
   dag InOperandList = (ins);
@@ -81,7 +110,7 @@ def PHA : Instr {
 
   let AsmString = "PHA";
 
-  let mayStore = 1;
+  let mayStore = true;
 }
 
 def PLA : Instr {
@@ -91,14 +120,14 @@ def PLA : Instr {
 
   let AsmString = "PLA";
 
-  let mayLoad = 1;
+  let mayLoad = true;
 }
 
 def label : Operand<OtherVT>;
 
-let isBarrier = 1, isTerminator = 1 in {
+let isBarrier = true, isTerminator = true in {
 
-let isBranch = 1 in {
+let isBranch = true in {
 
 def BNE : Instr {
   dag InOperandList = (ins label:$tgt);
@@ -128,7 +157,7 @@ def RTS : Instr {
 
   let AsmString = "RTS";
 
-  let isReturn = 1;
+  let isReturn = true;
 }
 
 }
