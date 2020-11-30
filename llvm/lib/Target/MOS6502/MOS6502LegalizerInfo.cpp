@@ -27,6 +27,9 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   getActionDefinitionsBuilder({G_GLOBAL_VALUE, G_PHI}).alwaysLegal();
 
+  getActionDefinitionsBuilder(G_INTTOPTR).legalFor({{p, s16}}).unsupported();
+  getActionDefinitionsBuilder(G_PTRTOINT).legalFor({{s16, p}}).unsupported();
+
   getActionDefinitionsBuilder(G_ICMP)
       .legalFor({{s1, s8}})
       .narrowScalarIf(typeIs(1, p), changeTo(1, s8))
@@ -53,10 +56,10 @@ bool MOS6502LegalizerInfo::legalizeCustom(LegalizerHelper &Helper,
   MachineIRBuilder Builder(MI);
   LLT s16 = LLT::scalar(16);
   Register PtrVal = MI.getMF()->getRegInfo().createGenericVirtualRegister(s16);
-  Builder.buildCopy(PtrVal, MI.getOperand(1));
+  Builder.buildPtrToInt(PtrVal, MI.getOperand(1));
   Register Sum = MI.getMF()->getRegInfo().createGenericVirtualRegister(s16);
   Builder.buildAdd(Sum, PtrVal, MI.getOperand(2));
-  Builder.buildCopy(MI.getOperand(0), Sum);
+  Builder.buildIntToPtr(MI.getOperand(0), Sum);
   MI.removeFromParent();
   return true;
 }
