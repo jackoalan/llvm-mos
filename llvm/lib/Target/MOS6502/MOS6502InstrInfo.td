@@ -27,17 +27,15 @@ def ADC : Pseudo {
 
 def GETC : Pseudo {
   dag InOperandList = (ins);
-  dag OutOperandList = (outs i1imm:$c);
+  dag OutOperandList = (outs GPR:$c);
 
   let Uses = [P];
   let Defs = [];
 }
 
 def SETC : Pseudo {
-  dag InOperandList = (ins i1imm:$c);
+  dag InOperandList = (ins GPR:$c);
   dag OutOperandList = (outs);
-
-  let isMoveImm = true;
 }
 
 let isReMaterializable = true in {

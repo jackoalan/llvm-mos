@@ -48,6 +48,7 @@ private:
   bool selectLoad(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUAddE(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectUAddO(MachineInstr &I, MachineRegisterInfo &MRI);
 
   /// tblgen-erated 'select' implementation, used as the initial selector for
   /// the patterns that don't require complex C++.
@@ -100,6 +101,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return selectMergeValues(I, MRI);
   case MOS6502::G_UADDE:
     return selectUAddE(I, MRI);
+  case MOS6502::G_UADDO:
+    return selectUAddO(I, MRI);
   }
 }
 
@@ -165,7 +168,8 @@ bool MOS6502InstructionSelector::selectMergeValues(MachineInstr &I,
   return true;
 }
 
-bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I, MachineRegisterInfo &MRI) {
+bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I,
+                                             MachineRegisterInfo &MRI) {
   const MachineFunction &MF = *I.getMF();
   const TargetSubtargetInfo &TSI = MF.getSubtarget();
   const TargetRegisterInfo &TRI = *TSI.getRegisterInfo();
@@ -179,20 +183,48 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I, MachineRegisterInf
   Register CarryIn = I.getOperand(4).getReg();
 
   MachineIRBuilder Builder(I);
-  Builder.buildInstr(MOS6502::SETC).addUse(CarryIn);
-  MachineInstrBuilder Add = Builder.buildInstr(MOS6502::ADC).addDef(Sum).addUse(L).addUse(R);
-  Builder.buildInstr(MOS6502::GETC).addDef(CarryOut);
+  MachineInstrBuilder SetC = Builder.buildInstr(MOS6502::SETC).addUse(CarryIn);
+  if (!constrainSelectedInstRegOperands(*SetC, TII, TRI, RBI))
+    return false;
+
+  MachineInstrBuilder Add =
+      Builder.buildInstr(MOS6502::ADC).addDef(Sum).addUse(L).addUse(R);
 
   // Order matters, since A may be required to load ZP.
-  if (!constrainOperandRegToRegClass(*Add, 0, MOS6502::AcRegClass, TII, TRI, RBI))
+  if (!constrainOperandRegToRegClass(*Add, 0, MOS6502::AcRegClass, TII, TRI,
+                                     RBI))
     return false;
-  if (!constrainOperandRegToRegClass(*Add, 1, MOS6502::AcRegClass, TII, TRI, RBI))
+  if (!constrainOperandRegToRegClass(*Add, 1, MOS6502::AcRegClass, TII, TRI,
+                                     RBI))
     return false;
-  if (!constrainOperandRegToRegClass(*Add, 2, MOS6502::ZPRegClass, TII, TRI, RBI))
+  if (!constrainOperandRegToRegClass(*Add, 2, MOS6502::ZPRegClass, TII, TRI,
+                                     RBI))
+    return false;
+
+  MachineInstrBuilder GetC = Builder.buildInstr(MOS6502::GETC).addDef(CarryOut);
+  if (!constrainSelectedInstRegOperands(*GetC, TII, TRI, RBI))
     return false;
 
   I.removeFromParent();
   return true;
+}
+
+bool MOS6502InstructionSelector::selectUAddO(MachineInstr &I,
+                                             MachineRegisterInfo &MRI) {
+  Register Sum = I.getOperand(0).getReg();
+  Register CarryOut = I.getOperand(1).getReg();
+  Register L = I.getOperand(2).getReg();
+  Register R = I.getOperand(3).getReg();
+
+  MachineIRBuilder Builder(I);
+
+  Register CarryIn = MRI.createVirtualRegister(&MOS6502::GPRRegClass);
+  Builder.buildInstr(MOS6502::LDimm).addDef(CarryIn).addImm(0);
+  MRI.setType(CarryIn, LLT::scalar(1));
+  MachineInstrBuilder Add = Builder.buildUAdde(Sum, CarryOut, L, R, CarryIn);
+
+  I.removeFromParent();
+  return selectUAddE(*Add, MRI);
 }
 
 InstructionSelector *
