@@ -31,7 +31,9 @@ class MOS6502Subtarget : public MOS6502GenSubtargetInfo {
 
 public:
   MOS6502Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
-                   const TargetMachine& TM);
+                   const TargetMachine &TM);
+
+  bool enableMachineScheduler() const override { return true; }
 
   const MOS6502FrameLowering *getFrameLowering() const override {
     return &FrameLowering;
@@ -61,6 +63,6 @@ public:
   }
 };
 
-}  // namespace llvm
+} // namespace llvm
 
-#endif  // not LLVM_LIB_TARGET_MOS6502_MOS6502SUBTARGET_H
+#endif // not LLVM_LIB_TARGET_MOS6502_MOS6502SUBTARGET_H
