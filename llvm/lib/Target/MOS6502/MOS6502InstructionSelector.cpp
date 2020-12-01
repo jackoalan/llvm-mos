@@ -47,6 +47,7 @@ private:
   bool selectCompareBranch(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectLoad(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectIntToPtr(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUAddE(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUAddO(MachineInstr &I, MachineRegisterInfo &MRI);
 
@@ -95,6 +96,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return false;
   case MOS6502::G_BRCOND:
     return selectCompareBranch(I, MRI);
+  case MOS6502::G_INTTOPTR:
+    return selectIntToPtr(I, MRI);
   case MOS6502::G_LOAD:
     return selectLoad(I, MRI);
   case MOS6502::G_MERGE_VALUES:
@@ -135,10 +138,20 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I,
   return true;
 }
 
+bool MOS6502InstructionSelector::selectIntToPtr(MachineInstr &I,
+                                                MachineRegisterInfo &MRI) {
+  MachineIRBuilder Builder(I);
+  Builder.buildCopy(I.getOperand(0), I.getOperand(1));
+  I.eraseFromParent();
+  return true;
+}
+
 bool MOS6502InstructionSelector::selectLoad(MachineInstr &I,
                                             MachineRegisterInfo &MRI) {
   Register Dst = I.getOperand(0).getReg();
   Register Addr = I.getOperand(1).getReg();
+
+  MRI.setType(Addr, LLT::scalar(16));
 
   MachineIRBuilder Builder(I);
   Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
