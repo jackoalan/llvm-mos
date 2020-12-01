@@ -46,8 +46,10 @@ private:
 
   bool selectCompareBranch(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectLoad(MachineInstr &I, MachineRegisterInfo &MRI);
-  bool selectMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectIntToPtr(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectPhi(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectPtrToInt(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUAddE(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUAddO(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUnMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
@@ -103,6 +105,10 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return selectLoad(I, MRI);
   case MOS6502::G_MERGE_VALUES:
     return selectMergeValues(I, MRI);
+  case MOS6502::G_PHI:
+    return selectPhi(I, MRI);
+  case MOS6502::G_PTRTOINT:
+    return selectPtrToInt(I, MRI);
   case MOS6502::G_UADDE:
     return selectUAddE(I, MRI);
   case MOS6502::G_UADDO:
@@ -181,6 +187,33 @@ bool MOS6502InstructionSelector::selectMergeValues(MachineInstr &I,
       .addUse(Hi)
       .addImm(MOS6502::subhi);
   I.removeFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectPhi(MachineInstr &I,
+                                           MachineRegisterInfo &MRI) {
+  MachineIRBuilder Builder(I);
+
+  MachineInstrBuilder Phi = Builder.buildInstr(MOS6502::PHI);
+  for (MachineOperand &Op : I.operands()) {
+    if (Op.isReg()) {
+      Register Reg = Op.getReg();
+      if (MRI.getType(Reg).isPointer()) {
+        MRI.setType(Reg, LLT::scalar(16));
+      }
+    }
+    Phi.add(Op);
+  }
+  I.removeFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectPtrToInt(MachineInstr &I,
+                                                MachineRegisterInfo &MRI) {
+  MachineIRBuilder Builder(I);
+  Builder.buildCopy(I.getOperand(0), I.getOperand(1));
+  MRI.setType(I.getOperand(1).getReg(), LLT::scalar(16));
+  I.eraseFromParent();
   return true;
 }
 
