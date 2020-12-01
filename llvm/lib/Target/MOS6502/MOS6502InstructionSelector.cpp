@@ -208,8 +208,6 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &I,
   Register Dst = I.getOperand(0).getReg();
   Register Addr = I.getOperand(1).getReg();
 
-  MRI.setType(Addr, LLT::scalar(16));
-
   MachineIRBuilder Builder(I);
   Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
   auto Load = Builder.buildInstr(MOS6502::LDAyindir).addUse(Addr);
@@ -237,19 +235,9 @@ bool MOS6502InstructionSelector::selectPhi(MachineInstr &I,
   MachineIRBuilder Builder(I);
 
   auto Phi = Builder.buildInstr(MOS6502::PHI);
-  for (MachineOperand &Op : I.operands()) {
-    if (Op.isReg()) {
-      Register Reg = Op.getReg();
-      if (MRI.getType(Reg).isPointer()) {
-        MRI.setType(Reg, LLT::scalar(16));
-      }
-    }
+  for (MachineOperand &Op : I.operands())
     Phi.add(Op);
-  }
-
-  const TargetRegisterClass &RegClass =
-      getRegClassForType(MRI.getType(Phi->getOperand(0).getReg()));
-  constrainOperandRegClass(Phi->getOperand(0), RegClass, MRI);
+  constrainGenericOp(*Phi, MRI);
   I.removeFromParent();
   return true;
 }
@@ -257,7 +245,6 @@ bool MOS6502InstructionSelector::selectPhi(MachineInstr &I,
 bool MOS6502InstructionSelector::selectPtrToInt(MachineInstr &I,
                                                 MachineRegisterInfo &MRI) {
   MachineIRBuilder Builder(I);
-  MRI.setType(I.getOperand(1).getReg(), LLT::scalar(16));
   buildCopy(Builder, I.getOperand(0).getReg(), I.getOperand(1).getReg(), MRI);
   I.eraseFromParent();
   return true;
@@ -356,8 +343,12 @@ void MOS6502InstructionSelector::constrainGenericOp(MachineInstr &MI,
   for (MachineOperand &Op : MI.operands()) {
     if (!Op.isReg() || !Op.isDef() || Op.getReg().isPhysical())
       continue;
-    constrainOperandRegClass(Op, getRegClassForType(MRI.getType(Op.getReg())),
-                             MRI);
+    LLT Ty = MRI.getType(Op.getReg());
+    if (Ty.isPointer()) {
+      Ty = LLT::scalar(16);
+      MRI.setType(Op.getReg(), Ty);
+    }
+    constrainOperandRegClass(Op, getRegClassForType(Ty), MRI);
   }
 }
 
