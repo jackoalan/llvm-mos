@@ -36,3 +36,5 @@ def XY : MOS6502RegClass<[i8], 8, (add X, Y)>;
 
 def ZP : MOS6502RegClass<[i8], 8, (add ZP_0, ZP_1)>;
 def ZP_PTR : MOS6502RegClass<[i16], 8, (add ZP_PTR_0)>;
+
+def Anyc : MOS6502RegClass<[i8], 8, (add GPR, ZP_PTR)>;
