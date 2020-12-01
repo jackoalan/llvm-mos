@@ -1,1 +1,1 @@
-def AnyRegBank : RegisterBank<"Any", [Anyc]>;
+def AnyRegBank : RegisterBank<"Any", [Anyc, ZP_PTR]>;

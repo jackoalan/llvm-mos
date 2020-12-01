@@ -18,12 +18,18 @@ def Y : MOS6502Reg<"Y">;
 
 def P : MOS6502Reg<"P">;
 
-def ZP_0 : MOS6502Reg<"ZP_0">;
-def ZP_1 : MOS6502Reg<"ZP_1">;
+foreach i = 0 ... 255 in {
+  def ZP_#i : MOS6502Reg<"ZP_"#i>;
+}
 
-def ZP_PTR_0 : MOS6502Reg<"ZP_PTR_0"> {
-  let SubRegs = [ZP_0, ZP_1];
-  let SubRegIndices = [sublo, subhi];
+foreach i = 0 ... 127 in {
+  defvar lo = !mul(i, 2);
+  defvar hi = !add(lo, 1);
+
+  def ZP_PTR_#i : MOS6502Reg<"ZP_PTR_"#i> {
+    let SubRegs = [!cast<Register>("ZP_"#lo), !cast<Register>("ZP_"#hi)];
+    let SubRegIndices = [sublo, subhi];
+  }
 }
 
 class MOS6502RegClass<list<ValueType> regTypes, int alignment, dag regList>
@@ -34,7 +40,7 @@ def GPR : MOS6502RegClass<[i8], 8, (add A, X, Y)>;
 def Ac : MOS6502RegClass<[i8], 8, (add A)>;
 def XY : MOS6502RegClass<[i8], 8, (add X, Y)>;
 
-def ZP : MOS6502RegClass<[i8], 8, (add ZP_0, ZP_1)>;
-def ZP_PTR : MOS6502RegClass<[i16], 8, (add ZP_PTR_0)>;
+def ZP : MOS6502RegClass<[i8], 8, (sequence "ZP_%u", 0, 255)>;
+def ZP_PTR : MOS6502RegClass<[i16], 8, (sequence "ZP_PTR_%u", 0, 127)>;
 
-def Anyc : MOS6502RegClass<[i8], 8, (add GPR, ZP_PTR)>;
+def Anyc : MOS6502RegClass<[i8], 8, (add GPR, ZP)>;
