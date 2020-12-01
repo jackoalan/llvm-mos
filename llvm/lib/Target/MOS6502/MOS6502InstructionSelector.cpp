@@ -50,6 +50,7 @@ private:
   bool selectIntToPtr(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUAddE(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUAddO(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectUnMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
 
   /// tblgen-erated 'select' implementation, used as the initial selector for
   /// the patterns that don't require complex C++.
@@ -106,6 +107,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return selectUAddE(I, MRI);
   case MOS6502::G_UADDO:
     return selectUAddO(I, MRI);
+  case MOS6502::G_UNMERGE_VALUES:
+    return selectUnMergeValues(I, MRI);
   }
 }
 
@@ -208,7 +211,6 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I,
   Builder.buildInstr(MOS6502::ADCimm).addImm(RConst->Value);
   Builder.buildCopy(Sum, Register(MOS6502::A));
 
-
   MachineInstrBuilder GetC = Builder.buildInstr(MOS6502::GETC).addDef(CarryOut);
   if (!constrainSelectedInstRegOperands(*GetC, TII, TRI, RBI))
     return false;
@@ -233,6 +235,25 @@ bool MOS6502InstructionSelector::selectUAddO(MachineInstr &I,
 
   I.removeFromParent();
   return selectUAddE(*Add, MRI);
+}
+
+bool MOS6502InstructionSelector::selectUnMergeValues(MachineInstr &I,
+                                                     MachineRegisterInfo &MRI) {
+  Register Lo = I.getOperand(0).getReg();
+  Register Hi = I.getOperand(1).getReg();
+  Register Src = I.getOperand(2).getReg();
+
+  MachineIRBuilder Builder(I);
+  Builder.buildInstr(MOS6502::EXTRACT_SUBREG)
+      .addDef(Lo)
+      .addUse(Src)
+      .addImm(MOS6502::sublo);
+  Builder.buildInstr(MOS6502::EXTRACT_SUBREG)
+      .addDef(Hi)
+      .addUse(Src)
+      .addImm(MOS6502::subhi);
+  I.removeFromParent();
+  return true;
 }
 
 InstructionSelector *
