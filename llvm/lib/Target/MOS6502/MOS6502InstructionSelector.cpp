@@ -45,6 +45,7 @@ private:
   const MOS6502RegisterBankInfo &RBI;
 
   bool selectCompareBranch(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectGlobalValue(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectLoad(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectIntToPtr(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
@@ -99,6 +100,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return false;
   case MOS6502::G_BRCOND:
     return selectCompareBranch(I, MRI);
+  case MOS6502::G_GLOBAL_VALUE:
+    return selectGlobalValue(I, MRI);
   case MOS6502::G_INTTOPTR:
     return selectIntToPtr(I, MRI);
   case MOS6502::G_LOAD:
@@ -144,6 +147,26 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I,
     return false;
   Builder.buildInstr(MOS6502::BNE).addMBB(Tgt);
   I.eraseFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &I,
+                                                   MachineRegisterInfo &MRI) {
+  Register Dst = I.getOperand(0).getReg();
+  const GlobalValue *Global = I.getOperand(1).getGlobal();
+
+  MachineIRBuilder Builder(I);
+  Register Lo = MRI.createVirtualRegister(&MOS6502::GPRRegClass);
+  Builder.buildInstr(MOS6502::LDgvlo).addDef(Lo).addGlobalAddress(Global);
+  Register Hi = MRI.createVirtualRegister(&MOS6502::GPRRegClass);
+  Builder.buildInstr(MOS6502::LDgvhi).addDef(Hi).addGlobalAddress(Global);
+  Builder.buildInstr(MOS6502::REG_SEQUENCE)
+    .addDef(Dst)
+    .addUse(Lo)
+    .addImm(MOS6502::sublo)
+    .addUse(Hi)
+    .addImm(MOS6502::subhi);
+  I.removeFromParent();
   return true;
 }
 

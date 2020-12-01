@@ -65,6 +65,24 @@ def LDimm : Instr {
   let isMoveImm = true;
 }
 
+def LDgvlo : Instr {
+  dag InOperandList = (ins i8imm:$src);
+  dag OutOperandList = (outs GPR:$dst);
+
+  let AsmString = "LD$dst\t#<$src";
+
+  let isMoveImm = true;
+}
+
+def LDgvhi : Instr {
+  dag InOperandList = (ins i8imm:$src);
+  dag OutOperandList = (outs GPR:$dst);
+
+  let AsmString = "LD$dst\t#>$src";
+
+  let isMoveImm = true;
+}
+
 def LDAyindir : Instr {
   dag InOperandList = (ins ZP_PTR:$addr);
   dag OutOperandList = (outs);

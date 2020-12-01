@@ -22,7 +22,7 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
   getActionDefinitionsBuilder(G_BRCOND).legalFor({s1});
 
   getActionDefinitionsBuilder(G_CONSTANT)
-      .legalFor({s8, p})
+      .legalFor({s8})
       .clampScalar(0, s8, s8);
 
   getActionDefinitionsBuilder({G_GLOBAL_VALUE, G_PHI}).alwaysLegal();
