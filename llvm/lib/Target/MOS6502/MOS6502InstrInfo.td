@@ -11,20 +11,6 @@ class Pseudo : Instr {
   let isPseudo = true;
 }
 
-// Note: Written using Ac instead of implicit use/def to allow TwoAddressPass to
-// commute.
-def ADC : Pseudo {
-  dag InOperandList = (ins Ac:$l, ZP:$r);
-  dag OutOperandList = (outs Ac:$sum);
-  let Constraints = "$l = $sum";
-
-  let Uses = [P];
-
-  let isAdd = true;
-  let isCommutable = true;
-  let isReMaterializable = true;
-}
-
 def GETC : Pseudo {
   dag InOperandList = (ins);
   dag OutOperandList = (outs GPR:$c);
@@ -39,6 +25,17 @@ def SETC : Pseudo {
 }
 
 let isReMaterializable = true in {
+
+def ADCimm : Instr {
+  dag InOperandList = (ins i8imm:$r);
+  dag OutOperandList = (outs);
+
+  let Uses = [A, P];
+  let Defs = [A, P];
+
+  let isAdd = true;
+  let isReMaterializable = true;
+}
 
 def CMPimm : Instr {
   dag InOperandList = (ins GPR:$l, i8imm:$r);

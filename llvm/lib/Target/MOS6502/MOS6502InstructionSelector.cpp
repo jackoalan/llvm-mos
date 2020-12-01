@@ -195,24 +195,19 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I,
   Register R = I.getOperand(3).getReg();
   Register CarryIn = I.getOperand(4).getReg();
 
+  auto RConst = getConstantVRegValWithLookThrough(R, MRI);
+  if (!RConst)
+    return false;
+
   MachineIRBuilder Builder(I);
   MachineInstrBuilder SetC = Builder.buildInstr(MOS6502::SETC).addUse(CarryIn);
   if (!constrainSelectedInstRegOperands(*SetC, TII, TRI, RBI))
     return false;
 
-  MachineInstrBuilder Add =
-      Builder.buildInstr(MOS6502::ADC).addDef(Sum).addUse(L).addUse(R);
+  Builder.buildCopy(MOS6502::A, L);
+  Builder.buildInstr(MOS6502::ADCimm).addImm(RConst->Value);
+  Builder.buildCopy(Sum, Register(MOS6502::A));
 
-  // Order matters, since A may be required to load ZP.
-  if (!constrainOperandRegToRegClass(*Add, 0, MOS6502::AcRegClass, TII, TRI,
-                                     RBI))
-    return false;
-  if (!constrainOperandRegToRegClass(*Add, 1, MOS6502::AcRegClass, TII, TRI,
-                                     RBI))
-    return false;
-  if (!constrainOperandRegToRegClass(*Add, 2, MOS6502::ZPRegClass, TII, TRI,
-                                     RBI))
-    return false;
 
   MachineInstrBuilder GetC = Builder.buildInstr(MOS6502::GETC).addDef(CarryOut);
   if (!constrainSelectedInstRegOperands(*GetC, TII, TRI, RBI))
