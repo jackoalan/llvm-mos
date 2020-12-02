@@ -23,7 +23,7 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 
   bool preserveP = MBB.computeRegisterLiveness(
                        MBB.getParent()->getSubtarget().getRegisterInfo(),
-                       MOS6502::P, MI) == MachineBasicBlock::LQR_Dead;
+                       MOS6502::P, MI) != MachineBasicBlock::LQR_Dead;
 
   if (preserveP)
     Builder.buildInstr(MOS6502::PHP);
