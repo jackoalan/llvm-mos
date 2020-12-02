@@ -10,12 +10,27 @@ namespace llvm {
 
 class MOS6502InstrInfo : public MOS6502GenInstrInfo {
 public:
-  void copyPhysReg(MachineBasicBlock &MBB,
-                           MachineBasicBlock::iterator MI, const DebugLoc &DL,
-                           MCRegister DestReg, MCRegister SrcReg,
+  void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
                    bool KillSrc) const override;
+
+  std::pair<unsigned, unsigned>
+  decomposeMachineOperandsTargetFlags(unsigned TF) const override;
+
+  ArrayRef<std::pair<unsigned, const char *>>
+  getSerializableDirectMachineOperandTargetFlags() const override;
 };
 
-}  // namespace llvm
+namespace MOS6502 {
 
-#endif  // not LLVM_LIB_TARGET_MOS6502_MOS6502INSTRINFO_H
+enum TOF {
+  MO_NO_FLAGS = 0,
+  MO_LO,
+  MO_HI,
+};
+
+} // namespace MOS6502
+
+} // namespace llvm
+
+#endif // not LLVM_LIB_TARGET_MOS6502_MOS6502INSTRINFO_H

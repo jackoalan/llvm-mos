@@ -181,12 +181,12 @@ bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &I,
   LLT s8 = LLT::scalar(8);
   Register Lo = MRI.createGenericVirtualRegister(s8);
   auto LoImm =
-      Builder.buildInstr(MOS6502::LDgvlo).addDef(Lo).addGlobalAddress(Global);
+    Builder.buildInstr(MOS6502::LDimm).addDef(Lo).addGlobalAddress(Global, 0, MOS6502::MO_LO);
   if (!constrainSelectedInstRegOperands(*LoImm, TII, TRI, RBI))
     return false;
   Register Hi = MRI.createGenericVirtualRegister(s8);
   auto HiImm =
-      Builder.buildInstr(MOS6502::LDgvhi).addDef(Hi).addGlobalAddress(Global);
+    Builder.buildInstr(MOS6502::LDimm).addDef(Hi).addGlobalAddress(Global, 0, MOS6502::MO_HI);
   if (!constrainSelectedInstRegOperands(*HiImm, TII, TRI, RBI))
     return false;
   composePtr(Builder, Dst, Lo, Hi, MRI);

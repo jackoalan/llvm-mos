@@ -9,14 +9,14 @@ static bool LowerMOS6502MachineOperandToMCOperand(const MachineOperand &MO,
   switch (MO.getType()) {
   default:
     report_fatal_error("Unknown operand type.");
+  case MachineOperand::MO_Immediate:
+    MCOp = MCOperand::createImm(MO.getImm());
+    break;
   case MachineOperand::MO_Register:
     // Ignore all implicit register operands.
     if (MO.isImplicit())
       return false;
     MCOp = MCOperand::createReg(MO.getReg());
-    break;
-  case MachineOperand::MO_Immediate:
-    MCOp = MCOperand::createImm(MO.getImm());
     break;
   }
   return true;

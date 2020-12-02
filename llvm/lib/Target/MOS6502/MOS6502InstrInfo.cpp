@@ -53,3 +53,15 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   if (preserveP)
     Builder.buildInstr(MOS6502::PLP);
 }
+
+std::pair<unsigned, unsigned>
+MOS6502InstrInfo::decomposeMachineOperandsTargetFlags(unsigned TF) const {
+  return std::make_pair(TF, 0u);
+}
+
+ArrayRef<std::pair<unsigned, const char *>>
+MOS6502InstrInfo::getSerializableDirectMachineOperandTargetFlags() const {
+  static const std::pair<unsigned, const char *> Flags[] = {
+      {MOS6502::MO_LO, "lo"}, {MOS6502::MO_HI, "hi"}};
+  return Flags;
+}
