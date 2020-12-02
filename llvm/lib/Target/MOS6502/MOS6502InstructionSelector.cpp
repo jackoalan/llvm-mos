@@ -305,15 +305,15 @@ bool MOS6502InstructionSelector::selectUnMergeValues(MachineInstr &I,
   Register Src = I.getOperand(2).getReg();
 
   MachineIRBuilder Builder(I);
-  constrainGenericOp(I, MRI);
-  Builder.buildInstr(MOS6502::EXTRACT_SUBREG)
-      .addDef(Lo)
-      .addUse(Src)
-      .addImm(MOS6502::sublo);
-  Builder.buildInstr(MOS6502::EXTRACT_SUBREG)
-      .addDef(Hi)
-      .addUse(Src)
-      .addImm(MOS6502::subhi);
+
+  auto LoCopy = Builder.buildInstr(MOS6502::COPY)
+                    .addDef(Lo)
+                    .addUse(Src, 0, MOS6502::sublo);
+  constrainGenericOp(*LoCopy, MRI);
+  auto HiCopy = Builder.buildInstr(MOS6502::COPY)
+                    .addDef(Hi)
+                    .addUse(Src, 0, MOS6502::subhi);
+  constrainGenericOp(*HiCopy, MRI);
   I.removeFromParent();
   return true;
 }
