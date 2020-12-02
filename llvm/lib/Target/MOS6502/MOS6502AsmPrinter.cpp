@@ -11,17 +11,19 @@ using namespace llvm;
 namespace {
 
 class MOS6502AsmPrinter : public AsmPrinter {
+  MOS6502MCInstLower InstLowering;
+
 public:
   explicit MOS6502AsmPrinter(TargetMachine &TM,
                              std::unique_ptr<MCStreamer> Streamer)
-      : AsmPrinter(TM, std::move(Streamer)) {}
+      : AsmPrinter(TM, std::move(Streamer)), InstLowering(OutContext, *this) {}
 
   void emitInstruction(const MachineInstr *MI) override;
 };
 
 void MOS6502AsmPrinter::emitInstruction(const MachineInstr *MI) {
   MCInst Inst;
-  LowerMOS6502MachineInstrToMCInst(MI, Inst, *this, OutContext);
+  InstLowering.lower(MI, Inst);
   EmitToStreamer(*OutStreamer, Inst);
 }
 
