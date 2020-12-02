@@ -70,6 +70,13 @@ def LDgvhi : Instr {
   let isMoveImm = true;
 }
 
+def LDzp : Instr {
+  dag InOperandList = (ins ZP:$src);
+  dag OutOperandList = (outs GPR:$dst);
+
+  let AsmString = "LD$dst\t$src";
+}
+
 def LDAyindir : Instr {
   dag InOperandList = (ins ZP_PTR:$addr);
   dag OutOperandList = (outs);
@@ -128,6 +135,34 @@ def PLA : Instr {
   let AsmString = "PLA";
 
   let mayLoad = true;
+}
+
+def PHP : Instr {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs);
+  let Uses = [P];
+  let Defs = [];
+
+  let AsmString = "PHP";
+
+  let mayStore = true;
+}
+
+def PLP : Instr {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs);
+
+  let AsmString = "PLP";
+
+  let mayLoad = true;
+}
+
+
+def STzp : Instr {
+  dag InOperandList = (ins GPR:$src);
+  dag OutOperandList = (outs ZP:$dst);
+
+  let AsmString = "ST$src\t$dst";
 }
 
 def label : Operand<OtherVT>;
