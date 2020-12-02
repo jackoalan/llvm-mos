@@ -18,6 +18,7 @@ void MOS6502InstPrinter::printInst(const MCInst *MI, uint64_t Address,
     printInstruction(MI, Address, OS);
     break;
   case MOS6502::CMPimm: {
+    OS << "\t";
     unsigned Reg = MI->getOperand(0).getReg();
     switch (Reg) {
     default:
@@ -36,6 +37,7 @@ void MOS6502InstPrinter::printInst(const MCInst *MI, uint64_t Address,
     break;
   }
   case MOS6502::LDCimm: {
+    OS << "\t";
     int64_t Imm = MI->getOperand(0).getImm();
     switch (Imm) {
     default:
