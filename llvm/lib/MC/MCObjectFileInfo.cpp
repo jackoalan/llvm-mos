@@ -915,6 +915,9 @@ void MCObjectFileInfo::initXCOFFMCObjectFileInfo(const Triple &T) {
 
 void MCObjectFileInfo::initMOS6502MCObjectFileInfo() {
   TextSection = Ctx->getMOS6502Section("CODE", SectionKind::getText());
+  DataSection = Ctx->getMOS6502Section("DATA", SectionKind::getData());
+  ReadOnlySection = Ctx->getMOS6502Section("RODATA", SectionKind::getReadOnly());
+  BSSSection = Ctx->getMOS6502Section("BSS", SectionKind::getBSS());
 }
 
 void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
