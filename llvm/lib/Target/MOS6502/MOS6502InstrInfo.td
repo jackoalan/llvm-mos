@@ -11,19 +11,6 @@ class Pseudo : Instr {
   let isPseudo = true;
 }
 
-def GETC : Pseudo {
-  dag InOperandList = (ins);
-  dag OutOperandList = (outs GPR:$c);
-
-  let Uses = [P];
-  let Defs = [];
-}
-
-def SETC : Pseudo {
-  dag InOperandList = (ins GPR:$c);
-  dag OutOperandList = (outs);
-}
-
 let isReMaterializable = true in {
 
 def ADCimm : Instr {
@@ -113,6 +100,13 @@ def T_A : Instr {
 
 }
 
+}
+
+def CLC : Instr {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs);
+
+  let AsmString = "CLC";
 }
 
 def PHA : Instr {

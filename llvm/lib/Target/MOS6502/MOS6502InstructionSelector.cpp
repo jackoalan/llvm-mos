@@ -263,17 +263,12 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I,
     return false;
 
   MachineIRBuilder Builder(I);
-  auto SetC = Builder.buildInstr(MOS6502::SETC).addUse(CarryIn);
-  if (!constrainSelectedInstRegOperands(*SetC, TII, TRI, RBI))
-    return false;
-
+  buildCopy(Builder, MOS6502::P, CarryIn, MRI);
   buildCopy(Builder, MOS6502::A, L, MRI);
   Builder.buildInstr(MOS6502::ADCimm).addImm(RConst->Value);
   buildCopy(Builder, Sum, MOS6502::A, MRI);
-
-  auto GetC = Builder.buildInstr(MOS6502::GETC).addDef(CarryOut);
-  if (!constrainSelectedInstRegOperands(*GetC, TII, TRI, RBI))
-    return false;
+  MRI.setType(CarryOut, LLT::scalar(8));
+  buildCopy(Builder, CarryOut, MOS6502::P, MRI);
 
   I.removeFromParent();
   return true;
@@ -288,11 +283,15 @@ bool MOS6502InstructionSelector::selectUAddO(MachineInstr &I,
 
   MachineIRBuilder Builder(I);
 
-  Register CarryIn = MRI.createGenericVirtualRegister(LLT::scalar(1));
-  auto LdCarry = Builder.buildInstr(MOS6502::LDimm).addDef(CarryIn).addImm(0);
-  if (!constrainSelectedInstRegOperands(*LdCarry, TII, TRI, RBI))
-    return false;
-  auto Add = Builder.buildUAdde(Sum, CarryOut, L, R, CarryIn);
+  Builder.buildInstr(MOS6502::CLC);
+  Register CarryIn = MRI.createGenericVirtualRegister(LLT::scalar(8));
+  buildCopy(Builder, CarryIn, MOS6502::P, MRI);
+  auto Add = Builder.buildInstr(MOS6502::G_UADDE)
+    .addDef(Sum)
+    .addDef(CarryOut)
+    .addUse(L)
+    .addUse(R)
+    .addUse(CarryIn);
 
   I.removeFromParent();
   return selectUAddE(*Add, MRI);
