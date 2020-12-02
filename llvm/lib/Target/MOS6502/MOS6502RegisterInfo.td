@@ -51,5 +51,5 @@ def XY : MOS6502RegClass<[i8], 8, (add X, Y)>;
 def ZP : MOS6502RegClass<[i8], 8, (sequence "ZP_%u", 0, 255)>;
 def ZP_PTR : MOS6502RegClass<[i16], 8, (sequence "ZP_PTR_%u", 0, 127)>;
 
-def AnyClass : MOS6502RegClass<[i8], 8, (add GPR, ZP)>;
+def Anyc : MOS6502RegClass<[i8], 8, (add GPR, ZP)>;
 def AnyOrC : MOS6502RegClass<[i1], 8, (add GPR, ZP, C)>;
