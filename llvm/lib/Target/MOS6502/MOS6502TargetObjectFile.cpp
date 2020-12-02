@@ -10,17 +10,14 @@ MCSection *MOS6502TargetObjectFile::SelectSectionForGlobal(
   if (TM.getFunctionSections() || TM.getDataSections()) {
     report_fatal_error("Unique sections not supported on MOS6502.");
   }
-  StringRef Name;
   if (Kind.isText()) {
-    Name = "CODE";
+    return getTextSection();
   } else if (Kind.isData()) {
-    Name = "DATA";
+    return getDataSection();
   } else if (Kind.isReadOnly()) {
-    Name = "RODATA";
+    return getReadOnlySection();
   } else if (Kind.isBSS()) {
-    Name = "BSS";
-  } else {
-    report_fatal_error("Section kind not supported.");
+    return getBSSSection();
   }
-  return getContext().getMOS6502Section(Name, Kind);
+  report_fatal_error("Section kind not supported.");
 }
