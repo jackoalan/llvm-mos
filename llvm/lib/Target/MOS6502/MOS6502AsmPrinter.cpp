@@ -19,9 +19,9 @@ public:
   void emitInstruction(const MachineInstr *MI) override;
 };
 
-void MOS6502AsmPrinter ::emitInstruction(const MachineInstr *MI) {
+void MOS6502AsmPrinter::emitInstruction(const MachineInstr *MI) {
   MCInst Inst;
-  LowerMOS6502MachineInstrToMCInst(MI, Inst, *this);
+  LowerMOS6502MachineInstrToMCInst(MI, Inst, *this, OutContext);
   EmitToStreamer(*OutStreamer, Inst);
 }
 

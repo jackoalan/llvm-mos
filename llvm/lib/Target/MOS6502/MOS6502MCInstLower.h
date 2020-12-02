@@ -3,11 +3,12 @@
 
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/MC/MCContext.h"
 
 namespace llvm {
 
 void LowerMOS6502MachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
-                                      const AsmPrinter &AP);
+                                      const AsmPrinter &AP, MCContext &Ctx);
 
 } // namespace llvm
 
