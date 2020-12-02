@@ -2,6 +2,8 @@ let Namespace = "MOS6502" in {
 
 def sublo : SubRegIndex<8>;
 def subhi : SubRegIndex<8>;
+def subcarry : SubRegIndex<1>;
+def subnz : SubRegIndex<2>;
 
 }
 
@@ -16,7 +18,12 @@ def A : MOS6502Reg<"A">;
 def X : MOS6502Reg<"X">;
 def Y : MOS6502Reg<"Y">;
 
-def P : MOS6502Reg<"P">;
+def C : MOS6502Reg<"C">;
+def NZ : MOS6502Reg<"NZ">;
+def P : MOS6502Reg<"P"> {
+  let SubRegs = [C, NZ];
+  let SubRegIndices = [subcarry, subnz];
+}
 
 foreach i = 0 ... 255 in {
   def ZP_#i : MOS6502Reg<"ZP_"#i>;
@@ -29,6 +36,7 @@ foreach i = 0 ... 127 in {
   def ZP_PTR_#i : MOS6502Reg<"ZP_PTR_"#i> {
     let SubRegs = [!cast<Register>("ZP_"#lo), !cast<Register>("ZP_"#hi)];
     let SubRegIndices = [sublo, subhi];
+    let CoveredBySubRegs = true;
   }
 }
 
@@ -43,4 +51,5 @@ def XY : MOS6502RegClass<[i8], 8, (add X, Y)>;
 def ZP : MOS6502RegClass<[i8], 8, (sequence "ZP_%u", 0, 255)>;
 def ZP_PTR : MOS6502RegClass<[i16], 8, (sequence "ZP_PTR_%u", 0, 127)>;
 
-def Anyc : MOS6502RegClass<[i8], 8, (add GPR, ZP)>;
+def AnyClass : MOS6502RegClass<[i8], 8, (add GPR, ZP)>;
+def AnyOrC : MOS6502RegClass<[i1], 8, (add GPR, ZP, C)>;

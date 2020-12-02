@@ -103,7 +103,6 @@ static const TargetRegisterClass &getRegClassForType(LLT Ty) {
   switch (Ty.getSizeInBits()) {
   default:
     llvm_unreachable("Invalid type size.");
-  case 1:
   case 8:
     return MOS6502::AnycRegClass;
   case 16:
@@ -263,12 +262,11 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I,
     return false;
 
   MachineIRBuilder Builder(I);
-  buildCopy(Builder, MOS6502::P, CarryIn, MRI);
+  buildCopy(Builder, MOS6502::C, CarryIn, MRI);
   buildCopy(Builder, MOS6502::A, L, MRI);
   Builder.buildInstr(MOS6502::ADCimm).addImm(RConst->Value);
   buildCopy(Builder, Sum, MOS6502::A, MRI);
-  MRI.setType(CarryOut, LLT::scalar(8));
-  buildCopy(Builder, CarryOut, MOS6502::P, MRI);
+  buildCopy(Builder, CarryOut, MOS6502::C, MRI);
 
   I.removeFromParent();
   return true;
@@ -283,9 +281,9 @@ bool MOS6502InstructionSelector::selectUAddO(MachineInstr &I,
 
   MachineIRBuilder Builder(I);
 
-  Builder.buildInstr(MOS6502::CLC);
-  Register CarryIn = MRI.createGenericVirtualRegister(LLT::scalar(8));
-  buildCopy(Builder, CarryIn, MOS6502::P, MRI);
+  Builder.buildInstr(MOS6502::LDCimm).addImm(0);
+  Register CarryIn = MRI.createGenericVirtualRegister(LLT::scalar(1));
+  buildCopy(Builder, CarryIn, MOS6502::C, MRI);
   auto Add = Builder.buildInstr(MOS6502::G_UADDE)
     .addDef(Sum)
     .addDef(CarryOut)
@@ -321,7 +319,11 @@ void MOS6502InstructionSelector::buildCopy(MachineIRBuilder &Builder,
                                            Register Dst, Register Src,
                                            MachineRegisterInfo &MRI) {
   auto Copy = Builder.buildCopy(Dst, Src);
-  constrainGenericOp(*Copy, MRI);
+  if (Src == MOS6502::C) {
+    constrainOperandRegClass(Copy->getOperand(0), MOS6502::AnyOrCRegClass, MRI);
+  } else {
+    constrainGenericOp(*Copy, MRI);
+  }
 }
 
 void MOS6502InstructionSelector::composePtr(MachineIRBuilder &Builder,

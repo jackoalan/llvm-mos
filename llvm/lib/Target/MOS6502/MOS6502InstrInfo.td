@@ -1,7 +1,7 @@
 class Instr : Instruction {
   let Namespace = "MOS6502";
   let Uses = [];
-  let Defs = [P];
+  let Defs = [NZ];
   let hasSideEffects = 0;
   let mayLoad = 0;
   let mayStore = 0;
@@ -17,8 +17,8 @@ def ADCimm : Instr {
   dag InOperandList = (ins i8imm:$r);
   dag OutOperandList = (outs);
 
-  let Uses = [A, P];
-  let Defs = [A, P];
+  let Uses = [A, C];
+  let Defs = [A, C, NZ];
 
   let isAdd = true;
   let isReMaterializable = true;
@@ -42,30 +42,37 @@ def IN_ : Instr {
   let isAdd = true;
 }
 
+def LDCimm : Instr {
+  dag InOperandList = (ins i1imm:$val);
+  dag OutOperandList = (outs);
+
+  let Defs = [C];
+}
+
 def LDimm : Instr {
-  dag InOperandList = (ins i8imm:$src);
+  dag InOperandList = (ins i8imm:$val);
   dag OutOperandList = (outs GPR:$dst);
 
-  let AsmString = "LD$dst\t#$src";
-  let Pattern = [(set GPR:$dst, imm:$src)];
+  let AsmString = "LD$dst\t#$val";
+  let Pattern = [(set GPR:$dst, imm:$val)];
 
   let isMoveImm = true;
 }
 
 def LDgvlo : Instr {
-  dag InOperandList = (ins i8imm:$src);
+  dag InOperandList = (ins i8imm:$val);
   dag OutOperandList = (outs GPR:$dst);
 
-  let AsmString = "LD$dst\t#<$src";
+  let AsmString = "LD$dst\t#<$val";
 
   let isMoveImm = true;
 }
 
 def LDgvhi : Instr {
-  dag InOperandList = (ins i8imm:$src);
+  dag InOperandList = (ins i8imm:$val);
   dag OutOperandList = (outs GPR:$dst);
 
-  let AsmString = "LD$dst\t#>$src";
+  let AsmString = "LD$dst\t#>$val";
 
   let isMoveImm = true;
 }
@@ -83,7 +90,7 @@ def LDAyindir : Instr {
 
   let AsmString = "LDA\t($addr),Y";
   let Uses = [Y];
-  let Defs = [A, P];
+  let Defs = [A, NZ];
 
   let mayLoad = true;
 }
@@ -102,18 +109,11 @@ def T_A : Instr {
   dag InOperandList = (ins XY:$src);
   dag OutOperandList = (outs);
   let AsmString = "T${src}A";
-  let Defs = [A, P];
+  let Defs = [A, NZ];
 }
 
 }
 
-}
-
-def CLC : Instr {
-  dag InOperandList = (ins);
-  dag OutOperandList = (outs);
-
-  let AsmString = "CLC";
 }
 
 def PHA : Instr {
@@ -130,7 +130,7 @@ def PHA : Instr {
 def PLA : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs);
-  let Defs = [A, P];
+  let Defs = [A, NZ];
 
   let AsmString = "PLA";
 
@@ -151,6 +151,7 @@ def PHP : Instr {
 def PLP : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs);
+  let Defs = [P];
 
   let AsmString = "PLP";
 
@@ -161,6 +162,8 @@ def PLP : Instr {
 def STzp : Instr {
   dag InOperandList = (ins GPR:$src);
   dag OutOperandList = (outs ZP:$dst);
+
+  let Defs = [];
 
   let AsmString = "ST$src\t$dst";
 }
@@ -174,7 +177,7 @@ let isBranch = true in {
 def BNE : Instr {
   dag InOperandList = (ins label:$tgt);
   dag OutOperandList = (outs);
-  let Uses = [P];
+  let Uses = [NZ];
   let Defs = [];
 
   let AsmString = "BNE $tgt";
