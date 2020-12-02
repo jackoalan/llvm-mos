@@ -1,7 +1,9 @@
 class Instr : Instruction {
   let Namespace = "MOS6502";
+
   let Uses = [];
   let Defs = [NZ];
+
   let hasSideEffects = 0;
   let mayLoad = 0;
   let mayStore = 0;
@@ -19,6 +21,8 @@ def ADCimm : Instr {
 
   let Uses = [A, C];
   let Defs = [A, C, NZ];
+
+  let AsmString = "ADC\t#$r";
 
   let isAdd = true;
   let isReMaterializable = true;
@@ -70,9 +74,10 @@ def LDAyindir : Instr {
   dag InOperandList = (ins ZP_PTR:$addr);
   dag OutOperandList = (outs);
 
-  let AsmString = "LDA\t($addr),Y";
   let Uses = [Y];
   let Defs = [A, NZ];
+
+  let AsmString = "LDA\t($addr),Y";
 
   let mayLoad = true;
 }
@@ -82,6 +87,7 @@ let isAsCheapAsAMove = true in {
 def TA_ : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs XY:$dst);
+
   let Uses = [A];
 
   let AsmString = "TA$dst";
@@ -91,6 +97,7 @@ def T_A : Instr {
   dag InOperandList = (ins XY:$src);
   dag OutOperandList = (outs);
   let AsmString = "T${src}A";
+
   let Defs = [A, NZ];
 }
 
