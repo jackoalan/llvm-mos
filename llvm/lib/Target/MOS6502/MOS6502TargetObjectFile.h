@@ -14,8 +14,11 @@ class MOS6502TargetObjectFile : public TargetLoweringObjectFile {
 
   MCSection *SelectSectionForGlobal(const GlobalObject *GO, SectionKind Kind,
                                     const TargetMachine &TM) const override;
+
+  void getNameWithPrefix(SmallVectorImpl<char> &OutName, const GlobalValue *GV,
+                         const TargetMachine &TM) const override;
 };
 
-}   // namespace llvm
+} // namespace llvm
 
 #endif
