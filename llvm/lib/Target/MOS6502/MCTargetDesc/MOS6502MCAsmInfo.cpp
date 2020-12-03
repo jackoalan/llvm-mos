@@ -9,12 +9,12 @@ MOS6502MCAsmInfo::MOS6502MCAsmInfo() {
   MaxInstLength = 3;
   SeparatorString = nullptr;
   CommentString = ";";
-  ZeroDirective = ".res";
+  ZeroDirective = "\t.res\t";
   AsciiDirective = nullptr;
   AscizDirective = nullptr;
-  ByteListDirective = ".byt";
-  Data8bitsDirective = ".byt";
-  Data16bitsDirective = ".word";
+  ByteListDirective = "\t.byt\t";
+  Data8bitsDirective = "\t.byt\t";
+  Data16bitsDirective = "\t.word\t";
   Data32bitsDirective = nullptr;
   Data64bitsDirective = nullptr;
   GlobalDirective = ".global\t";
