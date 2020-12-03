@@ -169,7 +169,7 @@ def BNE : Instr {
   let Uses = [NZ];
   let Defs = [];
 
-  let AsmString = "BNE $tgt";
+  let AsmString = "BNE\t$tgt";
 }
 
 def JMP : Instr {
@@ -177,7 +177,7 @@ def JMP : Instr {
   dag OutOperandList = (outs);
   let Defs = [];
 
-  let AsmString = "JMP $tgt";
+  let AsmString = "JMP\t$tgt";
 
   let Pattern = [(br bb:$tgt)];
 }
