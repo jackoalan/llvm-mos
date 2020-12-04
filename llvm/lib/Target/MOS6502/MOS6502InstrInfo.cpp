@@ -21,11 +21,11 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     return Src.contains(SrcReg) && Dest.contains(DestReg);
   };
 
-  bool preserveP = MBB.computeRegisterLiveness(
-                       MBB.getParent()->getSubtarget().getRegisterInfo(),
-                       MOS6502::NZ, MI) != MachineBasicBlock::LQR_Dead;
+  bool nzMaybeLive = MBB.computeRegisterLiveness(
+                         MBB.getParent()->getSubtarget().getRegisterInfo(),
+                         MOS6502::NZ, MI) != MachineBasicBlock::LQR_Dead;
 
-  if (preserveP)
+  if (nzMaybeLive)
     Builder.buildInstr(MOS6502::PHP);
 
   if (areClasses(MOS6502::GPRRegClass, MOS6502::GPRRegClass)) {
@@ -36,6 +36,7 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       assert(MOS6502::XYRegClass.contains(SrcReg));
       Builder.buildInstr(MOS6502::T_A).addUse(SrcReg);
     } else {
+      Builder.buildInstr(MOS6502::PHA);
       copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(), MOS6502::A,
                   SrcReg, KillSrc);
       copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(), DestReg,
@@ -50,7 +51,7 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     report_fatal_error("Unsupported physical register copy.");
   }
 
-  if (preserveP)
+  if (nzMaybeLive)
     Builder.buildInstr(MOS6502::PLP);
 }
 
