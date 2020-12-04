@@ -69,7 +69,6 @@ public:
     return getTM<MOS6502TargetMachine>();
   }
 
-  bool addPreISel() override;
   bool addIRTranslator() override;
   void addPreLegalizeMachineIR() override;
   bool addLegalizeMachineIR() override;
@@ -81,13 +80,6 @@ public:
 
 TargetPassConfig *MOS6502TargetMachine::createPassConfig(PassManagerBase &PM) {
   return new MOS6502PassConfig(*this, PM);
-}
-
-bool MOS6502PassConfig::addPreISel() {
-  // Combine any odd instruction sequences produced by loop strength reduction.
-  addPass(createInstructionCombiningPass());
-  addPass(createAggressiveDCEPass());
-  return true;
 }
 
 bool MOS6502PassConfig::addIRTranslator() {
