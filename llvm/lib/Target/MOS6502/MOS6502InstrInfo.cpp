@@ -3,12 +3,20 @@
 #include "MOS6502RegisterInfo.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
 #define GET_INSTRINFO_CTOR_DTOR
 #include "MOS6502GenInstrInfo.inc"
+
+static bool maybeLive(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                      MCRegister Reg) {
+  return MBB.computeRegisterLiveness(
+             MBB.getParent()->getSubtarget().getRegisterInfo(), Reg, MI) !=
+         MachineBasicBlock::LQR_Dead;
+}
 
 void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MI,
@@ -21,9 +29,7 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     return Src.contains(SrcReg) && Dest.contains(DestReg);
   };
 
-  bool nzMaybeLive = MBB.computeRegisterLiveness(
-                         MBB.getParent()->getSubtarget().getRegisterInfo(),
-                         MOS6502::NZ, MI) != MachineBasicBlock::LQR_Dead;
+  bool nzMaybeLive = maybeLive(MBB, MI, MOS6502::NZ);
 
   if (nzMaybeLive)
     Builder.buildInstr(MOS6502::PHP);
@@ -36,12 +42,16 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       assert(MOS6502::XYRegClass.contains(SrcReg));
       Builder.buildInstr(MOS6502::T_A).addUse(SrcReg);
     } else {
-      Builder.buildInstr(MOS6502::PHA);
+      bool aMaybeLive = maybeLive(MBB, MI, MOS6502::A);
+
+      if (aMaybeLive)
+        Builder.buildInstr(MOS6502::PHA);
       copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(), MOS6502::A,
                   SrcReg, KillSrc);
       copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(), DestReg,
                   MOS6502::A, true);
-      Builder.buildInstr(MOS6502::PLA);
+      if (aMaybeLive)
+        Builder.buildInstr(MOS6502::PLA);
     }
   } else if (areClasses(MOS6502::GPRRegClass, MOS6502::ZPRegClass)) {
     Builder.buildInstr(MOS6502::STzp).addDef(DestReg).addUse(SrcReg);

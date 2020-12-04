@@ -42,10 +42,8 @@ body:             |
   bb.0.entry:
     $x = LDimm 0, implicit-def $nz
     $y = COPY $x
-# CHECK:      PHA
-# CHECK-NEXT: T_A $x
+# CHECK:      T_A $x
 # CHECK-NEXT: TA_ $y
-# CHECK-NEXT: PLA
 ...
 ---
 name:            test_tyx
@@ -54,8 +52,34 @@ body:             |
   bb.0.entry:
     $y = LDimm 0, implicit-def $nz
     $x = COPY $y
-# CHECK:      PHA
-# CHECK-NEXT: T_A $y
+# CHECK:      T_A $y
 # CHECK-NEXT: TA_ $x
+...
+---
+name:            test_preserve_nz
+# CHECK-LABEL: name: test_preserve_nz
+body:             |
+  bb.0.entry:
+    $a = LDimm 0, implicit-def $nz
+    $y = LDimm 1, implicit-def $nz
+    $x = COPY $a
+    BNE %bb.0, implicit $nz
+# CHECK:      PHP
+# CHECK-NEXT: TA_ $x
+# CHECK-NEXT: PLP
+# CHECK-NEXT: BNE %bb.0, implicit $nz
+...
+---
+name:            test_preserve_a
+# CHECK-LABEL: name: test_preserve_a
+body:             |
+  bb.0.entry:
+    $a = LDimm 1, implicit-def $nz
+    $x = LDimm 0, implicit-def $nz
+    $y = COPY $x
+    CMPimm $a, 0, implicit-def $nz
+# CHECK:      PHA
+# CHECK-NEXT: T_A $x
+# CHECK-NEXT: TA_ $y
 # CHECK-NEXT: PLA
 ...
