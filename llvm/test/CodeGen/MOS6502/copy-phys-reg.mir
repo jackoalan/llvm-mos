@@ -83,3 +83,22 @@ body:             |
 # CHECK-NEXT: TA_ $y
 # CHECK-NEXT: PLA
 ...
+---
+name:            test_stzp
+# CHECK-LABEL: name: test_stzp
+body:             |
+  bb.0.entry:
+    $a = LDimm 0, implicit-def $nz
+    $zp_0 = COPY $a
+# CHECK: $zp_0 = STzp $a
+...
+---
+name:            test_ldzp
+# CHECK-LABEL: name: test_ldzp
+body:             |
+  bb.0.entry:
+    $a = LDimm 0, implicit-def $nz
+    $zp_0 = COPY $a
+    $x = COPY $zp_0
+# CHECK: $x = LDzp $zp_0
+...
