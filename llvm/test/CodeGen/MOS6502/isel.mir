@@ -1,0 +1,113 @@
+# RUN: llc -mtriple=mos6502 -run-pass=instruction-select -o - %s | FileCheck %s
+--- |
+  @.str = constant [1 x i8] c"X"
+  define void @cmpimm_brne() {
+    entry:
+      ret void
+  }
+  define void @ldimm_global() {
+    entry:
+      ret void
+  }
+  define void @load() {
+    entry:
+      ret void
+  }
+  define void @uadde_imm() {
+    entry:
+      ret void
+  }
+  define void @uaddo_imm() {
+    entry:
+      ret void
+  }
+  define void @unmerge() {
+    entry:
+      ret void
+  }
+---
+name: cmpimm_brne
+# CHECK-LABEL: name: cmpimm_brne
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(s8) = G_CONSTANT i8 0
+    %1:any(s8) = G_CONSTANT i8 1
+    %2:any(s1) = G_ICMP intpred(ne), %0, %1
+    G_BRCOND %2, %bb.0
+# CHECK:      CMPimm %0, 1
+# CHECK-NEXT: BNE %bb.0
+...
+---
+name: ldimm_global
+# CHECK-LABEL: name: ldimm_global
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(p0) = G_GLOBAL_VALUE @.str
+    RTS implicit %0
+# CHECK:      %1:gpr = LDimm target-flags(lo) @.str
+# CHECK-NEXT: %2:gpr = LDimm target-flags(hi) @.str
+# CHECK-NEXT: %0:zp_ptr = REG_SEQUENCE %1, %subreg.sublo, %2, %subreg.subhi
+...
+---
+name: load
+# CHECK-LABEL: name: load
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %1:any(s8) = G_LOAD %0:zp_ptr(p0) :: (load 1)
+    RTS implicit %1
+# CHECK:      $y = LDimm 0
+# CHECK-NEXT: LDAyindir %1:zp_ptr
+# CHECK-NEXT: %0:anyc = COPY $a
+...
+---
+name: uadde_imm
+# CHECK-LABEL: name: uadde_imm
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %1:any(s8) = G_CONSTANT i8 2
+    %3:any(s8), %4:any(s1) = G_UADDE %0:gpr(s8), %1:any(s8), %2:anyorc(s1)
+    RTS implicit %3, implicit %4
+# CHECK:      $c = COPY %4
+# CHECK-NEXT: $a = COPY %3
+# CHECK-NEXT: ADCimm 2
+# CHECK-NEXT: %1:anyc = COPY $a
+# CHECK-NEXT: %2:anyorc = COPY $c
+...
+---
+name: uaddo_imm
+# CHECK-LABEL: name: uaddo_imm
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %1:any(s8) = G_CONSTANT i8 2
+    %2:any(s8), %3:any(s1) = G_UADDO %0:gpr(s8), %1:any(s8)
+    RTS implicit %2, implicit %3
+# CHECK:      LDCimm 0
+# CHECK-NEXT: %4:anyorc = COPY $c
+# CHECK-NEXT: $c = COPY %4
+# CHECK-NEXT: $a = COPY %3
+# CHECK-NEXT: ADCimm 2
+# CHECK-NEXT: %1:anyc = COPY $a
+# CHECK-NEXT: %2:anyorc = COPY $c
+...
+---
+name: unmerge
+# CHECK-LABEL: name: unmerge
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %1:any(s8), %2:any(s8) = G_UNMERGE_VALUES %0:zp_ptr(s16)
+    RTS implicit %1, implicit %2
+# CHECK:      %0:anyc = COPY %2.sublo
+# CHECK-NEXT: %1:anyc = COPY %2.subhi
+...
