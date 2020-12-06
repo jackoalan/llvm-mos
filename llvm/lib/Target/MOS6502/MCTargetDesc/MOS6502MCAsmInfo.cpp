@@ -4,25 +4,26 @@
 using namespace llvm;
 
 MOS6502MCAsmInfo::MOS6502MCAsmInfo() {
-  CodePointerSize = 2;
-  CalleeSaveStackSlotSize = 1;
-  MaxInstLength = 3;
-  SeparatorString = nullptr;
-  CommentString = ";";
-  ZeroDirective = "\t.res\t";
   AsciiDirective = nullptr;
   AscizDirective = nullptr;
   ByteListDirective = "\t.byt\t";
-  Data8bitsDirective = "\t.byt\t";
+  CalleeSaveStackSlotSize = 1;
+  CharacterLiteralSyntax = ACLS_Decimal;
+  CodePointerSize = 2;
+  CommentString = ";";
   Data16bitsDirective = "\t.word\t";
   Data32bitsDirective = nullptr;
   Data64bitsDirective = nullptr;
+  Data8bitsDirective = "\t.byt\t";
   GlobalDirective = ".global\t";
   HasDotTypeDotSizeDirective = false;
   HasSingleParameterDotFile = false;
-  WeakDirective = nullptr;
-  HiddenVisibilityAttr = MCSA_Invalid;
   HiddenDeclarationVisibilityAttr = MCSA_Invalid;
+  HiddenVisibilityAttr = MCSA_Invalid;
+  MaxInstLength = 3;
   ProtectedVisibilityAttr = MCSA_Invalid;
+  SeparatorString = nullptr;
   UseIntegratedAssembler = false;
+  WeakDirective = nullptr;
+  ZeroDirective = "\t.res\t";
 }

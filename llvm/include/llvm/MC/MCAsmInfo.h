@@ -61,6 +61,7 @@ public:
                   /// target.
     ACLS_SingleQuotePrefix, /// The desired character is prefixed by a single
                             /// quote, e.g., `'A`.
+    ACLS_Decimal, // The desired character is specified by decimal number.
   };
 
 protected:

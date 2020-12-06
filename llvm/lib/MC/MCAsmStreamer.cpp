@@ -984,6 +984,9 @@ static inline char toOctal(int X) { return (X&7)+'0'; }
 static void PrintByteList(StringRef Data, raw_ostream &OS,
                           MCAsmInfo::AsmCharLiteralSyntax ACLS) {
   assert(!Data.empty() && "Cannot generate an empty list.");
+  const auto printCharacterInDecimal = [&OS](unsigned char C) {
+    OS << (int)C;
+  };
   const auto printCharacterInOctal = [&OS](unsigned char C) {
     OS << '0';
     OS << toOctal(C >> 6);
@@ -1017,6 +1020,9 @@ static void PrintByteList(StringRef Data, raw_ostream &OS,
       const char AsmCharLitBuf[2] = {'\'', C};
       OS << StringRef(AsmCharLitBuf, sizeof(AsmCharLitBuf));
     }));
+    return;
+  case MCAsmInfo::ACLS_Decimal:
+    printCharacterList(printCharacterInDecimal);;
     return;
   }
   llvm_unreachable("Invalid AsmCharLiteralSyntax value!");
