@@ -10,8 +10,8 @@ while.end:
   %0 = getelementptr [1 x i8], [1 x i8]* @a.b_c, i16 0, i16 0
   %1 = ptrtoint i8* %0 to i16
 ; CHECK:      LDA #<a_2Eb__c
-; CHECK_NEXT: LDX #<a_2Eb__c
-; CHECK_NEXT: RTS
+; CHECK-NEXT: LDX #>a_2Eb__c
+; CHECK-NEXT: RTS
   ret i16 %1
 }
 
