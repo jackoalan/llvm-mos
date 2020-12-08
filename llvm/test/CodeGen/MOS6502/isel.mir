@@ -1,4 +1,4 @@
-# RUN: llc -mtriple=mos6502 -run-pass=instruction-select -o - %s | FileCheck %s
+# RUN: llc -mtriple=mos6502 -run-pass=instruction-select -verify-machineinstrs -o - %s | FileCheck %s
 --- |
   @.str = constant [1 x i8] c"X"
   define void @cmpimm_brne() {

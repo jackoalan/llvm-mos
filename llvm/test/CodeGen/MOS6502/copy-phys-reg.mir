@@ -1,4 +1,4 @@
-# RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -o - %s | FileCheck %s
+# RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
 ---
 name:            test_tax
 # CHECK-LABEL: name: test_tax
@@ -6,7 +6,7 @@ body:             |
   bb.0.entry:
     liveins: $a
     $x = COPY $a
-# CHECK: TA_ $x
+# CHECK: $x = TA_
 ...
 ---
 name:            test_txa
@@ -24,7 +24,7 @@ body:             |
   bb.0.entry:
     liveins: $a
     $y = COPY $a
-# CHECK: TA_ $y
+# CHECK: $y = TA_
 ...
 ---
 name:            test_tya
@@ -43,7 +43,7 @@ body:             |
     liveins: $x
     $y = COPY $x
 # CHECK:      T_A $x
-# CHECK-NEXT: TA_ $y
+# CHECK-NEXT: $y = TA_
 ...
 ---
 name:            test_tyx
@@ -53,7 +53,7 @@ body:             |
     liveins: $y
     $x = COPY $y
 # CHECK:      T_A $y
-# CHECK-NEXT: TA_ $x
+# CHECK-NEXT: $x = TA_
 ...
 ---
 name:            test_preserve_nz
@@ -64,7 +64,7 @@ body:             |
     $x = COPY $a
     BNE %bb.0, implicit $nz
 # CHECK:      PHP
-# CHECK-NEXT: TA_ $x
+# CHECK-NEXT: $x = TA_
 # CHECK-NEXT: PLP
 # CHECK-NEXT: BNE %bb.0, implicit $nz
 ...
@@ -78,7 +78,7 @@ body:             |
     CMPimm $a, 0, implicit-def $nz
 # CHECK:      PHA
 # CHECK-NEXT: T_A $x
-# CHECK-NEXT: TA_ $y
+# CHECK-NEXT: $y = TA_
 # CHECK-NEXT: PLA
 ...
 ---

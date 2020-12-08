@@ -37,7 +37,7 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   if (areClasses(MOS6502::GPRRegClass, MOS6502::GPRRegClass)) {
     if (SrcReg == MOS6502::A) {
       assert(MOS6502::XYRegClass.contains(DestReg));
-      Builder.buildInstr(MOS6502::TA_).addUse(DestReg);
+      Builder.buildInstr(MOS6502::TA_).addDef(DestReg);
     } else if (DestReg == MOS6502::A) {
       assert(MOS6502::XYRegClass.contains(SrcReg));
       Builder.buildInstr(MOS6502::T_A).addUse(SrcReg);
