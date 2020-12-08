@@ -13,8 +13,6 @@ class Pseudo : Instr {
   let isPseudo = true;
 }
 
-let isReMaterializable = true in {
-
 def ADCimm : Instr {
   dag InOperandList = (ins i8imm:$r);
   dag OutOperandList = (outs);
@@ -33,6 +31,7 @@ def CMPimm : Instr {
   dag OutOperandList = (outs);
 
   let isCompare = true;
+  let isReMaterializable = true;
 }
 
 def IN_ : Instr {
@@ -44,6 +43,7 @@ def IN_ : Instr {
   let Pattern = [(set XY:$dst, (add XY:$src, 1))];
 
   let isAdd = true;
+  let isReMaterializable = true;
 }
 
 def LDCimm : Instr {
@@ -51,6 +51,8 @@ def LDCimm : Instr {
   dag OutOperandList = (outs);
 
   let Defs = [C];
+
+  let isReMaterializable = true;
 }
 
 def LDimm : Instr {
@@ -61,6 +63,7 @@ def LDimm : Instr {
   let Pattern = [(set GPR:$dst, imm:$val)];
 
   let isMoveImm = true;
+  let isReMaterializable = true;
 }
 
 def LDzp : Instr {
@@ -68,6 +71,8 @@ def LDzp : Instr {
   dag OutOperandList = (outs GPR:$dst);
 
   let AsmString = "LD$dst\t$src";
+
+  let isReMaterializable = true;
 }
 
 def LDAyindir : Instr {
@@ -82,8 +87,6 @@ def LDAyindir : Instr {
   let mayLoad = true;
 }
 
-let isAsCheapAsAMove = true in {
-
 def TA_ : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs XY:$dst);
@@ -91,6 +94,9 @@ def TA_ : Instr {
   let Uses = [A];
 
   let AsmString = "TA$dst";
+
+  let isAsCheapAsAMove = true;
+  let isReMaterializable = true;
 }
 
 def T_A : Instr {
@@ -99,10 +105,9 @@ def T_A : Instr {
   let AsmString = "T${src}A";
 
   let Defs = [A, NZ];
-}
 
-}
-
+  let isAsCheapAsAMove = true;
+  let isReMaterializable = true;
 }
 
 def PHA : Instr {
@@ -159,10 +164,6 @@ def STzp : Instr {
 
 def label : Operand<OtherVT>;
 
-let isBarrier = true, isTerminator = true in {
-
-let isBranch = true in {
-
 def BNE : Instr {
   dag InOperandList = (ins label:$tgt);
   dag OutOperandList = (outs);
@@ -170,6 +171,10 @@ def BNE : Instr {
   let Defs = [];
 
   let AsmString = "BNE\t$tgt";
+
+  let isBarrier = true;
+  let isBranch = true;
+  let isTerminator = true;
 }
 
 def JMP : Instr {
@@ -180,8 +185,10 @@ def JMP : Instr {
   let AsmString = "JMP\t$tgt";
 
   let Pattern = [(br bb:$tgt)];
-}
 
+  let isBarrier = true;
+  let isBranch = true;
+  let isTerminator = true;
 }
 
 def RTS : Instr {
@@ -191,7 +198,7 @@ def RTS : Instr {
 
   let AsmString = "RTS";
 
+  let isBarrier = true;
   let isReturn = true;
-}
-
+  let isTerminator = true;
 }
