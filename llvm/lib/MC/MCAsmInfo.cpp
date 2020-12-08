@@ -126,6 +126,22 @@ bool MCAsmInfo::isValidUnquotedName(StringRef Name) const {
   return true;
 }
 
+void MCAsmInfo::printEscapedName(raw_ostream& OS, StringRef Name) const {
+  if (!supportsNameQuoting())
+    report_fatal_error("Symbol name with unsupported characters");
+
+  OS << '"';
+  for (char C : Name) {
+    if (C == '\n')
+      OS << "\\n";
+    else if (C == '"')
+      OS << "\\\"";
+    else
+      OS << C;
+  }
+  OS << '"';
+}
+
 bool MCAsmInfo::shouldOmitSectionDirective(StringRef SectionName) const {
   // FIXME: Does .section .bss/.data/.text work everywhere??
   return SectionName == ".text" || SectionName == ".data" ||

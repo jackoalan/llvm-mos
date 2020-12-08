@@ -18,6 +18,8 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCTargetOptions.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FormattedStream.h"
 #include <vector>
 
 namespace llvm {
@@ -507,6 +509,8 @@ public:
   /// Return true if the identifier \p Name does not need quotes to be
   /// syntactically correct.
   virtual bool isValidUnquotedName(StringRef Name) const;
+
+  virtual void printEscapedName(raw_ostream& OS, StringRef Name) const;
 
   /// Return true if the .section directive should be omitted when
   /// emitting \p SectionName.  For example:

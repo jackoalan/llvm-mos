@@ -8,6 +8,9 @@ namespace llvm {
 class MOS6502MCAsmInfo : public llvm::MCAsmInfo {
 public:
   MOS6502MCAsmInfo();
+
+  bool isAcceptableChar(char C) const override;
+  void printEscapedName(raw_ostream& OS, StringRef Name) const override;
 };
 
 }  // namespace llvm

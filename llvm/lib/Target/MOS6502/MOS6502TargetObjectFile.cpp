@@ -24,20 +24,3 @@ MCSection *MOS6502TargetObjectFile::SelectSectionForGlobal(
   }
   report_fatal_error("Section kind not supported.");
 }
-
-void MOS6502TargetObjectFile::getNameWithPrefix(SmallVectorImpl<char> &OutName,
-                                                const GlobalValue *GV,
-                                                const TargetMachine &TM) const {
-  SmallVector<char, 8> UnescapedName;
-  TargetLoweringObjectFile::getNameWithPrefix(UnescapedName, GV, TM);
-  raw_svector_ostream OS(OutName);
-  for (char c : UnescapedName) {
-    if (isAlnum(c)) {
-      OS << c;
-    } else if (c == '_') {
-      OS << "__";
-    } else {
-      OS << '_' << utohexstr(c);
-    }
-  }
-}

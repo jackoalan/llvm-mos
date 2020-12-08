@@ -66,19 +66,7 @@ void MCSymbol::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
     return;
   }
 
-  if (MAI && !MAI->supportsNameQuoting())
-    report_fatal_error("Symbol name with unsupported characters");
-
-  OS << '"';
-  for (char C : Name) {
-    if (C == '\n')
-      OS << "\\n";
-    else if (C == '"')
-      OS << "\\\"";
-    else
-      OS << C;
-  }
-  OS << '"';
+  MAI->printEscapedName(OS, Name);
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
