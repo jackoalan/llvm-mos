@@ -30,8 +30,10 @@ MOS6502MCAsmInfo::MOS6502MCAsmInfo() {
 }
 
 bool MOS6502MCAsmInfo::isAcceptableChar(char C) const {
+  // Note: _ is not an acceptable character, since it must also be escaped to
+  // preserve unique decodablility.
   return (C >= 'a' && C <= 'z') || (C >= 'A' && C <= 'Z') ||
-         (C >= '0' && C <= '9') || C == '_';
+         (C >= '0' && C <= '9');
 }
 
 void MOS6502MCAsmInfo::printEscapedName(raw_ostream &OS, StringRef Name) const {

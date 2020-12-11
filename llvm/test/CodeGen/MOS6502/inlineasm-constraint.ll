@@ -1,6 +1,6 @@
 ; RUN: llc -mtriple=mos6502 < %s | FileCheck %s
 
-; CHECK-LABEL: test_inline_constraint_a:
+; CHECK-LABEL: test__inline__constraint__a:
 define void @test_inline_constraint_a() {
   call void asm sideeffect "JSR 1234", "a"(i8 56)
   ; CHECK: LDA #56
@@ -8,7 +8,7 @@ define void @test_inline_constraint_a() {
   ret void
 }
 
-; CHECK-LABEL: test_inline_constraint_x:
+; CHECK-LABEL: test__inline__constraint__x:
 define void @test_inline_constraint_x() {
   call void asm sideeffect "JSR 1234", "x"(i8 56)
   ; CHECK: LDX #56
@@ -16,7 +16,7 @@ define void @test_inline_constraint_x() {
   ret void
 }
 
-; CHECK-LABEL: test_inline_constraint_y:
+; CHECK-LABEL: test__inline__constraint__y:
 define void @test_inline_constraint_y() {
   call void asm sideeffect "JSR 1234", "y"(i8 56)
   ; CHECK: LDY #56
