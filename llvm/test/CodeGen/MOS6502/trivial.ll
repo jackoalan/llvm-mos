@@ -5,7 +5,7 @@ define i16 @main() {
   ret i16 0
 }
 
-; CHECK:      .segment "CODE"
+; CHECK:      .code
 ; CHECK:      .global main
 ; CHECK:      main:
 ; CHECK:        LDA #0
