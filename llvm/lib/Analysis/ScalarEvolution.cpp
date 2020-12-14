@@ -8317,8 +8317,8 @@ const SCEV *ScalarEvolution::computeExitCountExhaustively(const Loop *L,
 
     if (CondVal->getValue() == uint64_t(ExitWhen)) {
       ++NumBruteForceTripCountsComputed;
-      APInt Count(IterationNum, 32);
-      return getConstant(Count.trunc(Count.getActiveBits()));
+      APInt Count(32, IterationNum);
+      return getConstant(Count.trunc(std::max(Count.getActiveBits(), 1u)));
     }
 
     // Update all the PHI nodes for the next iteration.
