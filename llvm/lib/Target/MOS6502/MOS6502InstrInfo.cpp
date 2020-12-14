@@ -54,9 +54,9 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
         Builder.buildInstr(MOS6502::PLA);
     }
   } else if (areClasses(MOS6502::GPRRegClass, MOS6502::ZPRegClass)) {
-    Builder.buildInstr(MOS6502::STzp).addDef(DestReg).addUse(SrcReg);
+    Builder.buildInstr(MOS6502::STzpr).addDef(DestReg).addUse(SrcReg);
   } else if (areClasses(MOS6502::ZPRegClass, MOS6502::GPRRegClass)) {
-    Builder.buildInstr(MOS6502::LDzp).addDef(DestReg).addUse(SrcReg);
+    Builder.buildInstr(MOS6502::LDzpr).addDef(DestReg).addUse(SrcReg);
   } else {
     report_fatal_error("Unsupported physical register copy.");
   }

@@ -1,5 +1,6 @@
 #include "MOS6502TargetObjectFile.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/IR/GlobalObject.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionMOS6502.h"
 #include "llvm/Support/raw_ostream.h"
@@ -13,7 +14,9 @@ MCSection *MOS6502TargetObjectFile::SelectSectionForGlobal(
   if (TM.getFunctionSections() || TM.getDataSections()) {
     report_fatal_error("Unique sections not supported on MOS6502.");
   }
-  if (Kind.isText()) {
+  if (GO->getAddressSpace() == 1) {
+    return getZPSection();
+  } else if (Kind.isText()) {
     return getTextSection();
   } else if (Kind.isData()) {
     return getDataSection();

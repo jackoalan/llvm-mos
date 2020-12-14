@@ -17,6 +17,7 @@ MOS6502MCAsmInfo::MOS6502MCAsmInfo() {
   Data64bitsDirective = nullptr;
   Data8bitsDirective = "\t.byt\t";
   GlobalDirective = ".global\t";
+  HasCommonSymbolDirective = false;
   HasDotTypeDotSizeDirective = false;
   HasSingleParameterDotFile = false;
   HiddenDeclarationVisibilityAttr = MCSA_Invalid;
@@ -24,6 +25,7 @@ MOS6502MCAsmInfo::MOS6502MCAsmInfo() {
   MaxInstLength = 3;
   ProtectedVisibilityAttr = MCSA_Invalid;
   SeparatorString = nullptr;
+  UseEqualsForAssignment = true;
   UseIntegratedAssembler = false;
   WeakDirective = nullptr;
   ZeroDirective = "\t.res\t";

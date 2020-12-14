@@ -66,17 +66,35 @@ def LDimm : Instr {
   let isReMaterializable = true;
 }
 
-def LDzp : Instr {
+def LDzpr : Pseudo {
   dag InOperandList = (ins ZP:$src);
   dag OutOperandList = (outs GPR:$dst);
-
-  let AsmString = "LD$dst\t$src";
 
   let isReMaterializable = true;
 }
 
-def LDAyindir : Instr {
+def LDzp : Instr {
+  dag InOperandList = (ins i8imm:$src);
+  dag OutOperandList = (outs GPR:$dst);
+
+  let AsmString = "LD$dst\tz:$src";
+
+  let isReMaterializable = true;
+  let mayLoad = true;
+}
+
+def LDAyindirr : Pseudo {
   dag InOperandList = (ins ZP_PTR:$addr);
+  dag OutOperandList = (outs);
+
+  let Uses = [Y];
+  let Defs = [A, NZ];
+
+  let mayLoad = true;
+}
+
+def LDAyindir : Instr {
+  dag InOperandList = (ins i8imm:$addr);
   dag OutOperandList = (outs);
 
   let Uses = [Y];
@@ -153,13 +171,22 @@ def PLP : Instr {
 }
 
 
-def STzp : Instr {
+def STzpr : Pseudo {
   dag InOperandList = (ins GPR:$src);
   dag OutOperandList = (outs ZP:$dst);
 
   let Defs = [];
+}
 
-  let AsmString = "ST$src\t$dst";
+def STzp : Instr {
+  dag InOperandList = (ins i8imm:$dst, GPR:$src);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let AsmString = "ST$src\tz:$dst";
+
+  let mayStore = true;
 }
 
 def label : Operand<OtherVT>;

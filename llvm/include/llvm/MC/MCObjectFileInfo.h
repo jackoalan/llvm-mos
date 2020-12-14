@@ -225,6 +225,8 @@ protected:
   // XCOFF specific sections
   MCSection *TOCBaseSection = nullptr;
 
+  MCSection *ZPSection = nullptr;
+
 public:
   void InitMCObjectFileInfo(const Triple &TT, bool PIC, MCContext &ctx,
                             bool LargeCodeModel = false);
@@ -412,7 +414,10 @@ public:
   // XCOFF specific sections
   MCSection *getTOCBaseSection() const { return TOCBaseSection; }
 
-  MCSection *getEHFrameSection() const { return EHFrameSection; }
+  MCSection *getZPSection() const { return ZPSection; }
+
+    return EHFrameSection;
+  }
 
   enum Environment { IsMachO, IsELF, IsCOFF, IsWasm, IsXCOFF, IsMOS6502 };
   Environment getObjectFileType() const { return Env; }

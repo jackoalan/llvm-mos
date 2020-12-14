@@ -1,5 +1,7 @@
 #include "MOS6502PreLegalizerCombiner.h"
 
+#include "MOS6502.h"
+
 #include "llvm/CodeGen/GlobalISel/Combiner.h"
 #include "llvm/CodeGen/GlobalISel/CombinerHelper.h"
 #include "llvm/CodeGen/GlobalISel/CombinerInfo.h"

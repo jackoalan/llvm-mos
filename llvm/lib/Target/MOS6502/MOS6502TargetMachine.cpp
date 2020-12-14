@@ -1,5 +1,7 @@
 #include "MOS6502TargetMachine.h"
 
+#include "MOS6502.h"
+#include "MOS6502LowerZPReg.h"
 #include "MOS6502PreLegalizerCombiner.h"
 #include "MOS6502TargetObjectFile.h"
 #include "MOS6502TargetTransformInfo.h"
@@ -10,6 +12,7 @@
 #include "llvm/CodeGen/GlobalISel/RegBankSelect.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/PassRegistry.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar.h"
@@ -17,7 +20,10 @@
 using namespace llvm;
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502Target() {
   RegisterTargetMachine<MOS6502TargetMachine> X(getTheMOS6502Target());
-  initializeGlobalISel(*PassRegistry::getPassRegistry());
+  PassRegistry &PR = *PassRegistry::getPassRegistry();
+  initializeGlobalISel(PR);
+  initializeMOS6502LowerZPRegPass(PR);
+  initializeMOS6502PreLegalizerCombinerPass(PR);
 }
 
 static const char Layout[] =
@@ -74,6 +80,7 @@ public:
   bool addLegalizeMachineIR() override;
   bool addRegBankSelect() override;
   bool addGlobalInstructionSelect() override;
+  void addPreSched2() override;
 };
 
 } // namespace
@@ -104,4 +111,8 @@ bool MOS6502PassConfig::addRegBankSelect() {
 bool MOS6502PassConfig::addGlobalInstructionSelect() {
   addPass(new InstructionSelect());
   return false;
+}
+
+void MOS6502PassConfig::addPreSched2() {
+  addPass(createMOS6502LowerZPReg());
 }

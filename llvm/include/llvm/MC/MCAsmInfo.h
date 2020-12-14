@@ -105,6 +105,8 @@ protected:
   /// constants into comdat sections.
   bool HasCOFFComdatConstants = false;
 
+  bool HasCommonSymbolDirective = true;
+
   /// True if this is an XCOFF target that supports visibility attributes as
   /// part of .global, .weak, .extern, and .comm. Default is false.
   bool HasVisibilityOnlyWithLinkage = false;
@@ -135,6 +137,8 @@ protected:
 
   /// This is appended to emitted labels.  Defaults to ":"
   const char *LabelSuffix;
+
+  bool UseEqualsForAssignment = false;
 
   // Print the EH begin symbol with an assignment. Defaults to false.
   bool UseAssignmentForEHBegin = false;
@@ -539,6 +543,7 @@ public:
   bool hasMachoTBSSDirective() const { return HasMachoTBSSDirective; }
   bool hasCOFFAssociativeComdats() const { return HasCOFFAssociativeComdats; }
   bool hasCOFFComdatConstants() const { return HasCOFFComdatConstants; }
+  bool hasCommonSymbolDirective() const { return HasCommonSymbolDirective; }
   bool hasVisibilityOnlyWithLinkage() const {
     return HasVisibilityOnlyWithLinkage;
   }
@@ -561,6 +566,7 @@ public:
   StringRef getCommentString() const { return CommentString; }
   const char *getLabelSuffix() const { return LabelSuffix; }
 
+  bool useEqualsForAssignment() const { return UseEqualsForAssignment; }
   bool useAssignmentForEHBegin() const { return UseAssignmentForEHBegin; }
   bool needsLocalForSize() const { return NeedsLocalForSize; }
   StringRef getPrivateGlobalPrefix() const { return PrivateGlobalPrefix; }

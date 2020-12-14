@@ -585,7 +585,8 @@ void AsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
   // If this is a BSS local symbol and we are emitting in the BSS
   // section use .lcomm/.comm directive.
   if (GVKind.isBSSLocal() &&
-      getObjFileLowering().getBSSSection() == TheSection) {
+      getObjFileLowering().getBSSSection() == TheSection &&
+      MAI->hasCommonSymbolDirective()) {
     if (Size == 0)
       Size = 1; // .comm Foo, 0 is undefined, avoid it.
 
@@ -1537,11 +1538,14 @@ void AsmPrinter::emitGlobalIndirectSymbol(Module &M,
     return;
   }
 
-  if (GIS.hasExternalLinkage() || !MAI->getWeakRefDirective())
+  if (GIS.hasExternalLinkage())
     OutStreamer->emitSymbolAttribute(Name, MCSA_Global);
-  else if (GIS.hasWeakLinkage() || GIS.hasLinkOnceLinkage())
-    OutStreamer->emitSymbolAttribute(Name, MCSA_WeakReference);
-  else
+  else if (GIS.hasWeakLinkage() || GIS.hasLinkOnceLinkage()) {
+    if (MAI->getWeakRefDirective())
+      OutStreamer->emitSymbolAttribute(Name, MCSA_WeakReference);
+    else
+      OutStreamer->emitSymbolAttribute(Name, MCSA_Global);
+  } else
     assert(GIS.hasLocalLinkage() && "Invalid alias or ifunc linkage");
 
   // Set the symbol type to function if the alias has a function type.

@@ -5,7 +5,6 @@
 
 namespace llvm {
 
-void initializeMOS6502PreLegalizerCombinerPass(PassRegistry&);
 FunctionPass *createMOS6502PreLegalizerCombiner();
 
 } // end namespace llvm

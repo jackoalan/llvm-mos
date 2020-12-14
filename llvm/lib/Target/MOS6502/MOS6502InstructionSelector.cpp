@@ -209,7 +209,7 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &I,
 
   MachineIRBuilder Builder(I);
   Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
-  auto Load = Builder.buildInstr(MOS6502::LDAyindir).addUse(Addr);
+  auto Load = Builder.buildInstr(MOS6502::LDAyindirr).addUse(Addr);
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
     return false;
   buildCopy(Builder, Dst, MOS6502::A, MRI);

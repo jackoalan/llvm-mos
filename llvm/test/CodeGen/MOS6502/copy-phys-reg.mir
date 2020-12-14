@@ -88,7 +88,7 @@ body:             |
   bb.0.entry:
     liveins: $a
     $zp_0 = COPY $a
-# CHECK: $zp_0 = STzp $a
+# CHECK: $zp_0 = STzpr $a
 ...
 ---
 name:            test_ldzp
@@ -97,5 +97,5 @@ body:             |
   bb.0.entry:
     liveins: $zp_0
     $a = COPY $zp_0
-# CHECK: $a = LDzp $zp_0
+# CHECK: $a = LDzpr $zp_0
 ...

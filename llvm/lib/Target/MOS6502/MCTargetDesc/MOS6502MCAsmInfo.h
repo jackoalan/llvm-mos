@@ -5,7 +5,7 @@
 
 namespace llvm {
 
-class MOS6502MCAsmInfo : public llvm::MCAsmInfo {
+class MOS6502MCAsmInfo : public MCAsmInfo {
 public:
   MOS6502MCAsmInfo();
 
