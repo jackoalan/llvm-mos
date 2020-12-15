@@ -34,12 +34,15 @@ int main(void) {
 .global	main
 main:
 	LDA	#72
-	LDY	#69
+	;APP
+	JSR	$FFD2
+	;NO_APP
+	LDA	#69
 	;APP
 	JSR	$FFD2
 	;NO_APP
 	LDX	#76
-	TYA
+	TXA
 	;APP
 	JSR	$FFD2
 	;NO_APP
@@ -48,10 +51,6 @@ main:
 	JSR	$FFD2
 	;NO_APP
 	LDY	#79
-	TXA
-	;APP
-	JSR	$FFD2
-	;NO_APP
 	TYA
 	;APP
 	JSR	$FFD2
@@ -76,28 +75,26 @@ main:
 	;APP
 	JSR	$FFD2
 	;NO_APP
-	LDY	#68
 	TXA
 	;APP
 	JSR	$FFD2
 	;NO_APP
-	LDX	#33
-	TYA
+	LDA	#68
 	;APP
 	JSR	$FFD2
 	;NO_APP
-	LDY	#10
-	TXA
+	LDA	#33
 	;APP
 	JSR	$FFD2
 	;NO_APP
-	TYA
+	LDA	#10
 	;APP
 	JSR	$FFD2
 	;NO_APP
 	LDA	#0
 	LDX	#0
 	RTS
+
 ```
 
 Notes:
@@ -105,10 +102,6 @@ Notes:
     iterations.
   - The L and O characters are placed in registers, since a transfer is cheaper than
     an immediate load, and these letters are used twice.
-
-TODO:
-  - For some reason, the 'E' is placed in Y, then moved to A, when it would be
-    more efficient to load it directly to A, since the letter is only used once.
 
 ### Size Optimized (-Os)
 

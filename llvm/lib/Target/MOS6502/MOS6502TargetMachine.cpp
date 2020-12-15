@@ -9,6 +9,7 @@
 #include "llvm/CodeGen/GlobalISel/IRTranslator.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
 #include "llvm/CodeGen/GlobalISel/Legalizer.h"
+#include "llvm/CodeGen/GlobalISel/Localizer.h"
 #include "llvm/CodeGen/GlobalISel/RegBankSelect.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/InitializePasses.h"
@@ -81,6 +82,7 @@ public:
   bool addRegBankSelect() override;
   bool addGlobalInstructionSelect() override;
   void addPreSched2() override;
+  void addPreGlobalInstructionSelect() override;
 };
 
 } // namespace
@@ -115,4 +117,8 @@ bool MOS6502PassConfig::addGlobalInstructionSelect() {
 
 void MOS6502PassConfig::addPreSched2() {
   addPass(createMOS6502LowerZPReg());
+}
+
+void MOS6502PassConfig::addPreGlobalInstructionSelect() {
+  addPass(new Localizer);
 }
