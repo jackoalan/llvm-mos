@@ -1,0 +1,3 @@
+compiler: clang
+before_install: sudo apt-get -y install ninja
+script: ./.build.sh
