@@ -141,6 +141,7 @@ Notes:
   - The indexed addressing mode can load using 8-bit indices.
 
 TODO:
+  - The JMP is redundant; a pass should eliminate redundant jumps to fallthrough.
   - Branch relaxation is not yet implemented, so the branches could be out of range.
 
 Updated December 21, 2020.
