@@ -7,5 +7,5 @@ install:
   - sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic-rc main'
   - sudo apt update
   - sudo apt install cmake
-  - sudo apt install ninja
+  - sudo apt install ninja-build
 script: ./.build.sh
