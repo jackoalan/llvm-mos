@@ -136,9 +136,8 @@ _2Estr:                                 ; @.str
 
 Notes:
   - The loop was rotated so there's only one branch per iteration.
-  - The loop is statically determined to run exactly 14 times, so the induction
-    variable can be rewritten to an 8-bit index.
-  - The indexed addressing mode can load using 8-bit indices.
+  - The string offset was statically determined to fit within an unsigned 8-bit
+    integer, allowing indexed addressing mode for the load.
 
 TODO:
   - The JMP is redundant; a pass should eliminate redundant jumps to fallthrough.
