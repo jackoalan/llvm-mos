@@ -1,6 +1,7 @@
 #include "MOS6502TargetMachine.h"
 
 #include "MOS6502.h"
+#include "MOS6502IndexIVPass.h"
 #include "MOS6502LowerZPReg.h"
 #include "MOS6502PreLegalizerCombiner.h"
 #include "MOS6502TargetObjectFile.h"
@@ -12,9 +13,11 @@
 #include "llvm/CodeGen/GlobalISel/Localizer.h"
 #include "llvm/CodeGen/GlobalISel/RegBankSelect.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/PassRegistry.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar.h"
 
@@ -23,6 +26,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502Target() {
   RegisterTargetMachine<MOS6502TargetMachine> X(getTheMOS6502Target());
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializeGlobalISel(PR);
+  initializeMOS6502IndexIVPass(PR);
   initializeMOS6502LowerZPRegPass(PR);
   initializeMOS6502PreLegalizerCombinerPass(PR);
 }
@@ -63,6 +67,18 @@ MOS6502TargetMachine::getSubtargetImpl(const Function &F) const {
 TargetTransformInfo
 MOS6502TargetMachine::getTargetTransformInfo(const Function &F) {
   return TargetTransformInfo(MOS6502TTIImpl(this, F));
+}
+
+void MOS6502TargetMachine::adjustPassManager(PassManagerBuilder &Builder) {
+  Builder.addExtension(
+      PassManagerBuilder::EP_LateLoopOptimizations,
+      [](const PassManagerBuilder &Builder, legacy::PassManagerBase &PM) {
+        // Lower to 8-bit index induction variables wherever possible to help
+        // generate indexed addressing modes.
+        PM.add(createMOS6502IndexIVPass());
+        // New induction variables may have been added.
+        PM.add(createIndVarSimplifyPass());
+      });
 }
 
 namespace {
@@ -115,9 +131,7 @@ bool MOS6502PassConfig::addGlobalInstructionSelect() {
   return false;
 }
 
-void MOS6502PassConfig::addPreSched2() {
-  addPass(createMOS6502LowerZPReg());
-}
+void MOS6502PassConfig::addPreSched2() { addPass(createMOS6502LowerZPReg()); }
 
 void MOS6502PassConfig::addPreGlobalInstructionSelect() {
   addPass(new Localizer);

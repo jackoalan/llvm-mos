@@ -109,72 +109,39 @@ Notes:
 
 ```asm
 .code
-.global	main
-main:
-	LDA	#<_2Estr
-	LDY	#>_2Estr
-	STA	z:__ZP__0
-	LDX	#72
-	STY	z:__ZP__1
-	LDY	#0
-LBB0__1:
-	CLC
-	LDA	z:__ZP__0
-	ADC	#1
-	STA	z:__ZP__0
-	LDA	z:__ZP__1
-	ADC	#0
-	STA	z:__ZP__1
-	TXA
+.global	main                            ; -- Begin function main
+main:                                   ; @main
+; %bb.0:                                ; %entry
+	LDX	#0
+	LDA	#72
+LBB0__1:                                ; %while.body
+                                        ; =>This Inner Loop Header: Depth=1
 	;APP
 	JSR	$FFD2
 	;NO_APP
-	LDA	(__ZP__PTR__0),Y
-	TAX
-	CPX	#0
+	LDA	_2Estr+1,X
+	INX
+	CPX	#14
 	BNE	LBB0__1
 	JMP	LBB0__2
-LBB0__2:
+LBB0__2:                                ; %while.end
 	LDA	#0
 	LDX	#0
 	RTS
-
+                                        ; -- End function
 .rodata
-_2Estr:
+_2Estr:                                 ; @.str
 	.byt	72,69,76,76,79,44,32,87,79,82,76,68,33,10,0
-
-.zeropage
-__ZP__PTR__0:
-	.res	2
-
-__ZP__0 = __ZP__PTR__0
-__ZP__1 = __ZP__0+1
 ```
 
 Notes:
   - The loop was rotated so there's only one branch per iteration.
-  - Fake ZP registers are allocated by LLVM's register allocator, then these
-    registers are lowered to real zero page segment addresses in the backend.
-  - Aside from specific pairs, the layout of the zero page segment is
-    intentionally unconstrained.
+  - The loop is statically determined to run exactly 14 times, so the induction
+    variable can be rewritten to an 8-bit index.
+  - The indexed addressing mode can load using 8-bit indices.
 
 TODO:
-  - INC and branching can more efficiently increment ZP than ADC 1, but this
-    requires basic block manipulation.
-  - The CPX 0 is redundant; a pass should eliminate redundant compares.
-  - The JMP is redundant; a pass should eliminate redundant jumps to fallthrough.
   - Branch relaxation is not yet implemented, so the branches could be out of range.
-  - The constant #0 is already available in Y, so it can be TYA and TAX to
-    produce the return value.
-  - Because the pointer is known not to overflow 64k (undefined behavior), the
-    carry is known clear after the final add. Thus, the CLC can be hoisted out
-    of the loop. This optimization may be difficult, since heavy loop
-    manipulation would need to be done at the machine code level.
-  - LLVM does not rewrite the loop induction variable to be the pointer, since
-    the pointer is 16-bits, which is not a native integer type. Custom induction
-    variable rewriting could use the 8-bit offset as the induction variable
-    instead, which would allow selecting an indirect addressing mode for the
-    pointer. This may not always pay off, though, so more thought is needed.
 
-Updated December 14, 2020.
+Updated December 21, 2020.
 

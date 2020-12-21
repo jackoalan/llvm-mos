@@ -25,6 +25,8 @@ class MOS6502TargetMachine : public LLVMTargetMachine {
   }
 
   TargetTransformInfo getTargetTransformInfo(const Function &F) override;
+
+  void adjustPassManager(PassManagerBuilder &) override;
 };
 
 }  // namespace llvm

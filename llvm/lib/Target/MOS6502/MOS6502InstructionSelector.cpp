@@ -47,6 +47,7 @@ private:
   bool selectCompareBranch(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectGlobalValue(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectLoad(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectImplicitDef(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectIntToPtr(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectPhi(MachineInstr &I, MachineRegisterInfo &MRI);
@@ -125,6 +126,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return selectCompareBranch(I, MRI);
   case MOS6502::G_GLOBAL_VALUE:
     return selectGlobalValue(I, MRI);
+  case MOS6502::G_IMPLICIT_DEF:
+    return selectImplicitDef(I, MRI);
   case MOS6502::G_INTTOPTR:
     return selectIntToPtr(I, MRI);
   case MOS6502::G_LOAD:
@@ -180,17 +183,28 @@ bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &I,
   MachineIRBuilder Builder(I);
   LLT s8 = LLT::scalar(8);
   Register Lo = MRI.createGenericVirtualRegister(s8);
-  auto LoImm =
-    Builder.buildInstr(MOS6502::LDimm).addDef(Lo).addGlobalAddress(Global, 0, MOS6502::MO_LO);
+  auto LoImm = Builder.buildInstr(MOS6502::LDimm)
+                   .addDef(Lo)
+                   .addGlobalAddress(Global, 0, MOS6502::MO_LO);
   if (!constrainSelectedInstRegOperands(*LoImm, TII, TRI, RBI))
     return false;
   Register Hi = MRI.createGenericVirtualRegister(s8);
-  auto HiImm =
-    Builder.buildInstr(MOS6502::LDimm).addDef(Hi).addGlobalAddress(Global, 0, MOS6502::MO_HI);
+  auto HiImm = Builder.buildInstr(MOS6502::LDimm)
+                   .addDef(Hi)
+                   .addGlobalAddress(Global, 0, MOS6502::MO_HI);
   if (!constrainSelectedInstRegOperands(*HiImm, TII, TRI, RBI))
     return false;
   composePtr(Builder, Dst, Lo, Hi, MRI);
   I.removeFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectImplicitDef(MachineInstr &I,
+                                                   MachineRegisterInfo &MRI) {
+  MachineIRBuilder Builder(I);
+  auto Def = Builder.buildInstr(MOS6502::IMPLICIT_DEF).add(I.getOperand(0));
+  constrainGenericOp(*Def, MRI);
+  I.eraseFromParent();
   return true;
 }
 
@@ -206,8 +220,24 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &I,
                                             MachineRegisterInfo &MRI) {
   Register Dst = I.getOperand(0).getReg();
   Register Addr = I.getOperand(1).getReg();
-
   MachineIRBuilder Builder(I);
+
+  // Use indexed addressing mode to load from Global + Offset.
+  MachineInstr *AddrDef = MRI.getVRegDef(Addr);
+  if (AddrDef->getOpcode() == MOS6502::G_PTR_ADD) {
+    MachineInstr *BaseDef = MRI.getVRegDef(AddrDef->getOperand(1).getReg());
+    const MachineOperand &Offset = AddrDef->getOperand(2);
+    if (BaseDef->getOpcode() == MOS6502::G_GLOBAL_VALUE) {
+      const MachineOperand &Base = BaseDef->getOperand(1);
+      auto Load =
+          Builder.buildInstr(MOS6502::LDidx).addDef(Dst).add(Base).add(Offset);
+      if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
+        return false;
+      I.removeFromParent();
+      return true;
+    }
+  }
+
   Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
   auto Load = Builder.buildInstr(MOS6502::LDAyindirr).addUse(Addr);
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
@@ -285,11 +315,11 @@ bool MOS6502InstructionSelector::selectUAddO(MachineInstr &I,
   Register CarryIn = MRI.createGenericVirtualRegister(LLT::scalar(1));
   buildCopy(Builder, CarryIn, MOS6502::C, MRI);
   auto Add = Builder.buildInstr(MOS6502::G_UADDE)
-    .addDef(Sum)
-    .addDef(CarryOut)
-    .addUse(L)
-    .addUse(R)
-    .addUse(CarryIn);
+                 .addDef(Sum)
+                 .addDef(CarryOut)
+                 .addUse(L)
+                 .addUse(R)
+                 .addUse(CarryIn);
 
   I.removeFromParent();
   return selectUAddE(*Add, MRI);

@@ -83,6 +83,54 @@ def LDzp : Instr {
   let mayLoad = true;
 }
 
+// $dst = *(addr + (unsigned char)idx);
+// Sets NZ to undefined value, since the expansion may end with a restore of A.
+def LDidx : Pseudo {
+  dag InOperandList = (ins i16imm:$addr, XY:$idx);
+  dag OutOperandList = (outs GPR:$dst);
+
+  let isReMaterializable = true;
+  let mayLoad = true;
+}
+
+def LDAidx : Instr {
+  dag InOperandList = (ins i16imm:$addr, XY:$idx);
+  dag OutOperandList = (outs);
+
+  let Defs = [A, NZ];
+
+  let AsmString = "LDA\t$addr,$idx";
+
+  let isReMaterializable = true;
+  let mayLoad = true;
+}
+
+def LDXidx : Instr {
+  dag InOperandList = (ins i16imm:$addr);
+  dag OutOperandList = (outs);
+
+  let Uses = [Y];
+  let Defs = [X, NZ];
+
+  let AsmString = "LDX\t$addr,Y";
+
+  let isReMaterializable = true;
+  let mayLoad = true;
+}
+
+def LDYidx : Instr {
+  dag InOperandList = (ins i16imm:$addr);
+  dag OutOperandList = (outs);
+
+  let Uses = [X];
+  let Defs = [Y, NZ];
+
+  let AsmString = "LDY\t$addr,X";
+
+  let isReMaterializable = true;
+  let mayLoad = true;
+}
+
 def LDAyindirr : Pseudo {
   dag InOperandList = (ins ZP_PTR:$addr);
   dag OutOperandList = (outs);

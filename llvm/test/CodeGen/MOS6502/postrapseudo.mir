@@ -1,0 +1,41 @@
+# RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
+---
+name:            test_ldaidx
+# CHECK-LABEL: name: test_ldaidx
+body:             |
+  bb.0.entry:
+    liveins: $x
+    $a = LDidx 1234, $x, implicit-def $nz
+# CHECK: LDAidx 1234, $x
+...
+---
+name:            test_ldxidx_y
+# CHECK-LABEL: name: test_ldxidx_y
+body:             |
+  bb.0.entry:
+    liveins: $y
+    $x = LDidx 1234, $y, implicit-def $nz
+# CHECK: LDXidx 1234
+...
+---
+name:            test_ldxidx_x
+# CHECK-LABEL: name: test_ldxidx_x
+body:             |
+  bb.0.entry:
+    liveins: $x
+    $x = LDidx 1234, $x, implicit-def $nz
+    CMPimm $a, 0, implicit-def $nz
+# CHECK:      PHA
+# CHECK-NEXT: LDAidx 1234, $x
+# CHECK-NEXT: $x = TA_
+# CHECK-NEXT: PLA
+...
+---
+name:            test_ldyidx_x
+# CHECK-LABEL: name: test_ldyidx_x
+body:             |
+  bb.0.entry:
+    liveins: $x
+    $y = LDidx 1234, $x, implicit-def $nz
+# CHECK: LDYidx 1234
+...

@@ -21,6 +21,7 @@ add_llvm_target(MOS6502CodeGen
   MOS6502FrameLowering.cpp
   MOS6502InstructionSelector.cpp
   MOS6502InstrInfo.cpp
+  MOS6502IndexIVPass.cpp
   MOS6502ISelLowering.cpp
   MOS6502LegalizerInfo.cpp
   MOS6502LowerZPReg.cpp
@@ -31,6 +32,9 @@ add_llvm_target(MOS6502CodeGen
   MOS6502Subtarget.cpp
   MOS6502TargetMachine.cpp
   MOS6502TargetObjectFile.cpp
+
+  LINK_COMPONENTS
+  IPO
 
   ADD_TO_COMPONENT
   MOS6502

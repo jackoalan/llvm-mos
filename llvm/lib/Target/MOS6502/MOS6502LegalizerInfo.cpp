@@ -1,7 +1,10 @@
 #include "MOS6502LegalizerInfo.h"
+#include "llvm/CodeGen/GlobalISel/LegalizerHelper.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
+#include "llvm/IR/GlobalVariable.h"
 
 using namespace llvm;
 
@@ -21,11 +24,10 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   getActionDefinitionsBuilder(G_BRCOND).legalFor({s1});
 
-  getActionDefinitionsBuilder(G_CONSTANT)
-      .legalFor({s8})
-      .clampScalar(0, s8, s8);
+  getActionDefinitionsBuilder(G_CONSTANT).legalFor({s8}).clampScalar(0, s8, s8);
 
-  getActionDefinitionsBuilder({G_GLOBAL_VALUE, G_PHI}).alwaysLegal();
+  getActionDefinitionsBuilder({G_GLOBAL_VALUE, G_IMPLICIT_DEF, G_PHI})
+      .alwaysLegal();
 
   getActionDefinitionsBuilder(G_INTTOPTR).legalFor({{p, s16}}).unsupported();
   getActionDefinitionsBuilder(G_PTRTOINT).legalFor({{s16, p}}).unsupported();
@@ -40,7 +42,8 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   getActionDefinitionsBuilder({G_MERGE_VALUES, G_SEXT}).legalFor({{s16, s8}});
 
-  getActionDefinitionsBuilder(G_PTR_ADD).customFor({{p, s16}}).unsupported();
+  getActionDefinitionsBuilder(G_PTR_ADD).legalFor({{p, s8}}).customFor(
+      {{p, s16}});
 
   getActionDefinitionsBuilder({G_UADDO, G_UADDE}).legalFor({s8});
 
@@ -52,12 +55,49 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 bool MOS6502LegalizerInfo::legalizeCustom(LegalizerHelper &Helper,
                                           MachineInstr &MI) const {
   using namespace TargetOpcode;
+  MachineRegisterInfo &MRI = MI.getMF()->getRegInfo();
+
+  // Only G_PTR_ADD has custom legalization.
   assert(MI.getOpcode() == G_PTR_ADD);
   MachineIRBuilder Builder(MI);
+
+  MachineOperand &Result = MI.getOperand(0);
+
+  MachineOperand &Base = MI.getOperand(1);
+  MachineInstr *BaseDef = MRI.getVRegDef(Base.getReg());
+
+  MachineOperand &Offset = MI.getOperand(2);
+  MachineInstr *OffsetDef = MRI.getVRegDef(Offset.getReg());
+
+  // Fold constant offsets into global value operand.
+  if (BaseDef->getOpcode() == G_GLOBAL_VALUE &&
+      OffsetDef->getOpcode() == G_CONSTANT) {
+    const MachineOperand &Base = BaseDef->getOperand(1);
+    const GlobalValue *GV = Base.getGlobal();
+    int64_t Offset = OffsetDef->getOperand(1).getCImm()->getSExtValue();
+
+    Builder.buildInstr(G_GLOBAL_VALUE)
+        .add(Result)
+        // Note: Base may already have an offset, so add that in.
+        .addGlobalAddress(GV, Base.getOffset() + Offset);
+    MI.removeFromParent();
+    return true;
+  }
+
+  // Adds of zero-extended values can instead use the legal 8-bit version of
+  // G_PTR_ADD, with the goal of selecting indexed addressing modes.
+  if (OffsetDef->getOpcode() == G_ZEXT) {
+    Helper.Observer.changingInstr(MI);
+    Offset.setReg(OffsetDef->getOperand(1).getReg());
+    Helper.Observer.changedInstr(MI);
+    return true;
+  }
+
+  // Generalized pointer additions must be lowered to 16-bit integer arithmetic.
   LLT s16 = LLT::scalar(16);
-  Register PtrVal = MI.getMF()->getRegInfo().createGenericVirtualRegister(s16);
+  Register PtrVal = MRI.createGenericVirtualRegister(s16);
   Builder.buildPtrToInt(PtrVal, MI.getOperand(1));
-  Register Sum = MI.getMF()->getRegInfo().createGenericVirtualRegister(s16);
+  Register Sum = MRI.createGenericVirtualRegister(s16);
   Builder.buildAdd(Sum, PtrVal, MI.getOperand(2));
   Builder.buildIntToPtr(MI.getOperand(0), Sum);
   MI.removeFromParent();

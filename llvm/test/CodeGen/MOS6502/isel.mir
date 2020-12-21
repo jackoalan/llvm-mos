@@ -59,11 +59,12 @@ legalized: true
 regBankSelected: true
 body: |
   bb.0.entry:
+    %0:zp_ptr(p0) = G_IMPLICIT_DEF
     %1:any(s8) = G_LOAD %0:zp_ptr(p0) :: (load 1)
     RTS implicit %1
 # CHECK:      $y = LDimm 0
-# CHECK-NEXT: LDAyindirr %1:zp_ptr
-# CHECK-NEXT: %0:anyc = COPY $a
+# CHECK-NEXT: LDAyindirr %0
+# CHECK-NEXT: %1:anyc = COPY $a
 ...
 ---
 name: uadde_imm

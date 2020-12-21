@@ -63,7 +63,7 @@ body:             |
     liveins: $a, $nz
     $x = COPY $a
     BNE %bb.0, implicit $nz
-# CHECK:      PHP
+# CHECK:      PHP implicit killed $p
 # CHECK-NEXT: $x = TA_
 # CHECK-NEXT: PLP
 # CHECK-NEXT: BNE %bb.0, implicit $nz
@@ -76,7 +76,7 @@ body:             |
     liveins: $a, $x
     $y = COPY $x
     CMPimm $a, 0, implicit-def $nz
-# CHECK:      PHA
+# CHECK:      PHA implicit killed $a
 # CHECK-NEXT: T_A $x
 # CHECK-NEXT: $y = TA_
 # CHECK-NEXT: PLA

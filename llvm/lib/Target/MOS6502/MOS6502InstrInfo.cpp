@@ -1,6 +1,9 @@
 #include "MOS6502InstrInfo.h"
+
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "MOS6502RegisterInfo.h"
+#include "MOS6502Utils.h"
+
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -11,63 +14,86 @@ using namespace llvm;
 #define GET_INSTRINFO_CTOR_DTOR
 #include "MOS6502GenInstrInfo.inc"
 
-static bool maybeLive(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
-                      MCRegister Reg) {
-  return MBB.computeRegisterLiveness(
-             MBB.getParent()->getSubtarget().getRegisterInfo(), Reg, MI) !=
-         MachineBasicBlock::LQR_Dead;
-}
-
 void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MI,
                                    const DebugLoc &DL, MCRegister DestReg,
                                    MCRegister SrcReg, bool KillSrc) const {
   MachineIRBuilder Builder(MBB, MI);
 
-  const auto &areClasses = [&](const TargetRegisterClass &Src,
-                               const TargetRegisterClass &Dest) {
-    return Src.contains(SrcReg) && Dest.contains(DestReg);
+  const auto &areClasses = [&](const TargetRegisterClass &Dest,
+                               const TargetRegisterClass &Src) {
+    return Dest.contains(DestReg) && Src.contains(SrcReg);
   };
 
-  bool nzMaybeLive = maybeLive(MBB, MI, MOS6502::NZ);
-
-  if (nzMaybeLive)
-    Builder.buildInstr(MOS6502::PHP);
-
-  if (areClasses(MOS6502::GPRRegClass, MOS6502::GPRRegClass)) {
-    if (SrcReg == MOS6502::A) {
-      assert(MOS6502::XYRegClass.contains(DestReg));
-      Builder.buildInstr(MOS6502::TA_).addDef(DestReg);
-    } else if (DestReg == MOS6502::A) {
-      assert(MOS6502::XYRegClass.contains(SrcReg));
-      Builder.buildInstr(MOS6502::T_A).addUse(SrcReg);
+  mos6502WithNZFree(Builder, [&]() {
+    if (areClasses(MOS6502::GPRRegClass, MOS6502::GPRRegClass)) {
+      if (SrcReg == MOS6502::A) {
+        assert(MOS6502::XYRegClass.contains(DestReg));
+        Builder.buildInstr(MOS6502::TA_).addDef(DestReg);
+      } else if (DestReg == MOS6502::A) {
+        assert(MOS6502::XYRegClass.contains(SrcReg));
+        Builder.buildInstr(MOS6502::T_A).addUse(SrcReg);
+      } else {
+        mos6502WithAFree(Builder, [&]() {
+          copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(),
+                      MOS6502::A, SrcReg, KillSrc);
+          copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(),
+                      DestReg, MOS6502::A, true);
+        });
+      }
+    } else if (areClasses(MOS6502::ZPRegClass, MOS6502::GPRRegClass)) {
+      Builder.buildInstr(MOS6502::STzpr).addDef(DestReg).addUse(SrcReg);
+    } else if (areClasses(MOS6502::GPRRegClass, MOS6502::ZPRegClass)) {
+      Builder.buildInstr(MOS6502::LDzpr).addDef(DestReg).addUse(SrcReg);
     } else {
-      bool aMaybeLive = maybeLive(MBB, MI, MOS6502::A);
-
-      if (aMaybeLive)
-        Builder.buildInstr(MOS6502::PHA);
-      copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(), MOS6502::A,
-                  SrcReg, KillSrc);
-      copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(), DestReg,
-                  MOS6502::A, true);
-      if (aMaybeLive)
-        Builder.buildInstr(MOS6502::PLA);
+      report_fatal_error("Unsupported physical register copy.");
     }
-  } else if (areClasses(MOS6502::GPRRegClass, MOS6502::ZPRegClass)) {
-    Builder.buildInstr(MOS6502::STzpr).addDef(DestReg).addUse(SrcReg);
-  } else if (areClasses(MOS6502::ZPRegClass, MOS6502::GPRRegClass)) {
-    Builder.buildInstr(MOS6502::LDzpr).addDef(DestReg).addUse(SrcReg);
-  } else {
-    report_fatal_error("Unsupported physical register copy.");
-  }
-
-  if (nzMaybeLive)
-    Builder.buildInstr(MOS6502::PLP);
+  });
 }
 
 std::pair<unsigned, unsigned>
 MOS6502InstrInfo::decomposeMachineOperandsTargetFlags(unsigned TF) const {
   return std::make_pair(TF, 0u);
+}
+
+bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
+  MachineIRBuilder Builder(MI);
+
+  switch (MI.getOpcode()) {
+  default:
+    return false;
+  case MOS6502::LDidx:
+    // This occur when X or Y is both the destination and index register.
+    // Since the 6502 has no instruction for this, use A as the destination
+    // instead, then transfer to the real destination.
+    if (MI.getOperand(0).getReg() == MI.getOperand(2).getReg()) {
+      mos6502WithAFree(Builder, [&]() {
+        Builder.buildInstr(MOS6502::LDAidx)
+            .add(MI.getOperand(1))
+            .add(MI.getOperand(2));
+        Builder.buildInstr(MOS6502::TA_).add(MI.getOperand(0));
+      });
+      return true;
+    }
+
+    switch (MI.getOperand(0).getReg()) {
+    default:
+      llvm_unreachable("Bad destination for LDidx.");
+    case MOS6502::A:
+      Builder.buildInstr(MOS6502::LDAidx)
+          .add(MI.getOperand(1))
+          .add(MI.getOperand(2));
+      break;
+    case MOS6502::X:
+      Builder.buildInstr(MOS6502::LDXidx).add(MI.getOperand(1));
+      break;
+    case MOS6502::Y:
+      Builder.buildInstr(MOS6502::LDYidx).add(MI.getOperand(1));
+      break;
+    }
+    MI.eraseFromParent();
+    return true;
+  }
 }
 
 ArrayRef<std::pair<unsigned, const char *>>

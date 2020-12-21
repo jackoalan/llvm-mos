@@ -24,6 +24,9 @@ bool MOS6502MCInstLower::lowerOperand(const MachineOperand &MO,
   case MachineOperand::MO_GlobalAddress: {
     const MCExpr *Expr =
         MCSymbolRefExpr::create(AP.getSymbol(MO.getGlobal()), Ctx);
+    if (MO.getOffset() != 0)
+      Expr = MCBinaryExpr::createAdd(
+          Expr, MCConstantExpr::create(MO.getOffset(), Ctx), Ctx);
     Expr = applyTargetFlags(MO.getTargetFlags(), Expr);
     MCOp = MCOperand::createExpr(Expr);
     break;
