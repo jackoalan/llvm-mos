@@ -138,4 +138,4 @@ Notes:
   - The L and O characters are placed in registers, since a transfer is cheaper than
     an immediate load, and these letters are used twice.
 
-Updated December 21, 2020.
+Updated December 22, 2020.
