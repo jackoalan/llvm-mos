@@ -242,10 +242,9 @@ struct AMDGPUOutgoingArgHandler : public AMDGPUValueHandler {
     MIRBuilder.buildStore(ValVReg, Addr, *MMO);
   }
 
-  void assignValueToAddress(const CallLowering::ArgInfo &Arg, unsigned PartIdx,
-                            Register Addr, uint64_t Size,
-                            MachinePointerInfo &MPO, CCValAssign &VA) override {
-    assert(Arg.Regs.size() == 1);
+  void assignValueToAddress(const CallLowering::ArgInfo &Arg, Register Addr,
+                            uint64_t Size, MachinePointerInfo &MPO,
+                            CCValAssign &VA) override {
     Register ValVReg = VA.getLocInfo() != CCValAssign::LocInfo::FPExt
                            ? extendRegister(Arg.Regs[0], VA)
                            : Arg.Regs[0];
