@@ -25,6 +25,41 @@ int main(void) {
 }
 ```
 
+### Size Optimized (-Os)
+
+`$ clang --target=mos6502 -S -Os main.c`
+
+```asm
+.code
+.global	main
+main:
+	LDX	#0
+	LDA	#72
+LBB0__1:
+	;APP
+	JSR	$FFD2
+	;NO_APP
+	LDA	_2Estr+1,X
+	INX
+	CPX	#14
+	BNE	LBB0__1
+	LDA	#0
+	LDX	#0
+	RTS
+
+.rodata
+_2Estr:
+	.byt	72,69,76,76,79,44,32,87,79,82,76,68,33,10,0
+```
+
+Notes:
+- The loop was rotated so there's only one branch per iteration.
+- The string offset was statically determined to fit within an unsigned 8-bit
+integer, allowing indexed addressing mode for the load.
+
+TODO:
+- Branch relaxation is not yet implemented, so the branches could be out of range.
+
 ### Speed Optimized (-O2)
 
 `$ clang --target=mos6502 -S -O2 main.c`
@@ -103,45 +138,4 @@ Notes:
   - The L and O characters are placed in registers, since a transfer is cheaper than
     an immediate load, and these letters are used twice.
 
-### Size Optimized (-Os)
-
-`$ clang --target=mos6502 -S -Os main.c`
-
-```asm
-.code
-.global	main                            ; -- Begin function main
-main:                                   ; @main
-; %bb.0:                                ; %entry
-	LDX	#0
-	LDA	#72
-LBB0__1:                                ; %while.body
-                                        ; =>This Inner Loop Header: Depth=1
-	;APP
-	JSR	$FFD2
-	;NO_APP
-	LDA	_2Estr+1,X
-	INX
-	CPX	#14
-	BNE	LBB0__1
-	JMP	LBB0__2
-LBB0__2:                                ; %while.end
-	LDA	#0
-	LDX	#0
-	RTS
-                                        ; -- End function
-.rodata
-_2Estr:                                 ; @.str
-	.byt	72,69,76,76,79,44,32,87,79,82,76,68,33,10,0
-```
-
-Notes:
-  - The loop was rotated so there's only one branch per iteration.
-  - The string offset was statically determined to fit within an unsigned 8-bit
-    integer, allowing indexed addressing mode for the load.
-
-TODO:
-  - The JMP is redundant; a pass should eliminate redundant jumps to fallthrough.
-  - Branch relaxation is not yet implemented, so the branches could be out of range.
-
 Updated December 21, 2020.
-
