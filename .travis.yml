@@ -1,8 +1,0 @@
-dist: bionic
-language: cpp
-compiler: clang
-install:
-  - sudo apt-get install snapd
-  - sudo snap install cmake --classic
-  - sudo apt install ninja-build
-script: ./.build.sh
