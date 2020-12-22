@@ -36,6 +36,7 @@ body: |
     %1:any(s8) = G_CONSTANT i8 1
     %2:any(s1) = G_ICMP intpred(ne), %0, %1
     G_BRCOND %2, %bb.0
+    RTS
 # CHECK:      CMPimm %0, 1
 # CHECK-NEXT: BR %bb.0, $z, 0
 ...

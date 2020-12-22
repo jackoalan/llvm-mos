@@ -57,9 +57,6 @@ Notes:
 - The string offset was statically determined to fit within an unsigned 8-bit
 integer, allowing indexed addressing mode for the load.
 
-TODO:
-- Branch relaxation is not yet implemented, so the branches could be out of range.
-
 ### Speed Optimized (-O2)
 
 `$ clang --target=mos6502 -S -O2 main.c`

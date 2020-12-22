@@ -63,6 +63,7 @@ body:             |
     liveins: $a, $nz
     $x = COPY $a
     BR %bb.0, $z, 0
+    RTS
 # CHECK:      PHP implicit killed $p
 # CHECK-NEXT: $x = TA_
 # CHECK-NEXT: PLP

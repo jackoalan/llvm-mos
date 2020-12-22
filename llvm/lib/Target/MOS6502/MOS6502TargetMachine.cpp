@@ -12,6 +12,7 @@
 #include "llvm/CodeGen/GlobalISel/Legalizer.h"
 #include "llvm/CodeGen/GlobalISel/Localizer.h"
 #include "llvm/CodeGen/GlobalISel/RegBankSelect.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/InitializePasses.h"
@@ -96,9 +97,10 @@ public:
   void addPreLegalizeMachineIR() override;
   bool addLegalizeMachineIR() override;
   bool addRegBankSelect() override;
+  void addPreGlobalInstructionSelect() override;
   bool addGlobalInstructionSelect() override;
   void addPreSched2() override;
-  void addPreGlobalInstructionSelect() override;
+  void addPreEmitPass() override;
 };
 
 } // namespace
@@ -132,6 +134,8 @@ bool MOS6502PassConfig::addGlobalInstructionSelect() {
 }
 
 void MOS6502PassConfig::addPreSched2() { addPass(createMOS6502LowerZPReg()); }
+
+void MOS6502PassConfig::addPreEmitPass() { addPass(&BranchRelaxationPassID); }
 
 void MOS6502PassConfig::addPreGlobalInstructionSelect() {
   addPass(new Localizer);

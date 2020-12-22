@@ -10,17 +10,12 @@ namespace llvm {
 
 class MOS6502InstrInfo : public MOS6502GenInstrInfo {
 public:
-  void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
-                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
-                   bool KillSrc) const override;
+  unsigned getInstSizeInBytes(const MachineInstr &MI) const override;
 
-  bool expandPostRAPseudo(MachineInstr &MI) const override;
+  bool isBranchOffsetInRange(unsigned BranchOpc,
+                             int64_t BrOffset) const override;
 
-  std::pair<unsigned, unsigned>
-  decomposeMachineOperandsTargetFlags(unsigned TF) const override;
-
-  ArrayRef<std::pair<unsigned, const char *>>
-  getSerializableDirectMachineOperandTargetFlags() const override;
+  MachineBasicBlock *getBranchDestBlock(const MachineInstr &MI) const override;
 
   bool analyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
                      MachineBasicBlock *&FBB,
@@ -31,10 +26,24 @@ public:
                         int *BytesRemoved = nullptr) const override;
 
   unsigned insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                                MachineBasicBlock *FBB,
-                                ArrayRef<MachineOperand> Cond,
-                                const DebugLoc &DL,
+                        MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
+                        const DebugLoc &DL,
                         int *BytesAdded = nullptr) const override;
+
+  void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
+                   bool KillSrc) const override;
+
+  bool expandPostRAPseudo(MachineInstr &MI) const override;
+
+  bool
+  reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
+
+  std::pair<unsigned, unsigned>
+  decomposeMachineOperandsTargetFlags(unsigned TF) const override;
+
+  ArrayRef<std::pair<unsigned, const char *>>
+  getSerializableDirectMachineOperandTargetFlags() const override;
 };
 
 namespace MOS6502 {
