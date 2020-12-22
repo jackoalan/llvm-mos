@@ -170,7 +170,8 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I,
   auto Compare = Builder.buildInstr(MOS6502::CMPimm).addUse(L).addImm(R->Value);
   if (!constrainSelectedInstRegOperands(*Compare, TII, TRI, RBI))
     return false;
-  Builder.buildInstr(MOS6502::BNE).addMBB(Tgt);
+  // BNE
+  Builder.buildInstr(MOS6502::BR).addMBB(Tgt).addUse(MOS6502::Z).addImm(0);
   I.eraseFromParent();
   return true;
 }

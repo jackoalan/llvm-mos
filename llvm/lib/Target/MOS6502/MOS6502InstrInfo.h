@@ -21,6 +21,20 @@ public:
 
   ArrayRef<std::pair<unsigned, const char *>>
   getSerializableDirectMachineOperandTargetFlags() const override;
+
+  bool analyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
+                     MachineBasicBlock *&FBB,
+                     SmallVectorImpl<MachineOperand> &Cond,
+                     bool AllowModify = false) const override;
+
+  unsigned removeBranch(MachineBasicBlock &MBB,
+                        int *BytesRemoved = nullptr) const override;
+
+  unsigned insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
+                                MachineBasicBlock *FBB,
+                                ArrayRef<MachineOperand> Cond,
+                                const DebugLoc &DL,
+                        int *BytesAdded = nullptr) const override;
 };
 
 namespace MOS6502 {

@@ -239,15 +239,12 @@ def STzp : Instr {
 
 def label : Operand<OtherVT>;
 
-def BNE : Instr {
-  dag InOperandList = (ins label:$tgt);
+// Branches to $tgt if $flag = $val.
+def BR : Instr {
+  dag InOperandList = (ins label:$tgt, Flag:$flag, i1imm:$val);
   dag OutOperandList = (outs);
-  let Uses = [NZ];
   let Defs = [];
 
-  let AsmString = "BNE\t$tgt";
-
-  let isBarrier = true;
   let isBranch = true;
   let isTerminator = true;
 }

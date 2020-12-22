@@ -51,6 +51,28 @@ void MOS6502InstPrinter::printInst(const MCInst *MI, uint64_t Address,
     }
     break;
   }
+  case MOS6502::BR: {
+    OS << "\t";
+    const MCExpr *Target = MI->getOperand(0).getExpr();
+    unsigned Flag = MI->getOperand(1).getReg();
+    int64_t Val = MI->getOperand(2).getImm();
+    switch (Flag) {
+    default:
+      llvm_unreachable("Invalid Br flag.");
+    case MOS6502::C:
+      OS << (Val ? "BCS" : "BCC");
+      break;
+    case MOS6502::N:
+      OS << (Val ? "BMI" : "BPL");
+      break;
+    case MOS6502::Z:
+      OS << (Val ? "BEQ" : "BNE");
+      break;
+    }
+    OS << "\t";
+    Target->print(OS, &MAI);
+    break;
+  }
   }
 }
 

@@ -7,6 +7,7 @@
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
@@ -101,4 +102,102 @@ MOS6502InstrInfo::getSerializableDirectMachineOperandTargetFlags() const {
   static const std::pair<unsigned, const char *> Flags[] = {
       {MOS6502::MO_LO, "lo"}, {MOS6502::MO_HI, "hi"}};
   return Flags;
+}
+
+bool MOS6502InstrInfo::analyzeBranch(MachineBasicBlock &MBB,
+                                     MachineBasicBlock *&TBB,
+                                     MachineBasicBlock *&FBB,
+                                     SmallVectorImpl<MachineOperand> &Cond,
+                                     bool AllowModify) const {
+  auto I = MBB.getFirstTerminator();
+
+  // No terminators, so falls through.
+  if (I == MBB.end())
+    return false;
+
+  // Non-branch terminators cannot be analyzed.
+  if (!I->isBranch())
+    return true;
+
+  // Analyze first branch.
+  auto FirstBR = I++;
+  if (FirstBR->isPreISelOpcode())
+    return true;
+  // First branch always forms true edge, whether conditional or unconditional.
+  TBB = FirstBR->getOperand(0).getMBB();
+  if (FirstBR->isConditionalBranch()) {
+    Cond.push_back(FirstBR->getOperand(1));
+    Cond.push_back(FirstBR->getOperand(2));
+  }
+
+  // If there's no second branch, done.
+  if (I == MBB.end())
+    return false;
+
+  // Cannot analyze branch followed by non-branch.
+  if (!I->isBranch())
+    return true;
+
+  auto SecondBR = I++;
+
+  // If more than two branches present, cannot analyze.
+  if (I != MBB.end())
+    return true;
+
+  // Exactly two branches present.
+
+  // Can only analyze conditional branch followed by unconditional branch.
+  if (!SecondBR->isUnconditionalBranch())
+    return true;
+
+  // Second unconditional branch forms false edge.
+  if (SecondBR->isPreISelOpcode())
+    return true;
+  FBB = SecondBR->getOperand(0).getMBB();
+  return false;
+}
+
+unsigned MOS6502InstrInfo::removeBranch(MachineBasicBlock &MBB,
+                                        int *BytesRemoved) const {
+  // Since analyzeBranch succeeded, we know that the only terminators are
+  // branches.
+
+  unsigned NumRemoved = std::distance(MBB.getFirstTerminator(), MBB.end());
+  if (BytesRemoved) {
+    // Errors must make basic blocks larger to avoid out of range branches, so
+    // this is a lower bound.
+    *BytesRemoved = NumRemoved * 2;
+  }
+  MBB.erase(MBB.getFirstTerminator(), MBB.end());
+  return NumRemoved;
+}
+
+unsigned MOS6502InstrInfo::insertBranch(
+    MachineBasicBlock &MBB, MachineBasicBlock *TBB, MachineBasicBlock *FBB,
+    ArrayRef<MachineOperand> Cond, const DebugLoc &DL, int *BytesAdded) const {
+  // Since analyzeBranch succeeded and any existing branches were removed, there
+  // can be no terminators.
+
+  MachineIRBuilder Builder(MBB, MBB.end());
+  unsigned NumAdded = 0;
+  if (TBB) {
+    assert (Cond.size() == 2);
+    auto BR = Builder.buildInstr(MOS6502::BR).addMBB(TBB);
+    for (const MachineOperand &Op : Cond) {
+      BR.add(Op);
+    }
+    ++NumAdded;
+  }
+  if (FBB) {
+    assert (TBB);
+    Builder.buildInstr(MOS6502::JMP).addMBB(FBB);
+    ++NumAdded;
+  }
+
+  // Errors must make basic blocks larger to avoid out of range branches, so
+  // this is an upper bound.
+  if (BytesAdded)
+    *BytesAdded = NumAdded * 3;
+
+  return NumAdded;
 }

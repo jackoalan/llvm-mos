@@ -37,7 +37,7 @@ body: |
     %2:any(s1) = G_ICMP intpred(ne), %0, %1
     G_BRCOND %2, %bb.0
 # CHECK:      CMPimm %0, 1
-# CHECK-NEXT: BNE %bb.0
+# CHECK-NEXT: BR %bb.0, $z, 0
 ...
 ---
 name: ldimm_global

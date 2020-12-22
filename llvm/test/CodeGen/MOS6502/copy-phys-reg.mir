@@ -62,11 +62,11 @@ body:             |
   bb.0.entry:
     liveins: $a, $nz
     $x = COPY $a
-    BNE %bb.0, implicit $nz
+    BR %bb.0, $z, 0
 # CHECK:      PHP implicit killed $p
 # CHECK-NEXT: $x = TA_
 # CHECK-NEXT: PLP
-# CHECK-NEXT: BNE %bb.0, implicit $nz
+# CHECK-NEXT: BR %bb.0, $z, 0
 ...
 ---
 name:            test_preserve_a
