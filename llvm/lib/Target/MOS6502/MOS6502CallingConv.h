@@ -7,10 +7,14 @@
 
 namespace llvm {
 
-bool RetCC_MOS6502(unsigned ValNo, MVT ValVT,
-                    MVT LocVT, CCValAssign::LocInfo LocInfo,
-                    ISD::ArgFlagsTy ArgFlags, CCState &State);
+bool CC_MOS6502(unsigned ValNo, MVT ValVT, MVT LocVT,
+                CCValAssign::LocInfo LocInfo, ISD::ArgFlagsTy ArgFlags,
+                CCState &State);
 
-}  // namespace
+bool RetCC_MOS6502(unsigned ValNo, MVT ValVT, MVT LocVT,
+                   CCValAssign::LocInfo LocInfo, ISD::ArgFlagsTy ArgFlags,
+                   CCState &State);
 
-#endif  // not LLVM_LIB_TARGET_MOS6502_MOS6502CALLINGCONV_H
+} // namespace llvm
+
+#endif // not LLVM_LIB_TARGET_MOS6502_MOS6502CALLINGCONV_H

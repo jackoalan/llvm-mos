@@ -252,6 +252,7 @@ def BR : Instr {
 def JMP : Instr {
   dag InOperandList = (ins label:$tgt);
   dag OutOperandList = (outs);
+
   let Defs = [];
 
   let AsmString = "JMP\t$tgt";
@@ -261,6 +262,17 @@ def JMP : Instr {
   let isBarrier = true;
   let isBranch = true;
   let isTerminator = true;
+}
+
+def JSR : Instr {
+  dag InOperandList = (ins label:$tgt);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let AsmString = "JSR\t$tgt";
+
+  let isCall = true;
 }
 
 def RTS : Instr {
