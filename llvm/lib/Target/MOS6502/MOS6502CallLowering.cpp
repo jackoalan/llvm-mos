@@ -61,7 +61,7 @@ struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
 
     // Ensure that the physical is alive on function entry.
     MIRBuilder.getMBB().addLiveIn(PhysReg);
-    MIRBuilder.buildCopy(LLT{VA.getLocVT()}, PhysReg);
+    MIRBuilder.buildCopy(ValVReg, PhysReg);
   }
 
   void assignValueToAddress(Register ValVReg, Register Addr, uint64_t Size,
@@ -75,34 +75,33 @@ struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
 bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
                                       const Value *Val,
                                       ArrayRef<Register> VRegs) const {
-  if (!Val)
-    return true;
-
-  MachineFunction &MF = MIRBuilder.getMF();
-  MachineRegisterInfo &MRI = MF.getRegInfo();
-  const TargetLowering &TLI = *getTLI();
-  const DataLayout &DL = MF.getDataLayout();
-  LLVMContext &Ctx = Val->getContext();
-  const Function &F = MF.getFunction();
-
   auto Return = MIRBuilder.buildInstrNoInsert(MOS6502::RTS);
 
-  // Initialize data structures for TableGen calling convention compatibility
-  // layer.
-  SmallVector<EVT, 4> ValueVTs;
-  ComputeValueVTs(TLI, DL, Val->getType(), ValueVTs);
-  assert(ValueVTs.size() == VRegs.size() && "Need one type for each VReg.");
-  SmallVector<ArgInfo, 4> Args;
-  for (size_t Idx = 0; Idx < VRegs.size(); ++Idx) {
-    Args.emplace_back(VRegs[Idx], ValueVTs[Idx].getTypeForEVT(Ctx));
-    setArgFlags(Args.back(), AttributeList::ReturnIndex, DL, F);
-  }
+  if (Val) {
+    MachineFunction &MF = MIRBuilder.getMF();
+    MachineRegisterInfo &MRI = MF.getRegInfo();
+    const TargetLowering &TLI = *getTLI();
+    const DataLayout &DL = MF.getDataLayout();
+    LLVMContext &Ctx = Val->getContext();
+    const Function &F = MF.getFunction();
 
-  // Invoke TableGen compatibility layer. The return instruction will be
-  // annotated with implicit uses of any live variables out of the function.
-  MOS6502OutgoingValueHandler Handler(MIRBuilder, Return, MRI, RetCC_MOS6502);
-  if (!handleAssignments(MIRBuilder, Args, Handler))
-    return false;
+    // Initialize data structures for TableGen calling convention compatibility
+    // layer.
+    SmallVector<EVT, 4> ValueVTs;
+    ComputeValueVTs(TLI, DL, Val->getType(), ValueVTs);
+    assert(ValueVTs.size() == VRegs.size() && "Need one type for each VReg.");
+    SmallVector<ArgInfo, 4> Args;
+    for (size_t Idx = 0; Idx < VRegs.size(); ++Idx) {
+      Args.emplace_back(VRegs[Idx], ValueVTs[Idx].getTypeForEVT(Ctx));
+      setArgFlags(Args.back(), AttributeList::ReturnIndex, DL, F);
+    }
+
+    // Invoke TableGen compatibility layer. The return instruction will be
+    // annotated with implicit uses of any live variables out of the function.
+    MOS6502OutgoingValueHandler Handler(MIRBuilder, Return, MRI, RetCC_MOS6502);
+    if (!handleAssignments(MIRBuilder, Args, Handler))
+      return false;
+  }
 
   // Insert the final return once the return values are in place.
   MIRBuilder.insertInstr(Return);
