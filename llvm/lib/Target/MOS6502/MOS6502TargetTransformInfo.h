@@ -21,6 +21,10 @@ public:
   explicit MOS6502TTIImpl(const MOS6502TargetMachine *TM, const Function &F)
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),
         TLI(ST->getTargetLowering()) {}
+
+  // All div, rem, and divrem ops are libcalls, so any possible combination
+  // exists.
+  bool hasDivRemOp(Type *DataType, bool IsSigned) { return true; }
 };
 
 } // end namespace llvm
