@@ -1,7 +1,7 @@
 # RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
 ---
-name:            test_tax
-# CHECK-LABEL: name: test_tax
+name:            tax
+# CHECK-LABEL: name: tax
 body:             |
   bb.0.entry:
     liveins: $a
@@ -9,8 +9,8 @@ body:             |
 # CHECK: $x = TA_
 ...
 ---
-name:            test_txa
-# CHECK-LABEL: name: test_txa
+name:            txa
+# CHECK-LABEL: name: txa
 body:             |
   bb.0.entry:
     liveins: $x
@@ -18,8 +18,8 @@ body:             |
 # CHECK: T_A $x
 ...
 ---
-name:            test_tay
-# CHECK-LABEL: name: test_tay
+name:            tay
+# CHECK-LABEL: name: tay
 body:             |
   bb.0.entry:
     liveins: $a
@@ -27,8 +27,8 @@ body:             |
 # CHECK: $y = TA_
 ...
 ---
-name:            test_tya
-# CHECK-LABEL: name: test_tya
+name:            tya
+# CHECK-LABEL: name: tya
 body:             |
   bb.0.entry:
     liveins: $y
@@ -36,8 +36,8 @@ body:             |
 # CHECK: T_A $y
 ...
 ---
-name:            test_txy
-# CHECK-LABEL: name: test_txy
+name:            txy
+# CHECK-LABEL: name: txy
 body:             |
   bb.0.entry:
     liveins: $x
@@ -46,8 +46,8 @@ body:             |
 # CHECK-NEXT: $y = TA_
 ...
 ---
-name:            test_tyx
-# CHECK-LABEL: name: test_tyx
+name:            tyx
+# CHECK-LABEL: name: tyx
 body:             |
   bb.0.entry:
     liveins: $y
@@ -56,8 +56,8 @@ body:             |
 # CHECK-NEXT: $x = TA_
 ...
 ---
-name:            test_preserve_nz
-# CHECK-LABEL: name: test_preserve_nz
+name:            preserve_nz
+# CHECK-LABEL: name: preserve_nz
 body:             |
   bb.0.entry:
     liveins: $a, $nz
@@ -70,8 +70,8 @@ body:             |
 # CHECK-NEXT: BR %bb.0, $z, 0
 ...
 ---
-name:            test_preserve_a
-# CHECK-LABEL: name: test_preserve_a
+name:            preserve_a
+# CHECK-LABEL: name: preserve_a
 body:             |
   bb.0.entry:
     liveins: $a, $x
@@ -83,8 +83,8 @@ body:             |
 # CHECK-NEXT: PLA
 ...
 ---
-name:            test_stzp
-# CHECK-LABEL: name: test_stzp
+name:            stzp
+# CHECK-LABEL: name: stzp
 body:             |
   bb.0.entry:
     liveins: $a
@@ -92,8 +92,8 @@ body:             |
 # CHECK: $zp_0 = STzpr $a
 ...
 ---
-name:            test_ldzp
-# CHECK-LABEL: name: test_ldzp
+name:            ldzp
+# CHECK-LABEL: name: ldzp
 body:             |
   bb.0.entry:
     liveins: $zp_0

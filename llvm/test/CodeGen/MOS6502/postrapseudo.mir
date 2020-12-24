@@ -1,7 +1,7 @@
 # RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
 ---
-name:            test_ldaidx
-# CHECK-LABEL: name: test_ldaidx
+name:            ldaidx
+# CHECK-LABEL: name: ldaidx
 body:             |
   bb.0.entry:
     liveins: $x
@@ -9,8 +9,8 @@ body:             |
 # CHECK: LDAidx 1234, $x
 ...
 ---
-name:            test_ldxidx_y
-# CHECK-LABEL: name: test_ldxidx_y
+name:            ldxidx_y
+# CHECK-LABEL: name: ldxidx_y
 body:             |
   bb.0.entry:
     liveins: $y
@@ -18,8 +18,8 @@ body:             |
 # CHECK: LDXidx 1234
 ...
 ---
-name:            test_ldxidx_x
-# CHECK-LABEL: name: test_ldxidx_x
+name:            ldxidx_x
+# CHECK-LABEL: name: ldxidx_x
 body:             |
   bb.0.entry:
     liveins: $x
@@ -31,8 +31,8 @@ body:             |
 # CHECK-NEXT: PLA
 ...
 ---
-name:            test_ldyidx_x
-# CHECK-LABEL: name: test_ldyidx_x
+name:            ldyidx_x
+# CHECK-LABEL: name: ldyidx_x
 body:             |
   bb.0.entry:
     liveins: $x
