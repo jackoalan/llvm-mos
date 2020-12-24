@@ -124,9 +124,18 @@ unsigned MOS6502InstrInfo::insertBranch(
   unsigned NumAdded = 0;
   if (BytesAdded)
     *BytesAdded = 0;
-  // Only emit a conditional branch if there's both a true and a false path.
-  if (TBB && FBB) {
+
+  // Unconditional branch target.
+  auto *UBB = TBB;
+
+  // Conditional branch.
+  if (!Cond.empty()) {
+    assert(TBB);
     assert(Cond.size() == 2);
+
+    // The unconditional branch will be to the false branch (if any).
+    UBB = FBB;
+
     auto BR = Builder.buildInstr(MOS6502::BR).addMBB(TBB);
     for (const MachineOperand &Op : Cond) {
       BR.add(Op);
@@ -136,10 +145,8 @@ unsigned MOS6502InstrInfo::insertBranch(
       *BytesAdded += getInstSizeInBytes(*BR);
   }
 
-  // The unconditional branch takes whatever destination is left over.
-  auto BB = FBB ? FBB : TBB;
-  if (BB) {
-    auto JMP = Builder.buildInstr(MOS6502::JMP).addMBB(BB);
+  if (UBB) {
+    auto JMP = Builder.buildInstr(MOS6502::JMP).addMBB(UBB);
     ++NumAdded;
     if (BytesAdded)
       *BytesAdded += getInstSizeInBytes(*JMP);
