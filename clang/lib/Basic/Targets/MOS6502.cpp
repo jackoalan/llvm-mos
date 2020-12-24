@@ -26,11 +26,11 @@ MOS6502TargetInfo::MOS6502TargetInfo(const llvm::Triple &Triple,
   DefaultAlignForAttributeAligned = 8;
   SizeType = UnsignedShort;
   PtrDiffType = SignedShort;
-  IntPtrType = SignedLong;
-  WCharType = SignedLong;
-  WIntType = SignedLong;
+  IntPtrType = SignedShort;
+  WCharType = UnsignedLong;
+  WIntType = UnsignedLong;
   Char32Type = UnsignedLong;
-  SigAtomicType = SignedChar;
+  SigAtomicType = UnsignedChar;
 }
 
 bool MOS6502TargetInfo::validateAsmConstraint(
