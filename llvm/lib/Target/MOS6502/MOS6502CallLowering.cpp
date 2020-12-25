@@ -46,9 +46,12 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 };
 
 struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
+  std::function<void(Register Reg)> MakeLive;
+
   MOS6502IncomingValueHandler(MachineIRBuilder &MIRBuilder,
-                              MachineRegisterInfo &MRI, CCAssignFn *AssignFn)
-      : IncomingValueHandler(MIRBuilder, MRI, AssignFn) {}
+                              MachineRegisterInfo &MRI, CCAssignFn *AssignFn,
+                              std::function<void(Register Reg)> MakeLive)
+      : IncomingValueHandler(MIRBuilder, MRI, AssignFn), MakeLive(MakeLive) {}
 
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
@@ -60,7 +63,7 @@ struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
     assert(VA.getLocVT().getSizeInBits() == 8);
 
     // Ensure that the physical is alive on function entry.
-    MIRBuilder.getMBB().addLiveIn(PhysReg);
+    MakeLive(PhysReg);
     MIRBuilder.buildCopy(ValVReg, PhysReg);
   }
 
@@ -127,7 +130,10 @@ bool MOS6502CallLowering::lowerFormalArguments(
   }
 
   // Invoke TableGen compatibility layer.
-  MOS6502IncomingValueHandler Handler(MIRBuilder, MRI, CC_MOS6502);
+  const auto MakeLive = [&](Register PhysReg) {
+    MIRBuilder.getMBB().addLiveIn(PhysReg);
+  };
+  MOS6502IncomingValueHandler Handler(MIRBuilder, MRI, CC_MOS6502, MakeLive);
   return handleAssignments(MIRBuilder, InArgs, Handler);
 }
 
@@ -160,7 +166,11 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   }
 
   // Invoke TableGen compatibility layer for return value.
-  MOS6502IncomingValueHandler RetHandler(MIRBuilder, MRI, RetCC_MOS6502);
+  const auto MakeLive = [&](Register PhysReg) {
+    Call.addDef(PhysReg, RegState::Implicit);
+  };
+  MOS6502IncomingValueHandler RetHandler(MIRBuilder, MRI, RetCC_MOS6502,
+                                         MakeLive);
   SmallVector<ArgInfo> Rets = {Info.OrigRet};
   return handleAssignments(MIRBuilder, Rets, RetHandler);
 }
