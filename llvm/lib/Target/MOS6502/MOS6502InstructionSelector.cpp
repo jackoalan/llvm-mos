@@ -152,22 +152,17 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I,
   Register CondReg = I.getOperand(0).getReg();
   MachineBasicBlock *Tgt = I.getOperand(1).getMBB();
 
-  MachineInstr *CCMI = MRI.getVRegDef(CondReg);
-
-  if (CCMI->getOpcode() != MOS6502::G_ICMP)
+  CmpInst::Predicate Pred;
+  Register LHS;
+  int64_t RHS;
+  if (!mi_match(CondReg, MRI, m_GICmp(m_Pred(Pred), m_Reg(LHS), m_ICst(RHS))))
     return false;
-  auto Pred =
-      static_cast<CmpInst::Predicate>(CCMI->getOperand(1).getPredicate());
+
   if (Pred != CmpInst::ICMP_NE)
     return false;
 
-  auto L = CCMI->getOperand(2).getReg();
-  auto R = getConstantVRegValWithLookThrough(CCMI->getOperand(3).getReg(), MRI);
-  if (!R)
-    return false;
-
   MachineIRBuilder Builder(I);
-  auto Compare = Builder.buildInstr(MOS6502::CMPimm).addUse(L).addImm(R->Value);
+  auto Compare = Builder.buildInstr(MOS6502::CMPimm).addUse(LHS).addImm(RHS);
   if (!constrainSelectedInstRegOperands(*Compare, TII, TRI, RBI))
     return false;
   // BNE
