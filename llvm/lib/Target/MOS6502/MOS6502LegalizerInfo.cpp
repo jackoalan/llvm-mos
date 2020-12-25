@@ -26,6 +26,44 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   getActionDefinitionsBuilder(G_CONSTANT).legalFor({s8}).clampScalar(0, s8, s8);
 
+  getActionDefinitionsBuilder({G_SDIV,
+                               G_SREM,
+                               G_UDIV,
+                               G_UREM,
+                               G_CTLZ_ZERO_UNDEF,
+                               G_FADD,
+                               G_FSUB,
+                               G_FMUL,
+                               G_FDIV,
+                               G_FMA,
+                               G_FPOW,
+                               G_FREM,
+                               G_FCOS,
+                               G_FSIN,
+                               G_FLOG10,
+                               G_FLOG,
+                               G_FLOG2,
+                               G_FEXP,
+                               G_FEXP2,
+                               G_FCEIL,
+                               G_FFLOOR,
+                               G_FMINNUM,
+                               G_FMAXNUM,
+                               G_FSQRT,
+                               G_FRINT,
+                               G_FNEARBYINT,
+                               G_INTRINSIC_ROUNDEVEN,
+                               G_FPEXT,
+                               G_FPTRUNC,
+                               G_FPTOSI,
+                               G_FPTOUI,
+                               G_SITOFP,
+                               G_UITOFP,
+                               G_MEMCPY,
+                               G_MEMMOVE,
+                               G_MEMSET})
+      .libcall();
+
   getActionDefinitionsBuilder({G_GLOBAL_VALUE, G_IMPLICIT_DEF, G_PHI})
       .alwaysLegal();
 

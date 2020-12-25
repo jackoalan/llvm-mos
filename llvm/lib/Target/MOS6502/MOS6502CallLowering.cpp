@@ -133,7 +133,7 @@ bool MOS6502CallLowering::lowerFormalArguments(
 
 bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
                                     CallLoweringInfo &Info) const {
-  assert(Info.Callee.isGlobal());
+  assert(Info.Callee.isGlobal() || Info.Callee.isSymbol());
   assert(!Info.IsMustTailCall);
   assert(!Info.IsVarArg);
 
