@@ -53,7 +53,6 @@ private:
   bool selectPhi(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectPtrToInt(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUAddE(MachineInstr &I, MachineRegisterInfo &MRI);
-  bool selectUAddO(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectUnMergeValues(MachineInstr &I, MachineRegisterInfo &MRI);
 
   void buildCopy(MachineIRBuilder &Builder, Register Dst, Register Src,
@@ -140,8 +139,6 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return selectPtrToInt(I, MRI);
   case MOS6502::G_UADDE:
     return selectUAddE(I, MRI);
-  case MOS6502::G_UADDO:
-    return selectUAddO(I, MRI);
   case MOS6502::G_UNMERGE_VALUES:
     return selectUnMergeValues(I, MRI);
   }
@@ -296,29 +293,6 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I,
 
   I.removeFromParent();
   return true;
-}
-
-bool MOS6502InstructionSelector::selectUAddO(MachineInstr &I,
-                                             MachineRegisterInfo &MRI) {
-  Register Sum = I.getOperand(0).getReg();
-  Register CarryOut = I.getOperand(1).getReg();
-  Register L = I.getOperand(2).getReg();
-  Register R = I.getOperand(3).getReg();
-
-  MachineIRBuilder Builder(I);
-
-  Builder.buildInstr(MOS6502::LDCimm).addImm(0);
-  Register CarryIn = MRI.createGenericVirtualRegister(LLT::scalar(1));
-  buildCopy(Builder, CarryIn, MOS6502::C, MRI);
-  auto Add = Builder.buildInstr(MOS6502::G_UADDE)
-                 .addDef(Sum)
-                 .addDef(CarryOut)
-                 .addUse(L)
-                 .addUse(R)
-                 .addUse(CarryIn);
-
-  I.removeFromParent();
-  return selectUAddE(*Add, MRI);
 }
 
 bool MOS6502InstructionSelector::selectUnMergeValues(MachineInstr &I,

@@ -5,6 +5,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
@@ -24,7 +25,7 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   getActionDefinitionsBuilder(G_BRCOND).legalFor({s1});
 
-  getActionDefinitionsBuilder(G_CONSTANT).legalFor({s8}).clampScalar(0, s8, s8);
+  getActionDefinitionsBuilder(G_CONSTANT).legalFor({s1, s8}).clampScalar(0, s8, s8);
 
   getActionDefinitionsBuilder({G_SDIV,
                                G_SREM,
@@ -83,7 +84,8 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
   getActionDefinitionsBuilder(G_PTR_ADD).legalFor({{p, s8}}).customFor(
       {{p, s16}});
 
-  getActionDefinitionsBuilder({G_UADDO, G_UADDE}).legalFor({s8});
+  getActionDefinitionsBuilder(G_UADDO).customFor({s8});
+  getActionDefinitionsBuilder(G_UADDE).legalFor({s8});
 
   getActionDefinitionsBuilder(G_UNMERGE_VALUES).legalFor({{s8, s16}});
 
@@ -95,8 +97,23 @@ bool MOS6502LegalizerInfo::legalizeCustom(LegalizerHelper &Helper,
   using namespace TargetOpcode;
   MachineRegisterInfo &MRI = MI.getMF()->getRegInfo();
 
-  // Only G_PTR_ADD has custom legalization.
+  switch (MI.getOpcode()) {
+  default:
+    llvm_unreachable("Invalid opcode for custom legalization.");
+  case G_PTR_ADD:
+    return legalizePtrAdd(Helper, MRI, MI);
+  case G_UADDO:
+    return legalizeUAddO(Helper, MRI, MI);
+  }
+}
+
+bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
+                                          MachineRegisterInfo &MRI,
+                                          MachineInstr &MI) const {
+  using namespace TargetOpcode;
+
   assert(MI.getOpcode() == G_PTR_ADD);
+
   MachineIRBuilder Builder(MI);
 
   MachineOperand &Result = MI.getOperand(0);
@@ -138,6 +155,21 @@ bool MOS6502LegalizerInfo::legalizeCustom(LegalizerHelper &Helper,
   Register Sum = MRI.createGenericVirtualRegister(s16);
   Builder.buildAdd(Sum, PtrVal, MI.getOperand(2));
   Builder.buildIntToPtr(MI.getOperand(0), Sum);
+  MI.removeFromParent();
+  return true;
+}
+
+bool MOS6502LegalizerInfo::legalizeUAddO(LegalizerHelper &Helper,
+                                         MachineRegisterInfo &MRI,
+                                         MachineInstr &MI) const {
+  using namespace TargetOpcode;
+
+  assert(MI.getOpcode() == G_UADDO);
+
+  MachineIRBuilder Builder(MI);
+  auto CarryIn = Builder.buildConstant(LLT::scalar(1), 0).getReg(0);
+  Builder.buildUAdde(MI.getOperand(0), MI.getOperand(1), MI.getOperand(2),
+                     MI.getOperand(3), CarryIn);
   MI.removeFromParent();
   return true;
 }
