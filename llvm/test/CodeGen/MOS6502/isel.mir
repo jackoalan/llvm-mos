@@ -1,7 +1,19 @@
 # RUN: llc -mtriple=mos6502 -run-pass=instruction-select -verify-machineinstrs -o - %s | FileCheck %s
 --- |
   @.str = constant [1 x i8] c"X"
+  define void @addimm() {
+    entry:
+      ret void
+  }
   define void @cmpimm_brne() {
+    entry:
+      ret void
+  }
+  define void @ldcimm() {
+    entry:
+      ret void
+  }
+  define void @ldimm() {
     entry:
       ret void
   }
@@ -22,6 +34,25 @@
       ret void
   }
 ---
+name: addimm
+# CHECK-LABEL: name: addimm
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(s8) = G_IMPLICIT_DEF
+    %1:any(s8) = G_CONSTANT i8 42
+    %2:any(s8) = G_ADD %0:any(s8), %1:any(s8)
+    RTS implicit %2
+# CHECK:      LDCimm 0
+# CHECK-NEXT: %3:anyi1 = COPY $c
+# CHECK-NEXT: $c = COPY %3
+# CHECK-NEXT: $a = COPY %0
+# CHECK-NEXT: ADCimm 42
+# CHECK-NEXT: %2:anyi8 = COPY $a
+# CHECK-NEXT: %4:anyi1 = COPY $c
+...
+---
 name: cmpimm_brne
 # CHECK-LABEL: name: cmpimm_brne
 legalized: true
@@ -35,6 +66,29 @@ body: |
     RTS
 # CHECK:      CMPimm %0, 1
 # CHECK-NEXT: BR %bb.0, $z, 0
+...
+---
+name: ldcimm
+# CHECK-LABEL: name: ldcimm
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(s1) = G_CONSTANT i1 true
+    RTS implicit %0
+# CHECK:      LDCimm 1
+# CHECK-NEXT: %0:anyi1 = COPY $c
+...
+---
+name: ldimm
+# CHECK-LABEL: name: ldimm
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(s8) = G_CONSTANT i8 42
+    RTS implicit %0
+# CHECK:      %0:gpr = LDimm 42
 ...
 ---
 name: ldimm_global
@@ -61,7 +115,7 @@ body: |
     RTS implicit %1
 # CHECK:      $y = LDimm 0
 # CHECK-NEXT: LDAyindirr %0
-# CHECK-NEXT: %1:anyc = COPY $a
+# CHECK-NEXT: %1:anyi8 = COPY $a
 ...
 ---
 name: uadde_imm
@@ -70,14 +124,16 @@ legalized: true
 regBankSelected: true
 body: |
   bb.0.entry:
-    %1:any(s8) = G_CONSTANT i8 2
-    %3:any(s8), %4:any(s1) = G_UADDE %0:gpr(s8), %1:any(s8), %2:anyorc(s1)
+    %0:any(s8) = G_IMPLICIT_DEF
+    %1:any(s8) = G_CONSTANT i8 42
+    %2:any(s1) = G_IMPLICIT_DEF
+    %3:any(s8), %4:any(s1) = G_UADDE %0:any(s8), %1:any(s8), %2:any(s1)
     RTS implicit %3, implicit %4
-# CHECK:      $c = COPY %4
-# CHECK-NEXT: $a = COPY %3
-# CHECK-NEXT: ADCimm 2
-# CHECK-NEXT: %1:anyc = COPY $a
-# CHECK-NEXT: %2:anyorc = COPY $c
+# CHECK:      $c = COPY %2
+# CHECK-NEXT: $a = COPY %0
+# CHECK-NEXT: ADCimm 42
+# CHECK-NEXT: %3:anyi8 = COPY $a
+# CHECK-NEXT: %4:anyi1 = COPY $c
 ...
 ---
 name: unmerge
@@ -88,6 +144,6 @@ body: |
   bb.0.entry:
     %1:any(s8), %2:any(s8) = G_UNMERGE_VALUES %0:zp_ptr(s16)
     RTS implicit %1, implicit %2
-# CHECK:      %0:anyc = COPY %2.sublo
-# CHECK-NEXT: %1:anyc = COPY %2.subhi
+# CHECK:      %0:anyi8 = COPY %2.sublo
+# CHECK-NEXT: %1:anyi8 = COPY %2.subhi
 ...

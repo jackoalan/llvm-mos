@@ -44,7 +44,9 @@ private:
   const MOS6502RegisterInfo &TRI;
   const MOS6502RegisterBankInfo &RBI;
 
+  bool selectAdd(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectCompareBranch(MachineInstr &I, MachineRegisterInfo &MRI);
+  bool selectConstant(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectGlobalValue(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectLoad(MachineInstr &I, MachineRegisterInfo &MRI);
   bool selectImplicitDef(MachineInstr &I, MachineRegisterInfo &MRI);
@@ -103,8 +105,10 @@ static const TargetRegisterClass &getRegClassForType(LLT Ty) {
   switch (Ty.getSizeInBits()) {
   default:
     llvm_unreachable("Invalid type size.");
+  case 1:
+    return MOS6502::Anyi1RegClass;
   case 8:
-    return MOS6502::AnycRegClass;
+    return MOS6502::Anyi8RegClass;
   case 16:
     return MOS6502::ZP_PTRRegClass;
   }
@@ -121,8 +125,12 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
   switch (I.getOpcode()) {
   default:
     return false;
+  case MOS6502::G_ADD:
+    return selectAdd(I, MRI);
   case MOS6502::G_BRCOND:
     return selectCompareBranch(I, MRI);
+  case MOS6502::G_CONSTANT:
+    return selectConstant(I, MRI);
   case MOS6502::G_GLOBAL_VALUE:
     return selectGlobalValue(I, MRI);
   case MOS6502::G_IMPLICIT_DEF:
@@ -142,6 +150,19 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
   case MOS6502::G_UNMERGE_VALUES:
     return selectUnMergeValues(I, MRI);
   }
+}
+
+bool MOS6502InstructionSelector::selectAdd(MachineInstr &I,
+                                           MachineRegisterInfo &MRI) {
+  MachineIRBuilder Builder(I);
+  LLT s1 = LLT::scalar(1);
+  auto Const = Builder.buildConstant(s1, 0);
+  auto Add = Builder.buildUAdde(I.getOperand(0), s1, I.getOperand(1),
+                                I.getOperand(2), Const->getOperand(0).getReg());
+  I.eraseFromParent();
+  if (!selectConstant(*Const, MRI))
+    return false;
+  return selectUAddE(*Add, MRI);
 }
 
 bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I,
@@ -164,6 +185,17 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I,
     return false;
   // BNE
   Builder.buildInstr(MOS6502::BR).addMBB(Tgt).addUse(MOS6502::Z).addImm(0);
+  I.eraseFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectConstant(MachineInstr &I,
+                                                MachineRegisterInfo &MRI) {
+  MachineIRBuilder Builder(I);
+  // s8 is handled by TableGen LDimm.
+  assert (MRI.getType(I.getOperand(0).getReg()) == LLT::scalar(1));
+  Builder.buildInstr(MOS6502::LDCimm).addImm(I.getOperand(1).getCImm()->getZExtValue());
+  buildCopy(Builder, I.getOperand(0).getReg(), MOS6502::C, MRI);
   I.eraseFromParent();
   return true;
 }
@@ -319,11 +351,7 @@ void MOS6502InstructionSelector::buildCopy(MachineIRBuilder &Builder,
                                            Register Dst, Register Src,
                                            MachineRegisterInfo &MRI) {
   auto Copy = Builder.buildCopy(Dst, Src);
-  if (Src == MOS6502::C) {
-    constrainOperandRegClass(Copy->getOperand(0), MOS6502::AnyOrCRegClass, MRI);
-  } else {
-    constrainGenericOp(*Copy, MRI);
-  }
+  constrainGenericOp(*Copy, MRI);
 }
 
 void MOS6502InstructionSelector::composePtr(MachineIRBuilder &Builder,
