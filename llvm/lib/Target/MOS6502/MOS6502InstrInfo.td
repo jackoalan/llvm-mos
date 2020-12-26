@@ -1,3 +1,6 @@
+def label : Operand<OtherVT>;
+def frame_index : Operand<OtherVT>;
+
 class Instr : Instruction {
   let Namespace = "MOS6502";
 
@@ -53,6 +56,20 @@ def LDCimm : Instr {
   let Defs = [C];
 
   let isReMaterializable = true;
+}
+
+// Load a value from the given hard stack offset. This instruction is used by the
+// register allocator to emit spills, and such operations do not recompute
+// liveness information for phsyical registers. Accordingly, this instruction
+// must be considered to preserve all physical registers. The details of arranging
+// this are deferred to pseudo expansion time.
+def LDhs : Pseudo {
+  dag InOperandList = (ins frame_index:$fi);
+  dag OutOperandList = (outs Anyi8:$dst);
+
+  let Defs = [];
+
+  let mayLoad = true;
 }
 
 def LDimm : Instr {
@@ -218,6 +235,19 @@ def PLP : Instr {
   let mayLoad = true;
 }
 
+// Store a value to the given hard stack offset. This instruction is used by the
+// register allocator to emit spills, and such operations do not recompute
+// liveness information for phsyical registers. Accordingly, this instruction
+// must be considered to preserve all physical registers. The details of arranging
+// this are deferred to pseudo expansion time.
+def SThs : Pseudo {
+  dag InOperandList = (ins Anyi8:$src, frame_index:$fi);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let mayStore = true;
+}
 
 def STzpr : Pseudo {
   dag InOperandList = (ins GPR:$src);
@@ -236,8 +266,6 @@ def STzp : Instr {
 
   let mayStore = true;
 }
-
-def label : Operand<OtherVT>;
 
 // Branches to $tgt if $flag = $val.
 def BR : Instr {

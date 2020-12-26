@@ -7,7 +7,11 @@
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
@@ -190,6 +194,62 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       report_fatal_error("Unsupported physical register copy.");
     }
   });
+}
+
+void MOS6502InstrInfo::storeRegToStackSlot(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator MI, Register SrcReg,
+    bool isKill, int FrameIndex, const TargetRegisterClass *RC,
+    const TargetRegisterInfo *TRI) const {
+  MachineFunction &MF = *MBB.getParent();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  MachineRegisterInfo &MRI = MF.getRegInfo();
+
+  MachinePointerInfo PtrInfo =
+      MachinePointerInfo::getFixedStack(MF, FrameIndex);
+  MachineMemOperand *MMO = MF.getMachineMemOperand(
+      PtrInfo, MachineMemOperand::MOStore, MFI.getObjectSize(FrameIndex),
+      MFI.getObjectAlign(FrameIndex));
+
+  MachineIRBuilder Builder(MBB, MI);
+  if (SrcReg.isVirtual()) {
+    if (!MRI.getRegClass(SrcReg)->hasSuperClassEq(&MOS6502::Anyi8RegClass))
+      report_fatal_error("Not yet implemented.");
+  } else {
+    if (!MOS6502::Anyi8RegClass.contains(SrcReg))
+      report_fatal_error("Not yet implemented.");
+  }
+  Builder.buildInstr(MOS6502::SThs)
+      .addReg(SrcReg, getKillRegState(isKill))
+      .addFrameIndex(FrameIndex)
+      .addMemOperand(MMO);
+}
+
+void MOS6502InstrInfo::loadRegFromStackSlot(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator MI, Register DestReg,
+    int FrameIndex, const TargetRegisterClass *RC,
+    const TargetRegisterInfo *TRI) const {
+  MachineFunction &MF = *MBB.getParent();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  MachineRegisterInfo &MRI = MF.getRegInfo();
+
+  MachinePointerInfo PtrInfo =
+      MachinePointerInfo::getFixedStack(MF, FrameIndex);
+  MachineMemOperand *MMO = MF.getMachineMemOperand(
+      PtrInfo, MachineMemOperand::MOLoad, MFI.getObjectSize(FrameIndex),
+      MFI.getObjectAlign(FrameIndex));
+
+  MachineIRBuilder Builder(MBB, MI);
+  if (DestReg.isVirtual()) {
+    if (!MRI.getRegClass(DestReg)->hasSuperClassEq(&MOS6502::Anyi8RegClass))
+      report_fatal_error("Not yet implemented.");
+  } else {
+    if (!MOS6502::Anyi8RegClass.contains(DestReg))
+      report_fatal_error("Not yet implemented.");
+  }
+  Builder.buildInstr(MOS6502::LDhs)
+      .addDef(DestReg)
+      .addFrameIndex(FrameIndex)
+      .addMemOperand(MMO);
 }
 
 bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
