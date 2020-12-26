@@ -176,15 +176,23 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I,
   if (!mi_match(CondReg, MRI, m_GICmp(m_Pred(Pred), m_Reg(LHS), m_ICst(RHS))))
     return false;
 
-  if (Pred != CmpInst::ICMP_NE)
-    return false;
-
   MachineIRBuilder Builder(I);
+
   auto Compare = Builder.buildInstr(MOS6502::CMPimm).addUse(LHS).addImm(RHS);
   if (!constrainSelectedInstRegOperands(*Compare, TII, TRI, RBI))
     return false;
-  // BNE
-  Builder.buildInstr(MOS6502::BR).addMBB(Tgt).addUse(MOS6502::Z).addImm(0);
+
+  auto Br = Builder.buildInstr(MOS6502::BR).addMBB(Tgt);
+  switch (Pred) {
+  default:
+    return false;
+  case CmpInst::ICMP_NE:
+    Br.addUse(MOS6502::Z).addImm(0);
+    break;
+  case CmpInst::ICMP_ULT:
+    Br.addUse(MOS6502::N).addImm(1);
+    break;
+  }
   I.eraseFromParent();
   return true;
 }
@@ -193,8 +201,9 @@ bool MOS6502InstructionSelector::selectConstant(MachineInstr &I,
                                                 MachineRegisterInfo &MRI) {
   MachineIRBuilder Builder(I);
   // s8 is handled by TableGen LDimm.
-  assert (MRI.getType(I.getOperand(0).getReg()) == LLT::scalar(1));
-  Builder.buildInstr(MOS6502::LDCimm).addImm(I.getOperand(1).getCImm()->getZExtValue());
+  assert(MRI.getType(I.getOperand(0).getReg()) == LLT::scalar(1));
+  Builder.buildInstr(MOS6502::LDCimm)
+      .addImm(I.getOperand(1).getCImm()->getZExtValue());
   buildCopy(Builder, I.getOperand(0).getReg(), MOS6502::C, MRI);
   I.eraseFromParent();
   return true;
