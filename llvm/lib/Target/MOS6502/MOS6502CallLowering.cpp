@@ -7,6 +7,7 @@
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include <memory>
 
@@ -145,8 +146,12 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
 
   MachineFunction &MF = MIRBuilder.getMF();
   MachineRegisterInfo &MRI = MF.getRegInfo();
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
 
-  auto Call = MIRBuilder.buildInstrNoInsert(MOS6502::JSR).add(Info.Callee);
+  auto Call = MIRBuilder.buildInstrNoInsert(MOS6502::JSR)
+                  .add(Info.Callee)
+                  .addRegMask(TRI.getCallPreservedMask(
+                      MF, MF.getFunction().getCallingConv()));
 
   // Invoke TableGen compatibility layer for outgoing arguments. The call
   // instruction will be annotated with implicit uses of any live variables out

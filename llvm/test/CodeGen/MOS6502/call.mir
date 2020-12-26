@@ -64,7 +64,7 @@
   ; CHECK-LABEL: entry:
     %0 = call i8 @ret_i8()
     ret void
-    ; CHECK:      JSR @ret_i8, implicit-def $a
+    ; CHECK:      JSR @ret_i8, mos6502_noregs, implicit-def $a
     ; CHECK-NEXT: %0:_(s8) = COPY $a
     ; CHECK-NEXT: RTS
   }
@@ -81,7 +81,7 @@
     ; CHECK-NEXT: $a = COPY %0
     ; CHECK-NEXT: $x = COPY %1
     ; CHECK-NEXT: $y = COPY %2
-    ; CHECK-NEXT: JSR @formal_args_i8, implicit $a, implicit $x, implicit $y
+    ; CHECK-NEXT: JSR @formal_args_i8, mos6502_noregs, implicit $a, implicit $x, implicit $y
     ; CHECK-NEXT: RTS
   }
 ...

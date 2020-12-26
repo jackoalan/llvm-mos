@@ -20,8 +20,11 @@ struct MOS6502RegisterInfo : public MOS6502GenRegisterInfo {
                            RegScavenger *RS = nullptr) const override;
 
   Register getFrameRegister(const MachineFunction &MF) const override;
+
+  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID) const override;
 };
 
-}  // namespace llvm
+} // namespace llvm
 
-#endif  // not LLVM_LIB_TARGET_MOS6502_MOS6502REGISTERINFO_H
+#endif // not LLVM_LIB_TARGET_MOS6502_MOS6502REGISTERINFO_H
