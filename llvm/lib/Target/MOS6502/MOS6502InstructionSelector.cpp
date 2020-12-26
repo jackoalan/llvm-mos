@@ -113,8 +113,13 @@ static const TargetRegisterClass &getRegClassForType(LLT Ty) {
 }
 
 bool MOS6502InstructionSelector::select(MachineInstr &I) {
-  if (!I.isPreISelOpcode())
+  if (!I.isPreISelOpcode()) {
+    // Copies can have generic VReg dests, so they must be constrained to a
+    // register class.
+    if (I.isCopy())
+      constrainGenericOp(I);
     return true;
+  }
   if (selectImpl(I, *CoverageInfo))
     return true;
 
@@ -362,7 +367,7 @@ void MOS6502InstructionSelector::composePtr(MachineIRBuilder &Builder,
 }
 
 void MOS6502InstructionSelector::constrainGenericOp(MachineInstr &MI) {
-  MachineRegisterInfo& MRI = MI.getMF()->getRegInfo();
+  MachineRegisterInfo &MRI = MI.getMF()->getRegInfo();
   for (MachineOperand &Op : MI.operands()) {
     if (!Op.isReg() || !Op.isDef() || Op.getReg().isPhysical())
       continue;
@@ -378,7 +383,7 @@ void MOS6502InstructionSelector::constrainGenericOp(MachineInstr &MI) {
 void MOS6502InstructionSelector::constrainOperandRegClass(
     MachineOperand &RegMO, const TargetRegisterClass &RegClass) {
   MachineInstr &MI = *RegMO.getParent();
-  MachineRegisterInfo& MRI = MI.getMF()->getRegInfo();
+  MachineRegisterInfo &MRI = MI.getMF()->getRegInfo();
   RegMO.setReg(llvm::constrainOperandRegClass(*MF, TRI, MRI, TII, RBI, MI,
                                               RegClass, RegMO));
 }
