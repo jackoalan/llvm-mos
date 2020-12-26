@@ -72,6 +72,20 @@ def LDhs : Pseudo {
   let mayLoad = true;
 }
 
+// Version of LDimm that promises not to overwrite NZ. This allows
+// rematerializing LDimm with a possible PHP/PLP instead of spilling/loading the
+// constant on the stack. The spill is very expensive, and would need to
+// PHP/PLP anyways, so rematerialization is strictly better in this case.
+def LDimm_preserve : Pseudo {
+  dag InOperandList = (ins i8imm:$val);
+  dag OutOperandList = (outs GPR:$dst);
+
+  let Defs = [];
+
+  let isMoveImm = true;
+  let isReMaterializable = true;
+}
+
 def LDimm : Instr {
   dag InOperandList = (ins i8imm:$val);
   dag OutOperandList = (outs GPR:$dst);

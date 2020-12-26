@@ -19,6 +19,31 @@ using namespace llvm;
 #define GET_INSTRINFO_CTOR_DTOR
 #include "MOS6502GenInstrInfo.inc"
 
+bool MOS6502InstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI,
+                                                         AAResults *AA) const {
+  switch (MI.getOpcode()) {
+  default:
+    return TargetInstrInfo::isReallyTriviallyReMaterializable(MI, AA);
+  // Rematerializable as LDimm_preserve pseudo.
+  case MOS6502::LDimm:
+    return true;
+  }
+}
+
+void MOS6502InstrInfo::reMaterialize(MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator I,
+                                     Register DestReg, unsigned SubIdx,
+                                     const MachineInstr &Orig,
+                                     const TargetRegisterInfo &TRI) const {
+  MachineInstr *MI = MBB.getParent()->CloneMachineInstr(&Orig);
+  MI->substituteRegister(MI->getOperand(0).getReg(), DestReg, SubIdx, TRI);
+  // A trivially rematerialized LDimm must preserve NZ.
+  if (MI->getOpcode() == MOS6502::LDimm) {
+    MI->setDesc(get(MOS6502::LDimm_preserve));
+  }
+  MBB.insert(I, MI);
+}
+
 unsigned MOS6502InstrInfo::getInstSizeInBytes(const MachineInstr &MI) const {
   // Overestimate the size of each instruction to guarantee that any necessary
   // branches are relaxed.

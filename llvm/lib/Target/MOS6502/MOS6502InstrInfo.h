@@ -10,6 +10,14 @@ namespace llvm {
 
 class MOS6502InstrInfo : public MOS6502GenInstrInfo {
 public:
+  bool isReallyTriviallyReMaterializable(const MachineInstr &MI,
+                                         AAResults *AA) const override;
+
+  void reMaterialize(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                     Register DestReg, unsigned SubIdx,
+                     const MachineInstr &Orig,
+                     const TargetRegisterInfo &TRI) const override;
+
   unsigned getInstSizeInBytes(const MachineInstr &MI) const override;
 
   bool isBranchOffsetInRange(unsigned BranchOpc,
