@@ -12,9 +12,6 @@ class MOS6502Reg<string n> : Register<n> {
   let Namespace = "MOS6502";
 }
 
-// Special registers used as the frame and stack pointer.
-def SP : MOS6502Reg<"SP">;
-
 def A : MOS6502Reg<"A">;
 def X : MOS6502Reg<"X">;
 def Y : MOS6502Reg<"Y">;

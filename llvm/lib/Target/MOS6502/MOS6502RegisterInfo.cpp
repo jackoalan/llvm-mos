@@ -22,7 +22,6 @@ MOS6502RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 BitVector
 MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  Reserved.set(MOS6502::SP);
   return Reserved;
 }
 
@@ -34,7 +33,7 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
 
 Register
 MOS6502RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  return MOS6502::SP;
+  report_fatal_error("Not yet implemented.");
 }
 
 const uint32_t *
