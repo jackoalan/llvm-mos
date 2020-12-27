@@ -1,6 +1,7 @@
 #ifndef LLVM_LIB_TARGET_MOS6502_MOS6502INSTRINFO_H
 #define LLVM_LIB_TARGET_MOS6502_MOS6502INSTRINFO_H
 
+#include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 
 #define GET_INSTRINFO_HEADER
@@ -42,6 +43,9 @@ public:
                    const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
                    bool KillSrc) const override;
 
+  void copyPhysRegImpl(MachineIRBuilder &Builder, MCRegister DestReg,
+                       MCRegister SrcReg) const;
+
   void storeRegToStackSlot(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MI, Register SrcReg,
                            bool isKill, int FrameIndex,
@@ -63,6 +67,36 @@ public:
 
   ArrayRef<std::pair<unsigned, const char *>>
   getSerializableDirectMachineOperandTargetFlags() const override;
+
+private:
+  enum Preserved {
+    None = 0,
+    NZ = 1 << 0,
+    A = 1 << 1,
+    All = ~None,
+  };
+
+  // Various locations throughout codegen emit pseudo-instructions with very few
+  // implicit defs. This is required whenever LLVM codegen cannot handle
+  // emitting arbitrary physreg uses, for example, during COPY or
+  // saveRegToStack.
+  //
+  // Often, such pseudos cannot be expanded without producing significantly more
+  // side effects than the pseudo allows. This function takes a Builder pointing
+  // to a pseudo, then calls ExpandFn to expand the pseudo. Then, the physreg
+  // defs of the expanded instructions are measured, and save and restore code
+  // is emitted to ensure that the pseudo expansion region only modifies defs of
+  // the pseudo.
+  //
+  // Presently, only NZ and A are supported. ExpandFNs must not emit writes to
+  // any other locations unless certain that the pseudo also has those locations
+  // as defs.
+  //
+  // ExpandFn must insert a contiguous range of instructions before the pseudo.
+  // After expansion, the builder must still point at the original pseudo, which
+  // must still be present.
+  void preserveAroundPseudoExpansion(MachineIRBuilder &Builder,
+                                     std::function<void()> ExpandFn) const;
 };
 
 namespace MOS6502 {

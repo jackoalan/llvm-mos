@@ -2,7 +2,6 @@
 
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "MOS6502RegisterInfo.h"
-#include "MOS6502Utils.h"
 
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
@@ -189,36 +188,36 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                    const DebugLoc &DL, MCRegister DestReg,
                                    MCRegister SrcReg, bool KillSrc) const {
   MachineIRBuilder Builder(MBB, MI);
+  preserveAroundPseudoExpansion(
+      Builder, [&]() { copyPhysRegImpl(Builder, DestReg, SrcReg); });
+}
 
+void MOS6502InstrInfo::copyPhysRegImpl(MachineIRBuilder &Builder,
+                                       MCRegister DestReg,
+                                       MCRegister SrcReg) const {
   const auto &areClasses = [&](const TargetRegisterClass &Dest,
                                const TargetRegisterClass &Src) {
     return Dest.contains(DestReg) && Src.contains(SrcReg);
   };
 
-  mos6502WithNZFree(Builder, [&]() {
-    if (areClasses(MOS6502::GPRRegClass, MOS6502::GPRRegClass)) {
-      if (SrcReg == MOS6502::A) {
-        assert(MOS6502::XYRegClass.contains(DestReg));
-        Builder.buildInstr(MOS6502::TA_).addDef(DestReg);
-      } else if (DestReg == MOS6502::A) {
-        assert(MOS6502::XYRegClass.contains(SrcReg));
-        Builder.buildInstr(MOS6502::T_A).addUse(SrcReg);
-      } else {
-        mos6502WithAFree(Builder, [&]() {
-          copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(),
-                      MOS6502::A, SrcReg, KillSrc);
-          copyPhysReg(MBB, Builder.getInsertPt(), Builder.getDebugLoc(),
-                      DestReg, MOS6502::A, true);
-        });
-      }
-    } else if (areClasses(MOS6502::ZPRegClass, MOS6502::GPRRegClass)) {
-      Builder.buildInstr(MOS6502::STzpr).addDef(DestReg).addUse(SrcReg);
-    } else if (areClasses(MOS6502::GPRRegClass, MOS6502::ZPRegClass)) {
-      Builder.buildInstr(MOS6502::LDzpr).addDef(DestReg).addUse(SrcReg);
+  if (areClasses(MOS6502::GPRRegClass, MOS6502::GPRRegClass)) {
+    if (SrcReg == MOS6502::A) {
+      assert(MOS6502::XYRegClass.contains(DestReg));
+      Builder.buildInstr(MOS6502::TA_).addDef(DestReg);
+    } else if (DestReg == MOS6502::A) {
+      assert(MOS6502::XYRegClass.contains(SrcReg));
+      Builder.buildInstr(MOS6502::T_A).addUse(SrcReg);
     } else {
-      report_fatal_error("Unsupported physical register copy.");
+      copyPhysRegImpl(Builder, MOS6502::A, SrcReg);
+      copyPhysRegImpl(Builder, DestReg, MOS6502::A);
     }
-  });
+  } else if (areClasses(MOS6502::ZPRegClass, MOS6502::GPRRegClass)) {
+    Builder.buildInstr(MOS6502::STzpr).addDef(DestReg).addUse(SrcReg);
+  } else if (areClasses(MOS6502::GPRRegClass, MOS6502::ZPRegClass)) {
+    Builder.buildInstr(MOS6502::LDzpr).addDef(DestReg).addUse(SrcReg);
+  } else {
+    report_fatal_error("Unsupported physical register copy.");
+  }
 }
 
 void MOS6502InstrInfo::storeRegToStackSlot(
@@ -279,42 +278,44 @@ void MOS6502InstrInfo::loadRegFromStackSlot(
 
 bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   MachineIRBuilder Builder(MI);
-
-  switch (MI.getOpcode()) {
-  default:
-    return false;
-  case MOS6502::LDidx:
-    // This occur when X or Y is both the destination and index register.
-    // Since the 6502 has no instruction for this, use A as the destination
-    // instead, then transfer to the real destination.
-    if (MI.getOperand(0).getReg() == MI.getOperand(2).getReg()) {
-      mos6502WithAFree(Builder, [&]() {
+  bool Changed = false;
+  preserveAroundPseudoExpansion(Builder, [&]() {
+    switch (MI.getOpcode()) {
+    case MOS6502::LDidx:
+      // This occur when X or Y is both the destination and index register.
+      // Since the 6502 has no instruction for this, use A as the destination
+      // instead, then transfer to the real destination.
+      if (MI.getOperand(0).getReg() == MI.getOperand(2).getReg()) {
         Builder.buildInstr(MOS6502::LDAidx)
             .add(MI.getOperand(1))
             .add(MI.getOperand(2));
         Builder.buildInstr(MOS6502::TA_).add(MI.getOperand(0));
-      });
-      return true;
-    }
+        Changed = true;
+        return;
+      }
 
-    switch (MI.getOperand(0).getReg()) {
-    default:
-      llvm_unreachable("Bad destination for LDidx.");
-    case MOS6502::A:
-      Builder.buildInstr(MOS6502::LDAidx)
-          .add(MI.getOperand(1))
-          .add(MI.getOperand(2));
-      break;
-    case MOS6502::X:
-      Builder.buildInstr(MOS6502::LDXidx).add(MI.getOperand(1));
-      break;
-    case MOS6502::Y:
-      Builder.buildInstr(MOS6502::LDYidx).add(MI.getOperand(1));
-      break;
+      switch (MI.getOperand(0).getReg()) {
+      default:
+        llvm_unreachable("Bad destination for LDidx.");
+      case MOS6502::A:
+        Builder.buildInstr(MOS6502::LDAidx)
+            .add(MI.getOperand(1))
+            .add(MI.getOperand(2));
+        break;
+      case MOS6502::X:
+        Builder.buildInstr(MOS6502::LDXidx).add(MI.getOperand(1));
+        break;
+      case MOS6502::Y:
+        Builder.buildInstr(MOS6502::LDYidx).add(MI.getOperand(1));
+        break;
+      }
+      Changed = true;
+      return;
     }
+  });
+  if (Changed)
     MI.eraseFromParent();
-    return true;
-  }
+  return Changed;
 }
 
 bool MOS6502InstrInfo::reverseBranchCondition(
@@ -336,4 +337,73 @@ MOS6502InstrInfo::getSerializableDirectMachineOperandTargetFlags() const {
   static const std::pair<unsigned, const char *> Flags[] = {
       {MOS6502::MO_LO, "lo"}, {MOS6502::MO_HI, "hi"}};
   return Flags;
+}
+
+void MOS6502InstrInfo::preserveAroundPseudoExpansion(
+    MachineIRBuilder &Builder, std::function<void()> ExpandFn) const {
+  MachineBasicBlock &MBB = Builder.getMBB();
+
+  // Returns whether a physreg could be live into the pseudo.
+  const auto IsMaybeLive = [&](Register Reg) {
+    return MBB.computeRegisterLiveness(
+               MBB.getParent()->getSubtarget().getRegisterInfo(), Reg,
+               Builder.getInsertPt()) != MachineBasicBlock::LQR_Dead;
+  };
+
+  // Returns the locations modified by the given instruction.
+  const auto GetWrites = [&](MachineInstr &MI) {
+    unsigned Writes = None;
+    if (MI.modifiesRegister(MOS6502::NZ))
+      Writes |= NZ;
+    if (MI.modifiesRegister(MOS6502::A))
+      Writes |= A;
+    return Writes;
+  };
+
+  unsigned MaybeLive = None;
+  if (IsMaybeLive(MOS6502::NZ))
+    MaybeLive |= NZ;
+  if (IsMaybeLive(MOS6502::A))
+    MaybeLive |= A;
+
+  unsigned ExpectedWrites = GetWrites(*Builder.getInsertPt());
+
+  // If begin was the first instruction, it may no longer be the first once
+  // ExpandFn is called, so make a note of it.
+  auto Begin = Builder.getInsertPt();
+  bool WasBegin = Begin == MBB.begin();
+  if (!WasBegin)
+    --Begin;
+
+  ExpandFn();
+
+  // If begin was the first instruction, get the real first instruction now that
+  // ExpandFn has been called.
+  if (WasBegin)
+    Begin = MBB.begin();
+  auto End = Builder.getInsertPt();
+
+  // Determine the writes of the expansion region.
+  unsigned Writes = None;
+  for (auto I = Begin; I != End; ++I)
+    Writes |= GetWrites(*I);
+
+  unsigned Save = MaybeLive & Writes & ~ExpectedWrites;
+  // Restoring A requires writing NZ in PLA.
+  if (Save & A) {
+    Writes |= NZ;
+    Save = MaybeLive & Writes & ~ExpectedWrites;
+  }
+
+  Builder.setInsertPt(MBB, Begin);
+  if (Save & NZ)
+    Builder.buildInstr(MOS6502::PHP);
+  if (Save & A)
+    Builder.buildInstr(MOS6502::PHA);
+
+  Builder.setInsertPt(MBB, End);
+  if (Save & A)
+    Builder.buildInstr(MOS6502::PLA);
+  if (Save & NZ)
+    Builder.buildInstr(MOS6502::PLP);
 }

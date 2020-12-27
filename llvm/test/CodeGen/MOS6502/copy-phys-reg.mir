@@ -64,7 +64,7 @@ body:             |
     $x = COPY $a
     BR %bb.0, $z, 0
     RTS
-# CHECK:      PHP implicit killed $p
+# CHECK:      PHP implicit $p
 # CHECK-NEXT: $x = TA_
 # CHECK-NEXT: PLP
 # CHECK-NEXT: BR %bb.0, $z, 0
@@ -77,7 +77,7 @@ body:             |
     liveins: $a, $x
     $y = COPY $x
     CMPimm $a, 0, implicit-def $nz
-# CHECK:      PHA implicit killed $a
+# CHECK:      PHA implicit $a
 # CHECK-NEXT: T_A $x
 # CHECK-NEXT: $y = TA_
 # CHECK-NEXT: PLA
