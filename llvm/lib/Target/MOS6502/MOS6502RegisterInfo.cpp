@@ -1,8 +1,12 @@
 #include "MOS6502RegisterInfo.h"
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
+#include "MOS6502InstrInfo.h"
 #include "MOS6502Subtarget.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/Support/ErrorHandling.h"
+
+#define DEBUG_TYPE "mos6502-reginfo"
 
 #define GET_REGINFO_TARGET_DESC
 #include "MOS6502GenRegisterInfo.inc"
@@ -28,12 +32,21 @@ MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
                                               int SPAdj, unsigned FIOperandNum,
                                               RegScavenger *RS) const {
-  report_fatal_error("Not yet implemented.");
+  const MachineFunction& MF = *MI->getMF();
+  const MOS6502FrameLowering& TFI = *getFrameLowering(MF);
+
+  MachineOperand &Op = MI->getOperand(FIOperandNum);
+
+  Register FrameReg;
+  StackOffset Offset = TFI.getFrameIndexReference(MF, Op.getIndex(), FrameReg);
+  if (FrameReg != MOS6502::S)
+    report_fatal_error("Soft stack not yet implemented.");
+  Op.ChangeToImmediate(Offset.getFixed());
 }
 
 Register
 MOS6502RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  report_fatal_error("Not yet implemented.");
+  return MOS6502::S;
 }
 
 const uint32_t *

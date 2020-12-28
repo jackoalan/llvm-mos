@@ -1,5 +1,4 @@
 def label : Operand<OtherVT>;
-def frame_index : Operand<OtherVT>;
 
 class Instr : Instruction {
   let Namespace = "MOS6502";
@@ -64,7 +63,7 @@ def LDCimm : Instr {
 // must be considered to preserve all physical registers. The details of arranging
 // this are deferred to pseudo expansion time.
 def LDhs : Pseudo {
-  dag InOperandList = (ins frame_index:$fi);
+  dag InOperandList = (ins i8imm:$fi);
   dag OutOperandList = (outs Anyi8:$dst);
 
   let Defs = [];
@@ -207,6 +206,17 @@ def T_A : Instr {
   let isReMaterializable = true;
 }
 
+def TXS : Instr {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs);
+  let AsmString = "TXS";
+
+  let Defs = [X, NZ];
+
+  let isAsCheapAsAMove = true;
+  let isReMaterializable = true;
+}
+
 def PHA : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs);
@@ -255,7 +265,7 @@ def PLP : Instr {
 // must be considered to preserve all physical registers. The details of arranging
 // this are deferred to pseudo expansion time.
 def SThs : Pseudo {
-  dag InOperandList = (ins Anyi8:$src, frame_index:$fi);
+  dag InOperandList = (ins Anyi8:$src, i8imm:$fi);
   dag OutOperandList = (outs);
 
   let Defs = [];

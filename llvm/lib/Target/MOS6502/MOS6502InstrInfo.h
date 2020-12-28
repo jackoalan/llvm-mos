@@ -68,7 +68,6 @@ public:
   ArrayRef<std::pair<unsigned, const char *>>
   getSerializableDirectMachineOperandTargetFlags() const override;
 
-private:
   // Various locations throughout codegen emit pseudo-instructions with very few
   // implicit defs. This is required whenever LLVM codegen cannot handle
   // emitting arbitrary physreg uses, for example, during COPY or
