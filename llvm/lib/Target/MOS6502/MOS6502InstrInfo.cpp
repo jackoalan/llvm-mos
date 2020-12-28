@@ -378,15 +378,18 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   // ExpandFn is called, so make a note of it.
   auto Begin = Builder.getInsertPt();
   bool WasBegin = Begin == MBB.begin();
+  // Have begin point at the instruction before the inserted range.
   if (!WasBegin)
     --Begin;
 
   ExpandFn();
 
-  // If begin was the first instruction, get the real first instruction now that
-  // ExpandFn has been called.
+  // If Begin was the first instruction, get the real first instruction now that
+  // ExpandFn has been called. Otherwise, advance Begin to the first instruction.
   if (WasBegin)
     Begin = MBB.begin();
+  else
+    ++Begin;
   auto End = Builder.getInsertPt();
 
   // Determine the writes of the expansion region.
