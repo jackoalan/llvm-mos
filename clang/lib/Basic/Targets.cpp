@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Modified by Daniel Thornburgh (mysterymath@gmail.com)
+
 #include "Targets.h"
 
 #include "Targets/AArch64.h"

@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Modified by Daniel Thornburgh (mysterymath@gmail.com)
+
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"

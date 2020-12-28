@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Modified by Daniel Thornburgh (mysterymath@gmail.com)
+
 #include "CGBlocks.h"
 #include "CGCleanup.h"
 #include "CGObjCRuntime.h"

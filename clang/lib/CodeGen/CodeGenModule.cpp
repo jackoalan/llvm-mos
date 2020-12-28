@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Modified by Daniel Thornburgh (mysterymath@gmail.com)
+
 #include "CodeGenModule.h"
 #include "CGBlocks.h"
 #include "CGCUDARuntime.h"

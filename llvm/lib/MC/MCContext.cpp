@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Modified by Daniel Thornburgh (mysterymath@gmail.com)
+
 #include "llvm/MC/MCContext.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallString.h"

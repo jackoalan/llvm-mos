@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Modified by Daniel Thornburgh (mysterymath@gmail.com)
+
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "ValueEnumerator.h"
 #include "llvm/ADT/APFloat.h"

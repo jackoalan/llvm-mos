@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Modified by Daniel Thornburgh (mysterymath@gmail.com)
+
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "CodeViewDebug.h"
 #include "DwarfDebug.h"

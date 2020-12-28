@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Modified by Daniel Thornburgh (mysterymath@gmail.com)
+
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Config/llvm-config.h"
