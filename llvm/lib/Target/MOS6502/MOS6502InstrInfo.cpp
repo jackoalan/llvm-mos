@@ -38,13 +38,17 @@ void MOS6502InstrInfo::reMaterialize(MachineBasicBlock &MBB,
                                      Register DestReg, unsigned SubIdx,
                                      const MachineInstr &Orig,
                                      const TargetRegisterInfo &TRI) const {
-  MachineInstr *MI = MBB.getParent()->CloneMachineInstr(&Orig);
-  MI->substituteRegister(MI->getOperand(0).getReg(), DestReg, SubIdx, TRI);
   // A trivially rematerialized LDimm must preserve NZ.
-  if (MI->getOpcode() == MOS6502::LDimm) {
-    MI->setDesc(get(MOS6502::LDimm_preserve));
+  if (Orig.getOpcode() == MOS6502::LDimm) {
+    MachineIRBuilder Builder(MBB, I);
+    // Note: Explicitly don't copy over implicit nz def.
+    Builder.buildInstr(MOS6502::LDimm_preserve)
+        .addDef(DestReg)
+        .add(Orig.getOperand(1));
+    return;
   }
-  MBB.insert(I, MI);
+
+  TargetInstrInfo::reMaterialize(MBB, I, DestReg, SubIdx, Orig, TRI);
 }
 
 unsigned MOS6502InstrInfo::getInstSizeInBytes(const MachineInstr &MI) const {
@@ -280,44 +284,94 @@ void MOS6502InstrInfo::loadRegFromStackSlot(
       .addMemOperand(MMO);
 }
 
-bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
-  MachineIRBuilder Builder(MI);
-  switch (MI.getOpcode()) {
-  default:
-    return false;
-  case MOS6502::LDidx:
-    preserveAroundPseudoExpansion(Builder, [&]() {
-      // This occur when X or Y is both the destination and index register.
-      // Since the 6502 has no instruction for this, use A as the destination
-      // instead, then transfer to the real destination.
-      if (MI.getOperand(0).getReg() == MI.getOperand(2).getReg()) {
-        Builder.buildInstr(MOS6502::LDAidx)
-            .add(MI.getOperand(1))
-            .add(MI.getOperand(2));
-        Builder.buildInstr(MOS6502::TA_).add(MI.getOperand(0));
-        return;
-      }
+// Return offset, relative to S, of the given frame offset. That is, the
+// addressing mode HSOffset(Offs),X would address the Off-th location from
+// the top of the hard stack, starting from 0.
+static int64_t HSOffset(int64_t FrameOffset) {
+  // S is one less than the address of the top of the stack, truncated to 8
+  // bits. Since the stack begins at 0x100, that means that the memory address
+  // of FO is 0x100 + (S + 1) + FO = (0x101 + FO) + S.
+  return 0x101 + FrameOffset;
+}
 
-      switch (MI.getOperand(0).getReg()) {
-      default:
-        llvm_unreachable("Bad destination for LDidx.");
-      case MOS6502::A:
-        Builder.buildInstr(MOS6502::LDAidx)
-            .add(MI.getOperand(1))
-            .add(MI.getOperand(2));
-        break;
-      case MOS6502::X:
-        Builder.buildInstr(MOS6502::LDXidx).add(MI.getOperand(1));
-        break;
-      case MOS6502::Y:
-        Builder.buildInstr(MOS6502::LDYidx).add(MI.getOperand(1));
-        break;
-      }
-      return;
-    });
+bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
+  bool Changed;
+  MachineIRBuilder Builder(MI);
+  preserveAroundPseudoExpansion(
+      Builder, [&]() { Changed = expandPostRAPseudoImpl(Builder); });
+  return Changed;
+}
+
+bool MOS6502InstrInfo::expandPostRAPseudoImpl(MachineIRBuilder &Builder) const {
+  auto &MI = *Builder.getInsertPt();
+  bool Changed = false;
+  switch (MI.getOpcode()) {
+  case MOS6502::LDidx:
+    // This occur when X or Y is both the destination and index register.
+    // Since the 6502 has no instruction for this, use A as the destination
+    // instead, then transfer to the real destination.
+    if (MI.getOperand(0).getReg() == MI.getOperand(2).getReg()) {
+      Builder.buildInstr(MOS6502::LDAidx)
+          .add(MI.getOperand(1))
+          .add(MI.getOperand(2));
+      Builder.buildInstr(MOS6502::TA_).add(MI.getOperand(0));
+      Changed = true;
+      break;
+    }
+
+    switch (MI.getOperand(0).getReg()) {
+    default:
+      llvm_unreachable("Bad destination for LDidx.");
+    case MOS6502::A:
+      Builder.buildInstr(MOS6502::LDAidx)
+          .add(MI.getOperand(1))
+          .add(MI.getOperand(2));
+      break;
+    case MOS6502::X:
+      Builder.buildInstr(MOS6502::LDXidx).add(MI.getOperand(1));
+      break;
+    case MOS6502::Y:
+      Builder.buildInstr(MOS6502::LDYidx).add(MI.getOperand(1));
+      break;
+    }
+    Changed = true;
+    break;
+
+  case MOS6502::LDhs: {
+    if (!MOS6502::GPRRegClass.contains(MI.getOperand(0).getReg()))
+      report_fatal_error("Not yet implemented.");
+
+    Builder.buildInstr(MOS6502::TSX);
+    auto Ld = Builder.buildInstr(MOS6502::LDidx)
+                  .add(MI.getOperand(0))
+                  .addImm(HSOffset(MI.getOperand(1).getImm()))
+                  .addReg(MOS6502::X);
+    Builder.setInsertPt(*Ld->getParent(), Ld);
+    expandPostRAPseudoImpl(Builder);
+    Changed = true;
+    break;
+  }
+
+  case MOS6502::SThs: {
+    Register Src = MI.getOperand(0).getReg();
+    if (Src != MOS6502::A)
+      copyPhysRegImpl(Builder, MOS6502::A, Src);
+
+    Builder.buildInstr(MOS6502::TSX);
+    Builder.buildInstr(MOS6502::STAidx)
+        .addImm(HSOffset(MI.getOperand(1).getImm()))
+        .addReg(MOS6502::X);
+    Changed = true;
+    break;
+  }
+  }
+
+  if (Changed) {
+    Builder.setInsertPt(Builder.getMBB(), std::next(Builder.getInsertPt()));
     MI.eraseFromParent();
     return true;
   }
+  return false;
 }
 
 bool MOS6502InstrInfo::reverseBranchCondition(
@@ -385,7 +439,8 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   ExpandFn();
 
   // If Begin was the first instruction, get the real first instruction now that
-  // ExpandFn has been called. Otherwise, advance Begin to the first instruction.
+  // ExpandFn has been called. Otherwise, advance Begin to the first
+  // instruction.
   if (WasBegin)
     Begin = MBB.begin();
   else
@@ -406,20 +461,44 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Save.set(MOS6502::NZ);
   }
 
+  if (Save.test(MOS6502::X) && Save.test(MOS6502::Z))
+    report_fatal_error("Not yet implemented.");
+
+  // Note that X/Y are saved using a reserved ZP register. This seems like a
+  // high cost to pay, but consider the case where X needs to be saved, but the
+  // value written to A needs to be live out of the pseudo. A standard TXA, PHA
+  // pushes X to the stack just fine, but once the correct output value has been
+  // written to A, there's no way to PLA, TAX without clobbering it. We could
+  // try pushing it to the stack with PHA, but it's now on top of the stack, and
+  // it would require an indexed load to retrieve it. This is all considerably
+  // worse than just saving X/Y to a ZP reg. We'll likely be able to use the
+  // reserved reg for other purposes as well, so it shouldn't be too much of a
+  // burden on register allocation.
+
   Builder.setInsertPt(MBB, Begin);
   if (Save.test(MOS6502::NZ))
     Builder.buildInstr(MOS6502::PHP);
   if (Save.test(MOS6502::A))
     Builder.buildInstr(MOS6502::PHA);
+  if (Save.test(MOS6502::X))
+    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_0).addUse(MOS6502::X);
+  else if (Save.test(MOS6502::Y))
+    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_0).addUse(MOS6502::Y);
 
   Builder.setInsertPt(MBB, End);
   if (Save.test(MOS6502::A))
     Builder.buildInstr(MOS6502::PLA);
+  if (Save.test(MOS6502::X))
+    Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::X).addUse(MOS6502::ZP_0);
+  else if (Save.test(MOS6502::Y))
+    Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::Y).addUse(MOS6502::ZP_0);
   if (Save.test(MOS6502::NZ))
     Builder.buildInstr(MOS6502::PLP);
 
   Save.reset(MOS6502::NZ);
   Save.reset(MOS6502::A);
+  Save.reset(MOS6502::X);
+  Save.reset(MOS6502::Y);
   if (Save.count())
     report_fatal_error("Cannot yet preserve register type.");
 }

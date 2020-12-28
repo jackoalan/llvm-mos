@@ -114,7 +114,7 @@ def LDzp : Instr {
 }
 
 // $dst = *(addr + (unsigned char)idx);
-// Sets NZ to undefined value, since the expansion may end with a restore of A.
+// Sets NZ to undefined value, since expansion may clobber.
 def LDidx : Pseudo {
   dag InOperandList = (ins i16imm:$addr, XY:$idx);
   dag OutOperandList = (outs GPR:$dst);
@@ -206,10 +206,10 @@ def T_A : Instr {
   let isReMaterializable = true;
 }
 
-def TXS : Instr {
+def TSX : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs);
-  let AsmString = "TXS";
+  let AsmString = "TSX";
 
   let Defs = [X, NZ];
 
@@ -287,6 +287,17 @@ def STzp : Instr {
   let Defs = [];
 
   let AsmString = "ST$src\tz:$dst";
+
+  let mayStore = true;
+}
+
+def STAidx : Instr {
+  dag InOperandList = (ins i16imm:$addr, XY:$idx);
+  dag OutOperandList = (outs);
+
+  let Uses = [A];
+
+  let AsmString = "STA\t$addr,$idx";
 
   let mayStore = true;
 }

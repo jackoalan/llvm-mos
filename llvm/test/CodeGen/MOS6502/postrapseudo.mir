@@ -1,26 +1,26 @@
 # RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
 ---
-name:            ldaidx
+name: ldaidx
 # CHECK-LABEL: name: ldaidx
-body:             |
+body: |
   bb.0.entry:
     liveins: $x
     $a = LDidx 1234, $x, implicit-def $nz
 # CHECK: LDAidx 1234, $x
 ...
 ---
-name:            ldxidx_y
+name: ldxidx_y
 # CHECK-LABEL: name: ldxidx_y
-body:             |
+body: |
   bb.0.entry:
     liveins: $y
     $x = LDidx 1234, $y, implicit-def $nz
 # CHECK: LDXidx 1234
 ...
 ---
-name:            ldxidx_x
+name: ldxidx_x
 # CHECK-LABEL: name: ldxidx_x
-body:             |
+body: |
   bb.0.entry:
     liveins: $x
     $x = LDidx 1234, $x, implicit-def $nz
@@ -31,11 +31,33 @@ body:             |
 # CHECK-NEXT: PLA
 ...
 ---
-name:            ldyidx_x
+name: ldyidx_x
 # CHECK-LABEL: name: ldyidx_x
-body:             |
+body: |
   bb.0.entry:
     liveins: $x
     $y = LDidx 1234, $x, implicit-def $nz
 # CHECK: LDYidx 1234
+...
+---
+name: ldhs
+# CHECK-LABEL: name: ldhs
+body: |
+  bb.0.entry:
+    $x = LDhs 2
+# CHECK:      TSX
+# CHECK-NEXT: LDAidx 259, $x
+# CHECK-NEXT: $x = TA_
+...
+---
+name: sths
+# CHECK-LABEL: name: sths
+body: |
+  bb.0.entry:
+    SThs $x, 2
+# CHECK:      $zp_0 = STzpr $x
+# CHECK-NEXT: T_A $x
+# CHECK-NEXT: TSX
+# CHECK-NEXT: STAidx 259, $x
+# CHECK-NEXT: $x = LDzpr $zp_0
 ...

@@ -43,9 +43,6 @@ public:
                    const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
                    bool KillSrc) const override;
 
-  void copyPhysRegImpl(MachineIRBuilder &Builder, MCRegister DestReg,
-                       MCRegister SrcReg) const;
-
   void storeRegToStackSlot(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MI, Register SrcReg,
                            bool isKill, int FrameIndex,
@@ -68,6 +65,7 @@ public:
   ArrayRef<std::pair<unsigned, const char *>>
   getSerializableDirectMachineOperandTargetFlags() const override;
 
+private:
   // Various locations throughout codegen emit pseudo-instructions with very few
   // implicit defs. This is required whenever LLVM codegen cannot handle
   // emitting arbitrary physreg uses, for example, during COPY or
@@ -81,10 +79,14 @@ public:
   // the pseudo.
   //
   // ExpandFn must insert a contiguous range of instructions before the pseudo.
-  // After expansion, the builder must still point at the original pseudo, which
-  // must still be present.
+  // Afterwards, the Builder must point to the location after the inserted range.
   void preserveAroundPseudoExpansion(MachineIRBuilder &Builder,
                                      std::function<void()> ExpandFn) const;
+
+  void copyPhysRegImpl(MachineIRBuilder &Builder, MCRegister DestReg,
+                       MCRegister SrcReg) const;
+
+  bool expandPostRAPseudoImpl(MachineIRBuilder &Builder) const;
 };
 
 namespace MOS6502 {
