@@ -69,13 +69,6 @@ public:
   getSerializableDirectMachineOperandTargetFlags() const override;
 
 private:
-  enum Preserved {
-    None = 0,
-    NZ = 1 << 0,
-    A = 1 << 1,
-    All = ~None,
-  };
-
   // Various locations throughout codegen emit pseudo-instructions with very few
   // implicit defs. This is required whenever LLVM codegen cannot handle
   // emitting arbitrary physreg uses, for example, during COPY or
@@ -87,10 +80,6 @@ private:
   // defs of the expanded instructions are measured, and save and restore code
   // is emitted to ensure that the pseudo expansion region only modifies defs of
   // the pseudo.
-  //
-  // Presently, only NZ and A are supported. ExpandFNs must not emit writes to
-  // any other locations unless certain that the pseudo also has those locations
-  // as defs.
   //
   // ExpandFn must insert a contiguous range of instructions before the pseudo.
   // After expansion, the builder must still point at the original pseudo, which

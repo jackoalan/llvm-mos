@@ -1,6 +1,7 @@
 # RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
 ---
 name:            tax
+tracksRegLiveness: true
 # CHECK-LABEL: name: tax
 body:             |
   bb.0.entry:
@@ -10,6 +11,7 @@ body:             |
 ...
 ---
 name:            txa
+tracksRegLiveness: true
 # CHECK-LABEL: name: txa
 body:             |
   bb.0.entry:
@@ -19,6 +21,7 @@ body:             |
 ...
 ---
 name:            tay
+tracksRegLiveness: true
 # CHECK-LABEL: name: tay
 body:             |
   bb.0.entry:
@@ -28,6 +31,7 @@ body:             |
 ...
 ---
 name:            tya
+tracksRegLiveness: true
 # CHECK-LABEL: name: tya
 body:             |
   bb.0.entry:
@@ -37,6 +41,7 @@ body:             |
 ...
 ---
 name:            txy
+tracksRegLiveness: true
 # CHECK-LABEL: name: txy
 body:             |
   bb.0.entry:
@@ -47,6 +52,7 @@ body:             |
 ...
 ---
 name:            tyx
+tracksRegLiveness: true
 # CHECK-LABEL: name: tyx
 body:             |
   bb.0.entry:
@@ -57,6 +63,7 @@ body:             |
 ...
 ---
 name:            preserve_nz
+tracksRegLiveness: true
 # CHECK-LABEL: name: preserve_nz
 body:             |
   bb.0.entry:
@@ -71,6 +78,7 @@ body:             |
 ...
 ---
 name:            preserve_a
+tracksRegLiveness: true
 # CHECK-LABEL: name: preserve_a
 body:             |
   bb.0.entry:
@@ -84,6 +92,7 @@ body:             |
 ...
 ---
 name:            stzp
+tracksRegLiveness: true
 # CHECK-LABEL: name: stzp
 body:             |
   bb.0.entry:
@@ -93,6 +102,7 @@ body:             |
 ...
 ---
 name:            ldzp
+tracksRegLiveness: true
 # CHECK-LABEL: name: ldzp
 body:             |
   bb.0.entry:

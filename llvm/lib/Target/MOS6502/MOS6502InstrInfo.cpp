@@ -3,6 +3,7 @@
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "MOS6502RegisterInfo.h"
 
+#include "llvm/ADT/SparseBitVector.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -12,8 +13,11 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "mos6502-instrinfo"
 
 #define GET_INSTRINFO_CTOR_DTOR
 #include "MOS6502GenInstrInfo.inc"
@@ -278,10 +282,11 @@ void MOS6502InstrInfo::loadRegFromStackSlot(
 
 bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   MachineIRBuilder Builder(MI);
-  bool Changed = false;
-  preserveAroundPseudoExpansion(Builder, [&]() {
-    switch (MI.getOpcode()) {
-    case MOS6502::LDidx:
+  switch (MI.getOpcode()) {
+  default:
+    return false;
+  case MOS6502::LDidx:
+    preserveAroundPseudoExpansion(Builder, [&]() {
       // This occur when X or Y is both the destination and index register.
       // Since the 6502 has no instruction for this, use A as the destination
       // instead, then transfer to the real destination.
@@ -290,7 +295,6 @@ bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
             .add(MI.getOperand(1))
             .add(MI.getOperand(2));
         Builder.buildInstr(MOS6502::TA_).add(MI.getOperand(0));
-        Changed = true;
         return;
       }
 
@@ -309,13 +313,11 @@ bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
         Builder.buildInstr(MOS6502::LDYidx).add(MI.getOperand(1));
         break;
       }
-      Changed = true;
       return;
-    }
-  });
-  if (Changed)
+    });
     MI.eraseFromParent();
-  return Changed;
+    return true;
+  }
 }
 
 bool MOS6502InstrInfo::reverseBranchCondition(
@@ -342,6 +344,8 @@ MOS6502InstrInfo::getSerializableDirectMachineOperandTargetFlags() const {
 void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     MachineIRBuilder &Builder, std::function<void()> ExpandFn) const {
   MachineBasicBlock &MBB = Builder.getMBB();
+  const MCRegisterInfo &MCRI =
+      *MBB.getParent()->getTarget().getMCRegisterInfo();
 
   // Returns whether a physreg could be live into the pseudo.
   const auto IsMaybeLive = [&](Register Reg) {
@@ -352,21 +356,23 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
 
   // Returns the locations modified by the given instruction.
   const auto GetWrites = [&](MachineInstr &MI) {
-    unsigned Writes = None;
-    if (MI.modifiesRegister(MOS6502::NZ))
-      Writes |= NZ;
-    if (MI.modifiesRegister(MOS6502::A))
-      Writes |= A;
+    SparseBitVector<> Writes;
+    for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < MCRI.getNumRegs();
+         ++Reg) {
+      if (MI.modifiesRegister(Reg))
+        Writes.set(Reg);
+    }
     return Writes;
   };
 
-  unsigned MaybeLive = None;
-  if (IsMaybeLive(MOS6502::NZ))
-    MaybeLive |= NZ;
-  if (IsMaybeLive(MOS6502::A))
-    MaybeLive |= A;
+  SparseBitVector<> MaybeLive;
+  for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < MCRI.getNumRegs();
+       ++Reg) {
+    if (IsMaybeLive(Reg))
+      MaybeLive.set(Reg);
+  }
 
-  unsigned ExpectedWrites = GetWrites(*Builder.getInsertPt());
+  SparseBitVector<> ExpectedWrites = GetWrites(*Builder.getInsertPt());
 
   // If begin was the first instruction, it may no longer be the first once
   // ExpandFn is called, so make a note of it.
@@ -384,26 +390,33 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   auto End = Builder.getInsertPt();
 
   // Determine the writes of the expansion region.
-  unsigned Writes = None;
+  SparseBitVector<> Writes;
   for (auto I = Begin; I != End; ++I)
     Writes |= GetWrites(*I);
 
-  unsigned Save = MaybeLive & Writes & ~ExpectedWrites;
-  // Restoring A requires writing NZ in PLA.
-  if (Save & A) {
-    Writes |= NZ;
-    Save = MaybeLive & Writes & ~ExpectedWrites;
+  SparseBitVector<> Save = MaybeLive;
+  Save &= Writes;
+  Save.intersectWithComplement(ExpectedWrites);
+  // Restoring A clobbers NZ
+  if (Save.test(MOS6502::A) && MaybeLive.test(MOS6502::NZ) &&
+      !ExpectedWrites.test(MOS6502::NZ)) {
+    Save.set(MOS6502::NZ);
   }
 
   Builder.setInsertPt(MBB, Begin);
-  if (Save & NZ)
+  if (Save.test(MOS6502::NZ))
     Builder.buildInstr(MOS6502::PHP);
-  if (Save & A)
+  if (Save.test(MOS6502::A))
     Builder.buildInstr(MOS6502::PHA);
 
   Builder.setInsertPt(MBB, End);
-  if (Save & A)
+  if (Save.test(MOS6502::A))
     Builder.buildInstr(MOS6502::PLA);
-  if (Save & NZ)
+  if (Save.test(MOS6502::NZ))
     Builder.buildInstr(MOS6502::PLP);
+
+  Save.reset(MOS6502::NZ);
+  Save.reset(MOS6502::A);
+  if (Save.count())
+    report_fatal_error("Cannot yet preserve register type.");
 }
