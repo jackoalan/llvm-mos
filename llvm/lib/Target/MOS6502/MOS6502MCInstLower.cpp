@@ -6,6 +6,8 @@
 
 using namespace llvm;
 
+#define DEBUG_TYPE "mos6502-mcinstlower"
+
 void MOS6502MCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
   OutMI.setOpcode(MI->getOpcode());
 
@@ -20,7 +22,14 @@ bool MOS6502MCInstLower::lowerOperand(const MachineOperand &MO,
                                       MCOperand &MCOp) {
   switch (MO.getType()) {
   default:
+    LLVM_DEBUG(dbgs() << "Operand: " << MO << "\n");
     report_fatal_error("Operand type not implemented.");
+  case MachineOperand::MO_RegisterMask:
+    return false;
+  case MachineOperand::MO_ExternalSymbol:
+    MCOp = MCOperand::createExpr(MCSymbolRefExpr::create(
+        Ctx.getOrCreateSymbol(MO.getSymbolName()), Ctx));
+    break;
   case MachineOperand::MO_GlobalAddress: {
     const MCExpr *Expr =
         MCSymbolRefExpr::create(AP.getSymbol(MO.getGlobal()), Ctx);

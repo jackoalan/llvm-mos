@@ -197,12 +197,12 @@ void MOS6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                    MCRegister SrcReg, bool KillSrc) const {
   MachineIRBuilder Builder(MBB, MI);
   preserveAroundPseudoExpansion(
-      Builder, [&]() { copyPhysRegImpl(Builder, DestReg, SrcReg); });
+      Builder, [&]() { copyPhysRegNoPreserve(Builder, DestReg, SrcReg); });
 }
 
-void MOS6502InstrInfo::copyPhysRegImpl(MachineIRBuilder &Builder,
-                                       MCRegister DestReg,
-                                       MCRegister SrcReg) const {
+void MOS6502InstrInfo::copyPhysRegNoPreserve(MachineIRBuilder &Builder,
+                                             MCRegister DestReg,
+                                             MCRegister SrcReg) const {
   const auto &areClasses = [&](const TargetRegisterClass &Dest,
                                const TargetRegisterClass &Src) {
     return Dest.contains(DestReg) && Src.contains(SrcReg);
@@ -216,8 +216,8 @@ void MOS6502InstrInfo::copyPhysRegImpl(MachineIRBuilder &Builder,
       assert(MOS6502::XYRegClass.contains(SrcReg));
       Builder.buildInstr(MOS6502::T_A).addUse(SrcReg);
     } else {
-      copyPhysRegImpl(Builder, MOS6502::A, SrcReg);
-      copyPhysRegImpl(Builder, DestReg, MOS6502::A);
+      copyPhysRegNoPreserve(Builder, MOS6502::A, SrcReg);
+      copyPhysRegNoPreserve(Builder, DestReg, MOS6502::A);
     }
   } else if (areClasses(MOS6502::ZPRegClass, MOS6502::GPRRegClass)) {
     Builder.buildInstr(MOS6502::STzpr).addDef(DestReg).addUse(SrcReg);
@@ -298,11 +298,12 @@ bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   bool Changed;
   MachineIRBuilder Builder(MI);
   preserveAroundPseudoExpansion(
-      Builder, [&]() { Changed = expandPostRAPseudoImpl(Builder); });
+      Builder, [&]() { Changed = expandPostRAPseudoNoPreserve(Builder); });
   return Changed;
 }
 
-bool MOS6502InstrInfo::expandPostRAPseudoImpl(MachineIRBuilder &Builder) const {
+bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
+    MachineIRBuilder &Builder) const {
   auto &MI = *Builder.getInsertPt();
   bool Changed = false;
   switch (MI.getOpcode()) {
@@ -337,6 +338,13 @@ bool MOS6502InstrInfo::expandPostRAPseudoImpl(MachineIRBuilder &Builder) const {
     Changed = true;
     break;
 
+  case MOS6502::LDimm_preserve:
+    Builder.buildInstr(MOS6502::LDimm)
+        .add(MI.getOperand(0))
+        .add(MI.getOperand(1));
+    Changed = true;
+    break;
+
   case MOS6502::LDhs: {
     if (!MOS6502::GPRRegClass.contains(MI.getOperand(0).getReg()))
       report_fatal_error("Not yet implemented.");
@@ -347,7 +355,7 @@ bool MOS6502InstrInfo::expandPostRAPseudoImpl(MachineIRBuilder &Builder) const {
                   .addImm(HSOffset(MI.getOperand(1).getImm()))
                   .addReg(MOS6502::X);
     Builder.setInsertPt(*Ld->getParent(), Ld);
-    expandPostRAPseudoImpl(Builder);
+    expandPostRAPseudoNoPreserve(Builder);
     Changed = true;
     break;
   }
@@ -355,7 +363,7 @@ bool MOS6502InstrInfo::expandPostRAPseudoImpl(MachineIRBuilder &Builder) const {
   case MOS6502::SThs: {
     Register Src = MI.getOperand(0).getReg();
     if (Src != MOS6502::A)
-      copyPhysRegImpl(Builder, MOS6502::A, Src);
+      copyPhysRegNoPreserve(Builder, MOS6502::A, Src);
 
     Builder.buildInstr(MOS6502::TSX);
     Builder.buildInstr(MOS6502::STAidx)
@@ -369,9 +377,8 @@ bool MOS6502InstrInfo::expandPostRAPseudoImpl(MachineIRBuilder &Builder) const {
   if (Changed) {
     Builder.setInsertPt(Builder.getMBB(), std::next(Builder.getInsertPt()));
     MI.eraseFromParent();
-    return true;
   }
-  return false;
+  return Changed;
 }
 
 bool MOS6502InstrInfo::reverseBranchCondition(

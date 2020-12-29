@@ -79,14 +79,15 @@ private:
   // the pseudo.
   //
   // ExpandFn must insert a contiguous range of instructions before the pseudo.
-  // Afterwards, the Builder must point to the location after the inserted range.
+  // Afterwards, the Builder must point to the location after the inserted
+  // range.
   void preserveAroundPseudoExpansion(MachineIRBuilder &Builder,
                                      std::function<void()> ExpandFn) const;
 
-  void copyPhysRegImpl(MachineIRBuilder &Builder, MCRegister DestReg,
-                       MCRegister SrcReg) const;
+  void copyPhysRegNoPreserve(MachineIRBuilder &Builder, MCRegister DestReg,
+                             MCRegister SrcReg) const;
 
-  bool expandPostRAPseudoImpl(MachineIRBuilder &Builder) const;
+  bool expandPostRAPseudoNoPreserve(MachineIRBuilder &Builder) const;
 };
 
 namespace MOS6502 {

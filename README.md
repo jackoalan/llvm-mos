@@ -57,6 +57,10 @@ Notes:
 - The string offset was statically determined to fit within an unsigned 8-bit
 integer, allowing indexed addressing mode for the load.
 
+TODO:
+
+- LDX #0 immediately follows LDA #0, when it would be more efficient to TAX.
+
 ### Speed Optimized (-O2)
 
 `$ clang --target=mos6502 -S -O2 main.c`
