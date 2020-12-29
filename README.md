@@ -11,9 +11,14 @@ The compiler can compile a simple "Hello world" program for the C64 in both
 speed- and size-optimized modes. See below for examples of the input/output,
 as well as the remaining tasks for this case study.
 
-## Hello World
+## Examples
 
-`main.c`:
+### Hello World
+
+Outputs "HELLO, WORLD" on a Commodore 64. Excersises trivial code generation, inline assembly, and loop strength reduction.
+
+<details>
+	<summary>main.c</summary>
 
 ```C
 int main(void) {
@@ -25,7 +30,10 @@ int main(void) {
 }
 ```
 
-### Size Optimized (-Os)
+</details>
+
+<details>
+	<summary>Size optimized (-Os)</summary>
 
 `$ clang --target=mos6502 -S -Os main.c`
 
@@ -61,7 +69,10 @@ TODO:
 
 - LDX #0 immediately follows LDA #0, when it would be more efficient to TAX.
 
-### Speed Optimized (-O2)
+</details>
+
+<details>
+	<summary>Speed optimized (-O2)</summary>
 
 `$ clang --target=mos6502 -S -O2 main.c`
 
@@ -138,5 +149,80 @@ Notes:
     iterations.
   - The L and O characters are placed in registers, since a transfer is cheaper than
     an immediate load, and these letters are used twice.
+    
+</details>
 
-Updated December 22, 2020.
+### Print Int
+
+Routine that prints an unsigned integer on the Commodore 64. Excersises libcalls, stack usage, and recursion.
+
+<details>
+	<summary>print_int.c</summary>
+
+```C
+void print_int(char x) {
+	if (x < 10) {
+		x += '0';
+		asm volatile ("JSR\t$FFD2" : "+a"(x));
+		return;
+	}
+	print_int(x / 10);
+	print_int(x % 10);
+}
+```
+
+</details>
+
+<details>
+	<summary>Optimized (-O2/-Os)</summary>
+	
+`$ clang --target=mos6502 -S -O2 print_int.c`
+
+```asm
+.code
+.global	print__int
+print__int:
+	PHA
+	CMP	#10
+	BMI	LBB0__2
+	LDX	#10
+	STX	z:__ZP__0
+	TSX
+	STA	257,X
+	LDX	z:__ZP__0
+	JSR	____udivqi3
+	JSR	print__int
+	TSX
+	LDA	257,X
+	LDX	#10
+	JSR	____umodqi3
+LBB0__2:
+	CLC
+	ADC	#48
+	;APP
+	JSR	$FFD2
+	;NO_APP
+	PLA
+	RTS
+
+.zeropage
+__ZP__0:
+	.res	1
+
+.global	____udivqi3
+.global	____umodqi3
+```
+
+Notes:
+
+- `__udivqi3` and `__umodqi3` are external routines that provide unsigned integer division and modulus.
+- LLVM notices that the second recursive call, `print_int(x % 10)`, will always have `x < 10`, so it inlines that outcome, saving a whole call.
+  The code is also shared with 
+
+TODO:
+
+- LDX #0 immediately follows LDA #0, when it would be more efficient to TAX.
+
+</details>
+
+Updated December 29, 2020.
