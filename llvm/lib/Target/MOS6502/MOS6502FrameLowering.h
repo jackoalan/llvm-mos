@@ -6,14 +6,18 @@
 namespace llvm {
 
 class MOS6502FrameLowering : public TargetFrameLowering {
- public:
+public:
   MOS6502FrameLowering();
+
+  bool enableShrinkWrapping(const MachineFunction &MF) const override {
+    return true;
+  }
 
   void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   bool hasFP(const MachineFunction &MF) const override;
 };
 
-}  // namespace llvm
+} // namespace llvm
 
-#endif  // not LLVM_LIB_TARGET_MOS6502_MOS6502FRAMELOWERING_H
+#endif // not LLVM_LIB_TARGET_MOS6502_MOS6502FRAMELOWERING_H

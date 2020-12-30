@@ -26,11 +26,16 @@ The calling convention is presently very barebones:
 - The return value is passed in A, then X.
 - The compiler bails if the arguments/return value don't fit.
 - All compiler-used ZP locations, all registers, and all flags are caller-saved.
-  - Use of most physical registers/flags are mandatory for certain operations, so functions would be forced to save/restore them if they were callee saved,
-    even if they held values not live across calls. This should be the usual case: since there are so few, live ranges should be short.
-  - TODO: Some ZP locations should be callee-saved; that way the compiler can amortize save/restore cost of different values to the prolog/epilog. A single
-    callee saved reg may be able to keep a dozen different values live across calls if their live ranges don't interfere, all for the cost of one `PHA;PLA`.
-    Doing this with caller-saved regs would in the worst cast require one `PHA/PLA` per call site.
+  - Use of most physical registers/flags are mandatory for certain operations,
+    so functions would be forced to save/restore them if they were callee saved,
+    even if they held values not live across calls. This should be the usual
+    case: since there are so few, live ranges should be short.
+  - TODO: Some ZP locations should be callee-saved; that way the compiler can
+    amortize save/restore cost of different values to the prolog/epilog. A
+    single callee saved reg may be able to keep a dozen different values live
+    across calls if their live ranges don't interfere, all for the cost of one
+    `PHA;PLA`. Doing this with caller-saved regs would in the worst cast require
+    one `PHA/PLA` per call site.
 
 ### Stack usage
 
@@ -39,26 +44,42 @@ The C stack is presently very barebones:
 - To avoid running out of room, only 4 bytes worth of stack are allowed per frame.
 - Variable sized stack frames (`alloca`) are not yet supported.
 
-Eventually, a cc65-style soft stack will be added to the 4-byte hard stack frame, for large or infrequently accessed objects. The hard stack will be used as much as possible for the most important values (that don't fit into ZP registers).
+Eventually, a cc65-style soft stack will be added to the 4-byte hard stack
+frame, for large or infrequently accessed objects. The hard stack will be used
+as much as possible for the most important values (that don't fit into ZP
+registers).
 
-Very eventually, a whole-program IPO pass will detect when stack frames are used in procedures that are never recursive (directly or indirectly). Any stack references in such locations will be lowered to globally static memory locations. Such locations will be globally colored: any two "static stack frames" that cannot be simultaneously active can share the same color, that is, they may overlap in memory.
+Very eventually, a whole-program IPO pass will detect when stack frames are used
+in procedures that are never recursive (directly or indirectly). Any stack
+references in such locations will be lowered to globally static memory
+locations. Such locations will be globally colored: any two "static stack
+frames" that cannot be simultaneously active can share the same color, that is,
+they may overlap in memory.
 
 ### Zero page usage
 
-The compiler currently assumes it has access to 128 2-byte zero page pointer registers, each composed of 2 individually addressable zero page registers.
-The compiler makes no assumptions about the relative layout of these registers, and at the end of code generation, references to the zero page registers
-are lowered to abstract symbols placed in the zero page by the linker. Only registers actually accessed are emitted.
+The compiler currently assumes it has access to 128 2-byte zero page pointer
+registers, each composed of 2 individually addressable zero page registers. The
+compiler makes no assumptions about the relative layout of these registers, and
+at the end of code generation, references to the zero page registers are lowered
+to abstract symbols placed in the zero page by the linker. Only registers
+actually accessed are emitted.
 
-One 2-byte pointer register is presently reserved by the compiler for saving/restoring. Accoringly, at least two zero page registers must be available
+One 2-byte pointer register is presently reserved by the compiler for
+saving/restoring. Accoringly, at least two zero page registers must be available
 for compiler use.
 
-Eventually, a compiler flag should allow the user to specify how many zero page locations are available for use by the compiler. This will limit the register allocator and potentially increase the amount of stack used by the generated code.
+Eventually, a compiler flag should allow the user to specify how many zero page
+locations are available for use by the compiler. This will limit the register
+allocator and potentially increase the amount of stack used by the generated
+code.
 
 ## Examples
 
 ### Hello World
 
-Outputs "HELLO, WORLD" on a Commodore 64. Excersises trivial code generation, inline assembly, and loop strength reduction.
+Outputs "HELLO, WORLD" on a Commodore 64. Excersises trivial code generation,
+inline assembly, and loop strength reduction.
 
 <details>
 	<summary>main.c</summary>
@@ -197,7 +218,8 @@ Notes:
 
 ### Print Int
 
-Routine that prints an unsigned integer on the Commodore 64. Excersises libcalls, stack usage, and recursion.
+Routine that prints an unsigned integer on the Commodore 64. Excersises
+libcalls, stack usage, and recursion.
 
 <details>
 	<summary>print_int.c</summary>
@@ -223,11 +245,13 @@ void print_int(char x) {
 
 ```asm
 .code
-.global	print__int
-print__int:
-	PHA
+.global	print__int                      ; -- Begin function print_int
+print__int:                             ; @print_int
+; %bb.0:                                ; %entry
 	CMP	#10
 	BMI	LBB0__2
+; %bb.1:                                ; %if.end.preheader
+	PHA
 	LDX	#10
 	STX	z:__ZP__0
 	TSX
@@ -239,17 +263,17 @@ print__int:
 	LDA	257,X
 	LDX	#10
 	JSR	____umodqi3
-LBB0__2:
+	PLA
+LBB0__2:                                ; %if.then
 	CLC
 	ADC	#48
 	;APP
 	JSR	$FFD2
 	;NO_APP
-	PLA
 	RTS
-
+                                        ; -- End function
 .zeropage
-__ZP__0:
+__ZP__0:                                ; @_ZP_0
 	.res	1
 
 .global	____udivqi3
@@ -258,21 +282,34 @@ __ZP__0:
 
 Notes:
 
-- `__udivqi3` and `__umodqi3` are external routines that provide unsigned integer division and modulus. As per expected calling convention,
-  the operands are taken in A and X, and the result is returned in A.
-- LLVM notices that the second recursive call, `print_int(x % 10)`, will always have `x < 10`, so it inlines that outcome, saving a whole call.
-  The inlined code is shared with the if branch of the outer call, so no additional code is required either.
-- A value needs to be saved across the calls to `__udivqi3` and `print__int`. A `PHA` prolog and `PLA` epilog increase and decrease the size of the hard stack,
-  and the indexed addressing mode is used to save and restore the value to the top hard stack location. This is clumsy, but general.
+- `__udivqi3` and `__umodqi3` are external routines that provide unsigned
+  integer division and modulus. As per expected calling convention, the operands
+  are taken in A and X, and the result is returned in A.
+- LLVM notices that the second recursive call, `print_int(x % 10)`, will always
+  have `x < 10`, so it inlines that outcome, saving a whole call. The inlined
+  code is shared with the if branch of the outer call, so no additional code is
+  required either.
+- A value needs to be saved across the calls to `__udivqi3` and `print__int`. A
+  `PHA` prolog and `PLA` epilog increase and decrease the size of the hard
+  stack, and the indexed addressing mode is used to save and restore the value
+  to the top hard stack location. This is clumsy, but general.
+- The prolog and epilog are shrink-wrapped to the only basic block with stack
+  operations, so they aren't executed in the `BMI` path.
 
 TODO:
 
-- The means by which values are loaded/stored with the hard stack can be considerably improved, but the biggest improvement would be to combine the epilog
-  and prolog with the load and store. A `PHA` is a combined prolog and store, and a `PLA` is a combined epilog and load, and the rest of the save/restore
-  logic would then disappear. This transformation isn't always safe: if different control flow paths see different numbers of `PHA` operations, then different
-  offsets would be required to perform indexed addressing, depending on how the block containing the indexed address mode was reached. Still, making use of the
-  PHA/PLA instructions saves a huge number of instructions, so the optimization is very important to get right.  
-- A `__udivmodqi4` instruction would be twice as efficient as calculating the division twice, but would require either struct return or pointer argument.
+- The means by which values are loaded/stored with the hard stack can be
+  considerably improved, but the biggest improvement would be to combine the
+  epilog and prolog with the load and store. A `PHA` is a combined prolog and
+  store, and a `PLA` is a combined epilog and load, and the rest of the
+  save/restore logic would then disappear. This transformation isn't always
+  safe: if different control flow paths see different numbers of `PHA`
+  operations, then different offsets would be required to perform indexed
+  addressing, depending on how the block containing the indexed address mode was
+  reached. Still, making use of the PHA/PLA instructions saves a huge number of
+  instructions, so the optimization is very important to get right.
+- A `__udivmodqi4` instruction would be twice as efficient as calculating the
+  division twice, but would require either struct return or pointer argument.
   Neither of which is currently implemented.
 
 </details>
