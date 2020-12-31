@@ -5,16 +5,24 @@ name: stack
 stack:
   - { id: 0, size: 1}
   - { id: 1, size: 1}
+  - { id: 2, size: 1}
+  - { id: 3, size: 1}
 body:             |
   bb.0.entry:
+    SThs $a, %stack.0 :: (store 1 into %stack.0)
+    SThs $a, %stack.2 :: (store 1 into %stack.2)
     SThs $a, %stack.1 :: (store 1 into %stack.1)
     $a = LDhs %stack.0 :: (load 1 from %stack.0)
     RTS
 # CHECK-LABEL: bb.0.entry:
-# CHECK-NEXT:  PHA
-# CHECK-NEXT:  PHA
-# CHECK-NEXT:  SThs $a, 0
-# CHECK-NEXT:  $a = LDhs 1
+# CHECK-NEXT:  PHA implicit $a
+# CHECK-NEXT:  PHA implicit undef $a
+# CHECK-NEXT:  PHA implicit $a
+# CHECK-NEXT:  PHA implicit undef $a
+# CHECK-NEXT:  SThs $a, 2
+# CHECK-NEXT:  $a = LDhs 3
+# CHECK-NEXT:  PLA
+# CHECK-NEXT:  PLA
 # CHECK-NEXT:  PLA
 # CHECK-NEXT:  PLA
 # CHECK-NEXT:  RTS
@@ -29,8 +37,8 @@ body:             |
     $a = IMPLICIT_DEF
     RTS implicit $a
 # CHECK-LABEL: bb.0.entry:
-# CHECK-NEXT:  PHA
 # CHECK-NEXT:  $a = IMPLICIT_DEF
+# CHECK-NEXT:  PHA
 # CHECK-NEXT:  $zp_0 = STzpr $a
 # CHECK-NEXT:  PLA
 # CHECK-NEXT:  $a = LDzpr $zp_0
