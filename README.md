@@ -251,19 +251,17 @@ print__int:                             ; @print_int
 	CMP	#10
 	BMI	LBB0__2
 ; %bb.1:                                ; %if.end.preheader
-	PHA
 	LDX	#10
-	STX	z:__ZP__0
-	TSX
-	STA	257,X
-	LDX	z:__ZP__0
+	PHA
 	JSR	____udivqi3
 	JSR	print__int
 	TSX
 	LDA	257,X
 	LDX	#10
 	JSR	____umodqi3
+	STA	z:__ZP__0
 	PLA
+	LDA	z:__ZP__0
 LBB0__2:                                ; %if.then
 	CLC
 	ADC	#48
@@ -295,23 +293,16 @@ Notes:
   to the top hard stack location. This is clumsy, but general.
 - The prolog and epilog are shrink-wrapped to the only basic block with stack
   operations, so they aren't executed in the `BMI` path.
+- The store in the prolog is folded together with the `PHA`, just leaving `PHA`.
 
 TODO:
 
-- The means by which values are loaded/stored with the hard stack can be
-  considerably improved, but the biggest improvement would be to combine the
-  epilog and prolog with the load and store. A `PHA` is a combined prolog and
-  store, and a `PLA` is a combined epilog and load, and the rest of the
-  save/restore logic would then disappear. This transformation isn't always
-  safe: if different control flow paths see different numbers of `PHA`
-  operations, then different offsets would be required to perform indexed
-  addressing, depending on how the block containing the indexed address mode was
-  reached. Still, making use of the PHA/PLA instructions saves a huge number of
-  instructions, so the optimization is very important to get right.
+- The `PLA` in the epilogue is not yet folded together with the load, as is
+  done in the prolog.
 - A `__udivmodqi4` instruction would be twice as efficient as calculating the
   division twice, but would require either struct return or pointer argument.
   Neither of which is currently implemented.
 
 </details>
 
-Updated December 29, 2020.
+Updated December 30, 2020.
