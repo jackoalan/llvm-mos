@@ -92,9 +92,6 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
 
   auto MI = MBB.getFirstTerminator();
-  if (MI == MBB.end())
-    --MI;
-
   MachineIRBuilder Builder(MBB, MI);
   bool AMaybeLive = MBB.computeRegisterLiveness(&TRI, MOS6502::A, MI) !=
                     MachineBasicBlock::LQR_Dead;
