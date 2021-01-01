@@ -16,6 +16,88 @@ Once the remaining tasks are more or less mechanical, the compiler will be known
 to have "good bones." At that point, work will move from section to section,
 generalizing each and filling out the compiler until it reaches MVP.
 
+## Current Working Example
+
+Code generation for the following example is currently being tuned. Once the
+assembly quality is acceptable, this section will be updated with a new example
+that exercises different aspects of code generation.
+
+### Print Int
+
+Routine that prints an unsigned integer on the Commodore 64. Excersises
+libcalls, stack usage, and recursion.
+
+#### `print_int.c`
+
+```C
+void print_int(char x) {
+	if (x < 10) {
+		x += '0';
+		asm volatile ("JSR\t$FFD2" : "+a"(x));
+		return;
+	}
+	print_int(x / 10);
+	print_int(x % 10);
+}
+```
+
+#### Optimized (-O2/-Os)
+	
+`$ clang --target=mos6502 -S -O2 print_int.c`
+
+```asm
+.code
+.global	print__int                      ; -- Begin function print_int
+print__int:                             ; @print_int
+; %bb.0:                                ; %entry
+	CMP	#10
+	BMI	LBB0__2
+; %bb.1:                                ; %if.end.preheader
+	LDX	#10
+	PHA                                     ; 1-byte Folded Spill
+	JSR	____udivqi3
+	JSR	print__int
+	PLA                                     ; 1-byte Folded Reload
+	LDX	#10
+	JSR	____umodqi3
+LBB0__2:                                ; %if.then
+	CLC
+	ADC	#48
+	;APP
+	JSR	$FFD2
+	;NO_APP
+	RTS
+                                        ; -- End function
+.global	____udivqi3
+.global	____umodqi3
+```
+
+Notes:
+
+- `__udivqi3` and `__umodqi3` are external routines that provide unsigned
+  integer division and modulus. As per expected calling convention, the operands
+  are taken in A and X, and the result is returned in A.
+- LLVM notices that the second recursive call, `print_int(x % 10)`, will always
+  have `x < 10`, so it inlines that outcome, saving a whole call. The inlined
+  code is shared with the if branch of the outer call, so no additional code is
+  required either.
+- A value needs to be saved across the calls to `__udivqi3` and `print__int`. A
+  `PHA` prolog and `PLA` epilog increase and decrease the size of the hard
+  stack, and the indexed addressing mode is used to save and restore the value
+  to the top hard stack location. The indexed addressing save/restore
+  instructions are optimized away in this example, so only the `PHA` and `PLA`
+  are present. (I.e., the load and store are folded into these instructions.)
+- The prolog and epilog are shrink-wrapped to the only basic block with stack
+  operations, so they aren't executed in the `BMI` path. This also aids with
+  folding the save/restore instructions, since it places the prologue and
+  epilogue in the same basic block as the instructions it can be folded with.
+
+TODO:
+
+- A `__udivmodqi4` instruction would be twice as efficient as calculating the
+  division twice, but would require either struct return or pointer argument.
+  Neither of which is currently implemented.
+
 ## Generated code characteristics
 
 ### Calling convention
@@ -84,7 +166,7 @@ locations are available for use by the compiler. This will limit the register
 allocator and potentially increase the amount of stack used by the generated
 code.
 
-## Examples
+## Further Examples
 
 ### Hello World
 
@@ -224,88 +306,6 @@ Notes:
   - The L and O characters are placed in registers, since a transfer is cheaper than
     an immediate load, and these letters are used twice.
     
-</details>
-
-### Print Int
-
-Routine that prints an unsigned integer on the Commodore 64. Excersises
-libcalls, stack usage, and recursion.
-
-<details>
-	<summary>print_int.c</summary>
-
-```C
-void print_int(char x) {
-	if (x < 10) {
-		x += '0';
-		asm volatile ("JSR\t$FFD2" : "+a"(x));
-		return;
-	}
-	print_int(x / 10);
-	print_int(x % 10);
-}
-```
-
-</details>
-
-<details>
-	<summary>Optimized (-O2/-Os)</summary>
-	
-`$ clang --target=mos6502 -S -O2 print_int.c`
-
-```asm
-.code
-.global	print__int                      ; -- Begin function print_int
-print__int:                             ; @print_int
-; %bb.0:                                ; %entry
-	CMP	#10
-	BMI	LBB0__2
-; %bb.1:                                ; %if.end.preheader
-	LDX	#10
-	PHA                                     ; 1-byte Folded Spill
-	JSR	____udivqi3
-	JSR	print__int
-	PLA                                     ; 1-byte Folded Reload
-	LDX	#10
-	JSR	____umodqi3
-LBB0__2:                                ; %if.then
-	CLC
-	ADC	#48
-	;APP
-	JSR	$FFD2
-	;NO_APP
-	RTS
-                                        ; -- End function
-.global	____udivqi3
-.global	____umodqi3
-```
-
-Notes:
-
-- `__udivqi3` and `__umodqi3` are external routines that provide unsigned
-  integer division and modulus. As per expected calling convention, the operands
-  are taken in A and X, and the result is returned in A.
-- LLVM notices that the second recursive call, `print_int(x % 10)`, will always
-  have `x < 10`, so it inlines that outcome, saving a whole call. The inlined
-  code is shared with the if branch of the outer call, so no additional code is
-  required either.
-- A value needs to be saved across the calls to `__udivqi3` and `print__int`. A
-  `PHA` prolog and `PLA` epilog increase and decrease the size of the hard
-  stack, and the indexed addressing mode is used to save and restore the value
-  to the top hard stack location. The indexed addressing save/restore
-  instructions are optimized away in this example, so only the `PHA` and `PLA`
-  are present. (I.e., the load and store are folded into these instructions.)
-- The prolog and epilog are shrink-wrapped to the only basic block with stack
-  operations, so they aren't executed in the `BMI` path. This also aids with
-  folding the save/restore instructions, since it places the prologue and
-  epilogue in the same basic block as the instructions it can be folded with.
-
-TODO:
-
-- A `__udivmodqi4` instruction would be twice as efficient as calculating the
-  division twice, but would require either struct return or pointer argument.
-  Neither of which is currently implemented.
-
 </details>
 
 Updated January 1, 2021.
