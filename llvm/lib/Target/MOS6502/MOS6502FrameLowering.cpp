@@ -93,21 +93,86 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
 
   auto MI = MBB.getFirstTerminator();
   MachineIRBuilder Builder(MBB, MI);
-  bool AMaybeLive = MBB.computeRegisterLiveness(&TRI, MOS6502::A, MI) !=
-                    MachineBasicBlock::LQR_Dead;
-  assert(MBB.computeRegisterLiveness(&TRI, MOS6502::NZ, MI) !=
-         MachineBasicBlock::LQR_Live);
 
-  if (AMaybeLive)
-    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_0).addUse(MOS6502::A);
+  // Value of S at MI, relative to its value on exit.
+  int SPOffset = 0;
 
-  // It doesn't matter what is pushed, just that the stack pointer is increased.
-  // This is still at least as efficient as increasing S using X and/or A.
-  for (uint64_t I = 0; I < MFI.getStackSize(); ++I)
-    Builder.buildInstr(MOS6502::PLA);
+  // Emit pull instructions before MI as necessary to increase SPOffset to
+  // NewOffset.
+  const auto PullUntil = [&](int NewOffset) {
+    assert(MBB.computeRegisterLiveness(&TRI, MOS6502::NZ, MI) !=
+           MachineBasicBlock::LQR_Live);
 
-  if (AMaybeLive)
-    Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::A).addUse(MOS6502::ZP_0);
+    bool AMaybeLive = MBB.computeRegisterLiveness(&TRI, MOS6502::A, MI) !=
+                      MachineBasicBlock::LQR_Dead;
+
+    MachineIRBuilder Builder(MBB, MI);
+
+    if (AMaybeLive)
+      Builder.buildInstr(MOS6502::STzpr)
+          .addDef(MOS6502::ZP_0)
+          .addUse(MOS6502::A);
+
+    for (; SPOffset < NewOffset; ++SPOffset) {
+      auto Pull = Builder.buildInstr(MOS6502::PLA);
+      Pull->implicit_operands().begin()->setIsDead();
+    }
+
+    if (AMaybeLive)
+      Builder.buildInstr(MOS6502::LDzpr)
+          .addDef(MOS6502::A)
+          .addUse(MOS6502::ZP_0);
+  };
+
+  // Defer pulling from the stack to as early as possible. Hopefully, this will
+  // allow folding LDhs together with the PLA that increase the stack pointer.
+  for (; MI != MBB.begin(); --MI) {
+    auto PrevMI = std::prev(MI);
+    // For now, this operates on one basic block only.
+    if (PrevMI == MBB.begin()) {
+      --MI;
+      break;
+    }
+
+    // Stores are relative to the fully-offset SP, so if we see one, we can't
+    // defer any longer.
+    if (PrevMI->getOpcode() == MOS6502::SThs)
+      break;
+
+    // Prologues have already been emitted, so if we run into a PHA, bail.
+    if (PrevMI->getOpcode() == MOS6502::PHA)
+      break;
+
+    // Only SThs and LDhs affect the stack.
+    if (PrevMI->getOpcode() != MOS6502::LDhs)
+      continue;
+
+    // We only can elide PLA, so the destination must be A.
+    if (PrevMI->getOperand(0).getReg() != MOS6502::A)
+      break;
+
+    // If the LDhs is to a higher SP, we can increase SP by emitting PLA to
+    // reach that SP, allowing the load to be folded with a PLA.
+    if (SPOffset < PrevMI->getOperand(1).getIndex())
+      PullUntil(PrevMI->getOperand(1).getIndex());
+    // If the LDhs is to a lower SP, it cannot be folded and is relative to the
+    // fully-offset S, so we're done.
+    else if (SPOffset > PrevMI->getOperand(1).getIndex())
+      break;
+
+    // The LDhs == SPOffset, so it can folded together with a PLA.
+    assert(PrevMI->getOperand(1).getIndex() == SPOffset);
+    PrevMI->RemoveOperand(1);
+    PrevMI->RemoveOperand(0);
+    PrevMI->setDesc(MF.getSubtarget().getInstrInfo()->get(MOS6502::PLA));
+    // This PLA actually does set A to a meaningful value; it's not dead.
+    PrevMI->addImplicitDefUseOperands(MF);
+    ++SPOffset;
+  }
+
+  // Pull any remaining bytes necessary to fully increase S.
+  if ((uint64_t)SPOffset < MFI.getStackSize())
+    PullUntil(MFI.getStackSize());
 }
 
 bool MOS6502FrameLowering::hasFP(const MachineFunction &MF) const {

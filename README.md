@@ -30,12 +30,22 @@ The calling convention is presently very barebones:
     so functions would be forced to save/restore them if they were callee saved,
     even if they held values not live across calls. This should be the usual
     case: since there are so few, live ranges should be short.
-  - TODO: Some ZP locations should be callee-saved; that way the compiler can
-    amortize save/restore cost of different values to the prolog/epilog. A
+  - TODO: Up to four ZP locations should be callee-saved; that way the compiler
+    can amortize save/restore cost of different values to the prolog/epilog. A
     single callee saved reg may be able to keep a dozen different values live
     across calls if their live ranges don't interfere, all for the cost of one
     `PHA;PLA`. Doing this with caller-saved regs would in the worst cast require
     one `PHA/PLA` per call site.
+    - It turns out doing this will require some hefty modfifications to LLVM's
+      greedy register allocator. The allocator *really* likes registers; it'll
+      prefer a CSR over spilling unless one of two very specific conditions are
+      met. For the 6502, a spill/reload may just be a `PHA/PLA` pair, while
+      saving a CSR would require from : `LDA csr; PHA; ...; PLA; STA csr`, to,
+      if A and NZ need to be saved: `PHP; PHA; LDA csr; PHA; ...; PLA; PLA; STA
+      csr; PLP`. This also doesn't count additional cost if the CSR needs to be
+      loaded to a GPR for use. Thus using CSR's should be situational; regalloc
+      should evaluate after the fact of whether using a CSR was worth it, and if
+      not, emit spills for all values allocated to the CSR.
 
 ### Stack usage
 
@@ -252,16 +262,12 @@ print__int:                             ; @print_int
 	BMI	LBB0__2
 ; %bb.1:                                ; %if.end.preheader
 	LDX	#10
-	PHA
+	PHA                                     ; 1-byte Folded Spill
 	JSR	____udivqi3
 	JSR	print__int
-	TSX
-	LDA	257,X
+	PLA                                     ; 1-byte Folded Reload
 	LDX	#10
 	JSR	____umodqi3
-	STA	z:__ZP__0
-	PLA
-	LDA	z:__ZP__0
 LBB0__2:                                ; %if.then
 	CLC
 	ADC	#48
@@ -270,10 +276,6 @@ LBB0__2:                                ; %if.then
 	;NO_APP
 	RTS
                                         ; -- End function
-.zeropage
-__ZP__0:                                ; @_ZP_0
-	.res	1
-
 .global	____udivqi3
 .global	____umodqi3
 ```
@@ -290,19 +292,20 @@ Notes:
 - A value needs to be saved across the calls to `__udivqi3` and `print__int`. A
   `PHA` prolog and `PLA` epilog increase and decrease the size of the hard
   stack, and the indexed addressing mode is used to save and restore the value
-  to the top hard stack location. This is clumsy, but general.
+  to the top hard stack location. The indexed addressing save/restore
+  instructions are optimized away in this example, so only the `PHA` and `PLA`
+  are present. (I.e., the load and store are folded into these instructions.)
 - The prolog and epilog are shrink-wrapped to the only basic block with stack
-  operations, so they aren't executed in the `BMI` path.
-- The store in the prolog is folded together with the `PHA`, just leaving `PHA`.
+  operations, so they aren't executed in the `BMI` path. This also aids with
+  folding the save/restore instructions, since it places the prologue and
+  epilogue in the same basic block as the instructions it can be folded with.
 
 TODO:
 
-- The `PLA` in the epilogue is not yet folded together with the load, as is
-  done in the prolog.
 - A `__udivmodqi4` instruction would be twice as efficient as calculating the
   division twice, but would require either struct return or pointer argument.
   Neither of which is currently implemented.
 
 </details>
 
-Updated December 30, 2020.
+Updated January 1, 2021.
