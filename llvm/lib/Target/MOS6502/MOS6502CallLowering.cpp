@@ -140,9 +140,12 @@ bool MOS6502CallLowering::lowerFormalArguments(
 
 bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
                                     CallLoweringInfo &Info) const {
-  assert(Info.Callee.isGlobal() || Info.Callee.isSymbol());
-  assert(!Info.IsMustTailCall);
-  assert(!Info.IsVarArg);
+  if (!Info.Callee.isGlobal() && !Info.Callee.isSymbol())
+    report_fatal_error("Callee type not yet implemented.");
+  if (Info.IsMustTailCall)
+    report_fatal_error("Musttail calls not yet implemented.");
+  if (Info.IsVarArg)
+    report_fatal_error("Vararg calls not yet implemented.");
 
   MachineFunction &MF = MIRBuilder.getMF();
   MachineRegisterInfo &MRI = MF.getRegInfo();

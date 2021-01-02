@@ -60,6 +60,8 @@ bool MOS6502MCInstLower::lowerOperand(const MachineOperand &MO,
 const MCExpr *MOS6502MCInstLower::applyTargetFlags(unsigned Flags,
                                                    const MCExpr *Expr) {
   switch (Flags) {
+  default:
+    llvm_unreachable("Invalid target operand flags.");
   case MOS6502::MO_NO_FLAGS:
     return Expr;
   case MOS6502::MO_LO:
@@ -67,5 +69,4 @@ const MCExpr *MOS6502MCInstLower::applyTargetFlags(unsigned Flags,
   case MOS6502::MO_HI:
     return MOS6502MCExpr::createHi(Expr, Ctx);
   }
-  llvm_unreachable("Invalid target operand flags.");
 }

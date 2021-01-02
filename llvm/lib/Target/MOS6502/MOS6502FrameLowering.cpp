@@ -100,8 +100,9 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
   // Emit pull instructions before MI as necessary to increase SPOffset to
   // NewOffset.
   const auto PullUntil = [&](int NewOffset) {
-    assert(MBB.computeRegisterLiveness(&TRI, MOS6502::NZ, MI) !=
-           MachineBasicBlock::LQR_Live);
+    if (MBB.computeRegisterLiveness(&TRI, MOS6502::NZ, MI) !=
+        MachineBasicBlock::LQR_Dead)
+      report_fatal_error("Cannot yet save NZ.");
 
     bool AMaybeLive = MBB.computeRegisterLiveness(&TRI, MOS6502::A, MI) !=
                       MachineBasicBlock::LQR_Dead;
