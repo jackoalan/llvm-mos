@@ -1,4 +1,4 @@
-; RUN: llc -o - %s | FileCheck %s
+; RUN: llc -verify-machineinstrs -o - %s | FileCheck %s
 
 target triple = "mos6502"
 

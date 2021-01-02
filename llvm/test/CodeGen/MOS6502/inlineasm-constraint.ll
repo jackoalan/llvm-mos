@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=mos6502 < %s | FileCheck %s
+; RUN: llc -mtriple=mos6502 -verify-machineinstrs < %s | FileCheck %s
 
 ; CHECK-LABEL: inline__constraint__a:
 define void @inline_constraint_a() {

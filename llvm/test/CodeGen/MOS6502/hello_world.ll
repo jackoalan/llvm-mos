@@ -1,5 +1,5 @@
 // RUN: split-file --no-leading-lines %s %t
-// RUN: llc -O2 -o %t/got.s %t/hello_world.ll
+// RUN: llc -O2 -verify-machineinstrs -o %t/got.s %t/hello_world.ll
 // RUN: diff -u %t/want.s %t/got.s
 
 //--- hello_world.ll
