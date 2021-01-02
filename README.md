@@ -94,9 +94,16 @@ Notes:
 
 TODO:
 
+- Division/remainder by constant can be expanded to a multiplication of the
+  inverse, which is far more efficient. LLVM's older SelectionDAG framework does
+  this transformation, but GlobalISel (used by this target) doesn't yet. Nearly
+  every target needs this optimization, so I'll wait on implementing this until
+  the end; they may get around to it before then.
 - A `__udivmodqi4` instruction would be twice as efficient as calculating the
   division twice, but would require either struct return or pointer argument.
-  Neither of which is currently implemented.
+  Neither of which is currently implemented. GlobalISel should really do this
+  too for many targets; as with the above, I'll wait till the end to implement
+  this just in case LLVM devs get to it first.
 
 ## Generated code characteristics
 
