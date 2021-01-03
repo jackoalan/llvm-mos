@@ -154,6 +154,11 @@ void CallLowering::setArgFlags(CallLowering::ArgInfo &Arg, unsigned OpIdx,
   const AttributeList &Attrs = FuncInfo.getAttributes();
   addArgFlagsFromAttributes(Flags, Attrs, OpIdx);
 
+  if (Arg.Ty->isPointerTy()) {
+    Flags.setPointer();
+    Flags.setPointerAddrSpace(cast<PointerType>(Arg.Ty)->getAddressSpace());
+  }
+
   if (Flags.isByVal() || Flags.isInAlloca() || Flags.isPreallocated()) {
     Type *ElementTy = cast<PointerType>(Arg.Ty)->getElementType();
 
