@@ -3,6 +3,8 @@
   target datalayout = "e-p:16:8:8-i16:8:8-i32:8:8-i64:8:8-f32:8:8-f64:8:8-a:8:8-Fi8-n8"
   target triple = "mos6502"
 
+  %twobyte = type { i8, i8 }
+
   define void @void() {
   ; CHECK-LABEL: name: void
   entry:
@@ -83,5 +85,28 @@
     ; CHECK-NEXT: $y = COPY %2
     ; CHECK-NEXT: JSR @formal_args_i8, mos6502_noregs, implicit $a, implicit $x, implicit $y
     ; CHECK-NEXT: RTS
+
+  }
+  define void @ptr(i8* %first, i16* %second) {
+  ; CHECK-LABEL: name: ptr
+  entry:
+  ; CHECK-LABEL: entry:
+    ; CHECK-NEXT: liveins: $zp_ptr_1, $zp_ptr_2
+    ret void
+    ; CHECK:      %0:_(p0) = COPY $zp_ptr_1
+    ; CHECK-NEXT: %1:_(p0) = COPY $zp_ptr_2
+  }
+  define i8 @struct(i8 %first, %twobyte %second) {
+  ; CHECK-LABEL: name: struct
+  entry:
+  ; CHECK-LABEL: entry:
+    ; CHECK-NEXT: liveins: $a, $x, $y
+    %0 = extractvalue %twobyte %second, 1
+    ret i8 %0
+    ; CHECK:      %0:_(s8) = COPY $a
+    ; CHECK-NEXT: %1:_(s8) = COPY $x
+    ; CHECK-NEXT: %2:_(s8) = COPY $y
+    ; CHECK-NEXT: $a = COPY %2
+    ; CHECK-NEXT: RTS implicit $a
   }
 ...
