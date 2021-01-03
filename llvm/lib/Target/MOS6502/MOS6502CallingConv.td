@@ -25,11 +25,6 @@ let Entry = 1 in {
     ]>>,
     CCIfType<[i8], CCAssignToReg<[A, X, Y]>>,
   ]>;
-
-  def RetCC_MOS6502 : CallingConv<[
-    CCIfPtr<CCAssignToReg<[ZP_PTR_1]>>,
-    CCIfType<[i8], CCAssignToReg<[A, X, Y]>>,
-  ]>;
 }
 
 // All registers are caller saved.

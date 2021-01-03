@@ -114,7 +114,7 @@ bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
 
     // Invoke TableGen compatibility layer. The return instruction will be
     // annotated with implicit uses of any live variables out of the function.
-    MOS6502OutgoingValueHandler Handler(MIRBuilder, Return, MRI, RetCC_MOS6502);
+    MOS6502OutgoingValueHandler Handler(MIRBuilder, Return, MRI, CC_MOS6502);
     if (!handleAssignments(MIRBuilder, Args, Handler))
       return false;
   }
@@ -205,8 +205,7 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   const auto MakeLive = [&](Register PhysReg) {
     Call.addDef(PhysReg, RegState::Implicit);
   };
-  MOS6502IncomingValueHandler RetHandler(MIRBuilder, MRI, RetCC_MOS6502,
-                                         MakeLive);
+  MOS6502IncomingValueHandler RetHandler(MIRBuilder, MRI, CC_MOS6502, MakeLive);
   return handleAssignments(MIRBuilder, InArgs, RetHandler);
 }
 
