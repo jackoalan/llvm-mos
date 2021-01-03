@@ -33,7 +33,13 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 
   void assignValueToReg(Register ValVReg, Register PhysReg,
                         CCValAssign &VA) override {
-    assert(VA.getLocVT().getSizeInBits() == 8);
+    switch (VA.getLocVT().getSizeInBits()) {
+    default:
+      llvm_unreachable("Bad register size.");
+    case 8:
+    case 16:
+      break;
+    }
 
     // Ensure that the physical remains alive until control flow leaves.
     MIB.addUse(PhysReg, RegState::Implicit);
@@ -61,7 +67,13 @@ struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
 
   void assignValueToReg(Register ValVReg, Register PhysReg,
                         CCValAssign &VA) override {
-    assert(VA.getLocVT().getSizeInBits() == 8);
+    switch (VA.getLocVT().getSizeInBits()) {
+    default:
+      llvm_unreachable("Bad register size.");
+    case 8:
+    case 16:
+      break;
+    }
 
     // Ensure that the physical is alive on function entry.
     MakeLive(PhysReg);

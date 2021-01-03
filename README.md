@@ -110,9 +110,10 @@ TODO:
 ### Calling convention
 
 The calling convention is presently very barebones:
-- Only 8/16-bit integers are allowed.
-- Arguments are passed in A, then X, then Y.
-- The return value is passed in A, then X.
+- Non-pointer arguments/return values are passed in A, then X, then Y.
+- Pointer arguments/return values are passed in successively increasing pairs
+  of ZP locations (ZP_PTR_1 -- ZP_PTR_127). ZP_PTR_0 is reserved, so it is not
+  used by the calling convention.
 - The compiler bails if the arguments/return value don't fit.
 - All compiler-used ZP locations, all registers, and all flags are caller-saved.
   - Use of most physical registers/flags are mandatory for certain operations,
