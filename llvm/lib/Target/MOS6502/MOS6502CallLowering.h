@@ -17,6 +17,11 @@ public:
 
   bool lowerCall(MachineIRBuilder &MIRBuilder,
                  CallLoweringInfo &Info) const override;
+
+private:
+  void splitToValueTypes(const ArgInfo &OrigArg,
+                         SmallVectorImpl<ArgInfo> &SplitArgs,
+                         const DataLayout &DL) const;
 };
 
 } // namespace llvm

@@ -91,10 +91,10 @@ bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
 
     // Initialize data structures for TableGen calling convention compatibility
     // layer.
-    SmallVector<EVT, 4> ValueVTs;
+    SmallVector<EVT> ValueVTs;
     ComputeValueVTs(TLI, DL, Val->getType(), ValueVTs);
     assert(ValueVTs.size() == VRegs.size() && "Need one type for each VReg.");
-    SmallVector<ArgInfo, 4> Args;
+    SmallVector<ArgInfo> Args;
     for (size_t Idx = 0; Idx < VRegs.size(); ++Idx) {
       Args.emplace_back(VRegs[Idx], ValueVTs[Idx].getTypeForEVT(Ctx));
       setArgFlags(Args.back(), AttributeList::ReturnIndex, DL, F);
@@ -121,25 +121,27 @@ bool MOS6502CallLowering::lowerFormalArguments(
 
   // Initialize data structures for TableGen calling convention compatibility
   // layer.
+  SmallVector<ArgInfo> SplitArgs;
   unsigned i = 0;
-  SmallVector<ArgInfo> InArgs;
   for (auto &Arg : F.args()) {
+    if (DL.getTypeStoreSize(Arg.getType()).isZero())
+      continue;
+
     if (i >= VRegs.size())
       report_fatal_error("Incoming argument splitting not yet implemented.");
     ArgInfo OrigArg{VRegs[i], Arg.getType()};
     setArgFlags(OrigArg, i + AttributeList::FirstArgIndex, DL, F);
-    InArgs.push_back(OrigArg);
+
+    splitToValueTypes(OrigArg, SplitArgs, DL);
     ++i;
   }
-  if (InArgs.size() != VRegs.size())
-    report_fatal_error("Incoming argument splitting not yet implemented.");
 
   // Invoke TableGen compatibility layer.
   const auto MakeLive = [&](Register PhysReg) {
     MIRBuilder.getMBB().addLiveIn(PhysReg);
   };
   MOS6502IncomingValueHandler Handler(MIRBuilder, MRI, CC_MOS6502, MakeLive);
-  return handleAssignments(MIRBuilder, InArgs, Handler);
+  return handleAssignments(MIRBuilder, SplitArgs, Handler);
 }
 
 bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
@@ -153,6 +155,7 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
 
   MachineFunction &MF = MIRBuilder.getMF();
   MachineRegisterInfo &MRI = MF.getRegInfo();
+  const DataLayout &DL = MF.getDataLayout();
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
 
   auto Call = MIRBuilder.buildInstrNoInsert(MOS6502::JSR)
@@ -160,11 +163,20 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
                   .addRegMask(TRI.getCallPreservedMask(
                       MF, MF.getFunction().getCallingConv()));
 
+  SmallVector<ArgInfo, 8> OutArgs;
+  for (auto &OrigArg : Info.OrigArgs) {
+    splitToValueTypes(OrigArg, OutArgs, DL);
+  }
+
+  SmallVector<ArgInfo, 8> InArgs;
+  if (!Info.OrigRet.Ty->isVoidTy())
+    splitToValueTypes(Info.OrigRet, InArgs, DL);
+
   // Invoke TableGen compatibility layer for outgoing arguments. The call
   // instruction will be annotated with implicit uses of any live variables out
   // of the function.
   MOS6502OutgoingValueHandler ArgsHandler(MIRBuilder, Call, MRI, CC_MOS6502);
-  if (!handleAssignments(MIRBuilder, Info.OrigArgs, ArgsHandler))
+  if (!handleAssignments(MIRBuilder, OutArgs, ArgsHandler))
     return false;
 
   // Insert the call once the outgoing arguments are in place.
@@ -172,7 +184,7 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
 
   // If the return value is void, there's nothing to do.
   if (Info.OrigRet.Ty->isVoidTy()) {
-    assert(Info.OrigRet.Regs.empty());
+    assert(InArgs.empty());
     // Success.
     return true;
   }
@@ -183,6 +195,35 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   };
   MOS6502IncomingValueHandler RetHandler(MIRBuilder, MRI, RetCC_MOS6502,
                                          MakeLive);
-  SmallVector<ArgInfo> Rets = {Info.OrigRet};
-  return handleAssignments(MIRBuilder, Rets, RetHandler);
+  return handleAssignments(MIRBuilder, InArgs, RetHandler);
+}
+
+void MOS6502CallLowering::splitToValueTypes(const ArgInfo &OrigArg,
+                                            SmallVectorImpl<ArgInfo> &SplitArgs,
+                                            const DataLayout &DL) const {
+  LLVMContext &Ctx = OrigArg.Ty->getContext();
+
+  SmallVector<EVT, 4> SplitVTs;
+  SmallVector<uint64_t, 4> Offsets;
+  ComputeValueVTs(*getTLI(), DL, OrigArg.Ty, SplitVTs, &Offsets, 0);
+
+  if (SplitVTs.size() == 0)
+    return;
+
+  if (SplitVTs.size() == 1) {
+    // No splitting to do, but we want to replace the original type (e.g. [1 x
+    // double] -> double).
+    SplitArgs.emplace_back(OrigArg.Regs[0], SplitVTs[0].getTypeForEVT(Ctx),
+                           OrigArg.Flags[0], OrigArg.IsFixed);
+    return;
+  }
+
+  // Create one ArgInfo for each virtual register in the original ArgInfo.
+  assert(OrigArg.Regs.size() == SplitVTs.size() && "Regs / types mismatch");
+
+  for (unsigned i = 0, e = SplitVTs.size(); i < e; ++i) {
+    Type *SplitTy = SplitVTs[i].getTypeForEVT(Ctx);
+    SplitArgs.emplace_back(OrigArg.Regs[i], SplitTy, OrigArg.Flags[0],
+                           OrigArg.IsFixed);
+  }
 }
