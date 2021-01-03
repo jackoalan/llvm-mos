@@ -124,11 +124,15 @@ bool MOS6502CallLowering::lowerFormalArguments(
   unsigned i = 0;
   SmallVector<ArgInfo> InArgs;
   for (auto &Arg : F.args()) {
+    if (i >= VRegs.size())
+      report_fatal_error("Incoming argument splitting not yet implemented.");
     ArgInfo OrigArg{VRegs[i], Arg.getType()};
     setArgFlags(OrigArg, i + AttributeList::FirstArgIndex, DL, F);
     InArgs.push_back(OrigArg);
     ++i;
   }
+  if (InArgs.size() != VRegs.size())
+    report_fatal_error("Incoming argument splitting not yet implemented.");
 
   // Invoke TableGen compatibility layer.
   const auto MakeLive = [&](Register PhysReg) {
