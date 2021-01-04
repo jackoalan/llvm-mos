@@ -32,10 +32,15 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
       .clampScalar(0, s8, s8);
 
   getActionDefinitionsBuilder(G_CONSTANT)
-    .legalFor({s1, s8})
+      .legalFor({s1, s8})
       .clampScalar(0, s8, s8);
 
-  getActionDefinitionsBuilder(G_GLOBAL_VALUE).legalFor({p});
+  getActionDefinitionsBuilder({G_FRAME_INDEX, G_GLOBAL_VALUE}).legalFor({p});
+
+  // Integer Extension and Truncation
+
+  // Narrowing ZEXT to 8 bits should remove it entirely.
+  getActionDefinitionsBuilder(G_ZEXT).clampScalar(0, s8, s8).unsupported();
 
   // Type Conversions
 
