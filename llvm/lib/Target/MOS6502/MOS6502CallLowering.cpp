@@ -7,6 +7,7 @@
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/TargetCallingConv.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include <memory>
@@ -86,6 +87,18 @@ struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
   }
 };
 
+// Add missing pointer information from the LLT to the argument flags for the
+// corresponding MVT. The MVT doesn't contain pointer information, so this would
+// otherwise be unavailable for use by the calling convention (i.e., CCIfPtr).
+void adjustArgFlags(CallLowering::ArgInfo &Arg, LLT Ty) {
+  if (!Ty.isPointer())
+    return;
+
+  auto &Flags = Arg.Flags[0];
+  Flags.setPointer();
+  Flags.setPointerAddrSpace(Ty.getAddressSpace());
+}
+
 } // namespace
 
 bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
@@ -105,11 +118,15 @@ bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
     // layer.
     SmallVector<EVT> ValueVTs;
     ComputeValueVTs(TLI, DL, Val->getType(), ValueVTs);
-    assert(ValueVTs.size() == VRegs.size() && "Need one type for each VReg.");
+    SmallVector<LLT> ValueLLTs;
+    computeValueLLTs(DL, *Val->getType(), ValueLLTs);
+    assert(ValueVTs.size() == VRegs.size() && "Need one MVT for each VReg.");
+    assert(ValueLLTs.size() == VRegs.size() && "Need one LLT for each VReg.");
     SmallVector<ArgInfo> Args;
     for (size_t Idx = 0; Idx < VRegs.size(); ++Idx) {
       Args.emplace_back(VRegs[Idx], ValueVTs[Idx].getTypeForEVT(Ctx));
       setArgFlags(Args.back(), AttributeList::ReturnIndex, DL, F);
+      adjustArgFlags(Args.back(), ValueLLTs[Idx]);
     }
 
     // Invoke TableGen compatibility layer. The return instruction will be
@@ -143,7 +160,6 @@ bool MOS6502CallLowering::lowerFormalArguments(
       report_fatal_error("Incoming argument splitting not yet implemented.");
     ArgInfo OrigArg{VRegs[i], Arg.getType()};
     setArgFlags(OrigArg, i + AttributeList::FirstArgIndex, DL, F);
-
     splitToValueTypes(OrigArg, SplitArgs, DL);
     ++i;
   }
@@ -214,9 +230,11 @@ void MOS6502CallLowering::splitToValueTypes(const ArgInfo &OrigArg,
                                             const DataLayout &DL) const {
   LLVMContext &Ctx = OrigArg.Ty->getContext();
 
-  SmallVector<EVT, 4> SplitVTs;
-  SmallVector<uint64_t, 4> Offsets;
-  ComputeValueVTs(*getTLI(), DL, OrigArg.Ty, SplitVTs, &Offsets, 0);
+  SmallVector<EVT> SplitVTs;
+  ComputeValueVTs(*getTLI(), DL, OrigArg.Ty, SplitVTs);
+  SmallVector<LLT> SplitLLTs;
+  computeValueLLTs(DL, *OrigArg.Ty, SplitLLTs);
+  assert(SplitVTs.size() == SplitLLTs.size());
 
   if (SplitVTs.size() == 0)
     return;
@@ -226,6 +244,7 @@ void MOS6502CallLowering::splitToValueTypes(const ArgInfo &OrigArg,
     // double] -> double).
     SplitArgs.emplace_back(OrigArg.Regs[0], SplitVTs[0].getTypeForEVT(Ctx),
                            OrigArg.Flags[0], OrigArg.IsFixed);
+    adjustArgFlags(SplitArgs.back(), SplitLLTs[0]);
     return;
   }
 
@@ -236,5 +255,6 @@ void MOS6502CallLowering::splitToValueTypes(const ArgInfo &OrigArg,
     Type *SplitTy = SplitVTs[i].getTypeForEVT(Ctx);
     SplitArgs.emplace_back(OrigArg.Regs[i], SplitTy, OrigArg.Flags[0],
                            OrigArg.IsFixed);
+    adjustArgFlags(SplitArgs.back(), SplitLLTs[i]);
   }
 }
