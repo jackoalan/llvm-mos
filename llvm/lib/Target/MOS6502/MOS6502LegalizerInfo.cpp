@@ -20,70 +20,38 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
   LLT s16 = LLT::scalar(16);
   LLT p = LLT::pointer(0, 16);
 
-  getActionDefinitionsBuilder({G_ADD, G_OR, G_XOR})
-      .legalFor({s8})
-      .clampScalar(0, s8, s8);
+  // Constants
 
-  getActionDefinitionsBuilder(G_BRCOND).legalFor({s1});
+  getActionDefinitionsBuilder(G_IMPLICIT_DEF).legalFor({s1, s8, s16, p});
 
   getActionDefinitionsBuilder(G_CONSTANT)
       .legalFor({s1, s8})
       .clampScalar(0, s8, s8);
 
-  getActionDefinitionsBuilder({G_SDIV,
-                               G_SREM,
-                               G_UDIV,
-                               G_UREM,
-                               G_CTLZ_ZERO_UNDEF,
-                               G_FADD,
-                               G_FSUB,
-                               G_FMUL,
-                               G_FDIV,
-                               G_FMA,
-                               G_FPOW,
-                               G_FREM,
-                               G_FCOS,
-                               G_FSIN,
-                               G_FLOG10,
-                               G_FLOG,
-                               G_FLOG2,
-                               G_FEXP,
-                               G_FEXP2,
-                               G_FCEIL,
-                               G_FFLOOR,
-                               G_FMINNUM,
-                               G_FMAXNUM,
-                               G_FSQRT,
-                               G_FRINT,
-                               G_FNEARBYINT,
-                               G_INTRINSIC_ROUNDEVEN,
-                               G_FPEXT,
-                               G_FPTRUNC,
-                               G_FPTOSI,
-                               G_FPTOUI,
-                               G_SITOFP,
-                               G_UITOFP,
-                               G_MEMCPY,
-                               G_MEMMOVE,
-                               G_MEMSET})
-      .libcall();
+  getActionDefinitionsBuilder(G_GLOBAL_VALUE).legalFor({p});
 
-  getActionDefinitionsBuilder({G_GLOBAL_VALUE, G_IMPLICIT_DEF, G_PHI})
-      .alwaysLegal();
+  // Type Conversions
 
-  getActionDefinitionsBuilder(G_INTTOPTR).legalFor({{p, s16}}).unsupported();
-  getActionDefinitionsBuilder(G_PTRTOINT).legalFor({{s16, p}}).unsupported();
+  getActionDefinitionsBuilder(G_INTTOPTR).legalFor({{p, s16}});
+  getActionDefinitionsBuilder(G_PTRTOINT).legalFor({{s16, p}});
 
-  getActionDefinitionsBuilder(G_ICMP)
-      .legalFor({{s1, s8}})
-      .narrowScalarIf(typeIs(1, p), changeTo(1, s8))
-      .clampScalar(1, s8, s8);
+  // Scalar Operations
 
-  getActionDefinitionsBuilder({G_LOAD, G_STORE})
-      .legalFor({{s8, p}})
+  getActionDefinitionsBuilder(G_MERGE_VALUES).legalFor({{s16, s8}});
+
+  getActionDefinitionsBuilder(G_UNMERGE_VALUES).legalFor({{s8, s16}});
+
+  // Integer Operations
+
+  getActionDefinitionsBuilder({G_ADD, G_OR, G_XOR})
+      .legalFor({s8})
       .clampScalar(0, s8, s8);
 
-  getActionDefinitionsBuilder({G_MERGE_VALUES, G_SEXT}).legalFor({{s16, s8}});
+  getActionDefinitionsBuilder(
+      {G_SDIV, G_SREM, G_UDIV, G_UREM, G_CTLZ_ZERO_UNDEF})
+      .libcall();
+
+  getActionDefinitionsBuilder(G_ICMP).legalFor({{s1, s8}});
 
   getActionDefinitionsBuilder(G_PTR_ADD).legalFor({{p, s8}}).customFor(
       {{p, s16}});
@@ -91,7 +59,37 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
   getActionDefinitionsBuilder(G_UADDO).customFor({s8});
   getActionDefinitionsBuilder(G_UADDE).legalFor({s8});
 
-  getActionDefinitionsBuilder(G_UNMERGE_VALUES).legalFor({{s8, s16}});
+  // Floating Point Operations
+
+  getActionDefinitionsBuilder({G_FADD,       G_FSUB,
+                               G_FMUL,       G_FDIV,
+                               G_FMA,        G_FPOW,
+                               G_FREM,       G_FCOS,
+                               G_FSIN,       G_FLOG10,
+                               G_FLOG,       G_FLOG2,
+                               G_FEXP,       G_FEXP2,
+                               G_FCEIL,      G_FFLOOR,
+                               G_FMINNUM,    G_FMAXNUM,
+                               G_FSQRT,      G_FRINT,
+                               G_FNEARBYINT, G_INTRINSIC_ROUNDEVEN,
+                               G_FPEXT,      G_FPTRUNC,
+                               G_FPTOSI,     G_FPTOUI,
+                               G_SITOFP,     G_UITOFP})
+      .libcall();
+
+  // Memory Operations
+
+  getActionDefinitionsBuilder({G_LOAD, G_STORE})
+      .legalFor({{s8, p}})
+      .clampScalar(0, s8, s8);
+
+  getActionDefinitionsBuilder({G_MEMCPY, G_MEMMOVE, G_MEMSET}).libcall();
+
+  // Control Flow
+
+  getActionDefinitionsBuilder(G_PHI).legalFor({s8});
+
+  getActionDefinitionsBuilder(G_BRCOND).legalFor({s1});
 
   computeTables();
 }
