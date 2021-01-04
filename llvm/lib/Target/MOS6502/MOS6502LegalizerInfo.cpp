@@ -1,4 +1,7 @@
 #include "MOS6502LegalizerInfo.h"
+
+#include "MCTargetDesc/MOS6502MCTargetDesc.h"
+
 #include "llvm/CodeGen/GlobalISel/LegalizerHelper.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
@@ -18,14 +21,18 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
   LLT s1 = LLT::scalar(1);
   LLT s8 = LLT::scalar(8);
   LLT s16 = LLT::scalar(16);
+  LLT s32 = LLT::scalar(32);
+  LLT s64 = LLT::scalar(64);
   LLT p = LLT::pointer(0, 16);
 
   // Constants
 
-  getActionDefinitionsBuilder(G_IMPLICIT_DEF).legalFor({s1, s8, s16, p});
+  getActionDefinitionsBuilder(G_IMPLICIT_DEF)
+      .legalFor({s1, s8, p})
+      .clampScalar(0, s8, s8);
 
   getActionDefinitionsBuilder(G_CONSTANT)
-      .legalFor({s1, s8})
+    .legalFor({s1, s8})
       .clampScalar(0, s8, s8);
 
   getActionDefinitionsBuilder(G_GLOBAL_VALUE).legalFor({p});
@@ -50,6 +57,8 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
   getActionDefinitionsBuilder(
       {G_SDIV, G_SREM, G_UDIV, G_UREM, G_CTLZ_ZERO_UNDEF})
       .libcall();
+
+  getActionDefinitionsBuilder(G_SHL).customFor({s8, s16, s32, s64});
 
   getActionDefinitionsBuilder(G_ICMP).legalFor({{s1, s8}});
 
@@ -87,7 +96,7 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   // Control Flow
 
-  getActionDefinitionsBuilder(G_PHI).legalFor({s8});
+  getActionDefinitionsBuilder(G_PHI).legalFor({s8}).clampScalar(0, s8, s8);
 
   getActionDefinitionsBuilder(G_BRCOND).legalFor({s1});
 
@@ -102,11 +111,63 @@ bool MOS6502LegalizerInfo::legalizeCustom(LegalizerHelper &Helper,
   switch (MI.getOpcode()) {
   default:
     llvm_unreachable("Invalid opcode for custom legalization.");
+  case G_SHL:
+    return legalizeShl(Helper, MRI, MI);
   case G_PTR_ADD:
     return legalizePtrAdd(Helper, MRI, MI);
   case G_UADDO:
     return legalizeUAddO(Helper, MRI, MI);
   }
+}
+
+bool MOS6502LegalizerInfo::legalizeShl(LegalizerHelper &Helper,
+                                       MachineRegisterInfo &MRI,
+                                       MachineInstr &MI) const {
+  using namespace TargetOpcode;
+
+  assert(MI.getOpcode() == G_SHL);
+
+  MachineIRBuilder Builder(MI);
+
+  MachineOperand &Dst = MI.getOperand(0);
+  MachineOperand &Src = MI.getOperand(1);
+  MachineOperand &Amt = MI.getOperand(2);
+
+  Optional<int64_t> ConstantAmt = getConstantVRegVal(Amt.getReg(), MRI);
+  if (!ConstantAmt || *ConstantAmt != 1) {
+    return false;
+  }
+
+  LLT Ty = MRI.getType(Dst.getReg());
+  assert(Ty == MRI.getType(Src.getReg()));
+  assert(Ty.isByteSized());
+
+  auto Unmerge = Builder.buildUnmerge(LLT::scalar(8), Src);
+  bool IsFirst = true;
+  SmallVector<Register> Parts;
+  Register Carry;
+  for (MachineOperand &SrcPart : Unmerge->defs()) {
+    Parts.push_back(MRI.createGenericVirtualRegister(LLT::scalar(8)));
+    Register NewCarry = MRI.createGenericVirtualRegister(LLT::scalar(1));
+    if (IsFirst) {
+      IsFirst = false;
+      Builder.buildInstr(MOS6502::G_LSHO)
+          .addDef(Parts.back())
+          .addDef(NewCarry)
+          .addUse(SrcPart.getReg());
+    } else {
+      Builder.buildInstr(MOS6502::G_LSHE)
+          .addDef(Parts.back())
+          .addDef(NewCarry)
+          .addUse(SrcPart.getReg())
+          .addUse(Carry);
+    }
+    Carry = NewCarry;
+  }
+  Builder.buildMerge(Dst, Parts);
+  MI.removeFromParent();
+
+  return true;
 }
 
 bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,

@@ -349,3 +349,5 @@ def RTS : Instr {
   let isReturn = true;
   let isTerminator = true;
 }
+
+include "MOS6502InstrGISel.td"
