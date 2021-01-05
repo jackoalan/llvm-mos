@@ -26,6 +26,12 @@ MOS6502RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 BitVector
 MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
+
+  // Stack pointer.
+  Reserved.set(MOS6502::SP);
+  Reserved.set(MOS6502::SPlo);
+  Reserved.set(MOS6502::SPhi);
+
   // Reserved for temporarily saving X/Y without clobbering A.
   Reserved.set(MOS6502::ZP_0);
   markSuperRegs(Reserved, MOS6502::ZP_0);

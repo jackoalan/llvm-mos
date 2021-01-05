@@ -165,9 +165,10 @@ at the end of code generation, references to the zero page registers are lowered
 to abstract symbols placed in the zero page by the linker. Only registers
 actually accessed are emitted.
 
-One 2-byte pointer register is presently reserved by the compiler for
-saving/restoring. Accoringly, at least two zero page registers must be available
-for compiler use.
+Two 2-byte pointer registers are presently reserved by the compiler. One is used
+for last-chance saving/restoring of values after register allocation; the other
+is the soft stack pointer. Accordingly, at least two consecutive pairs of zero
+page registers must be available for compiler use.
 
 Eventually, a compiler flag should allow the user to specify how many zero page
 locations are available for use by the compiler. This will limit the register

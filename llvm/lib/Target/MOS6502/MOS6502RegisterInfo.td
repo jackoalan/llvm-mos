@@ -30,11 +30,20 @@ def NZ : MOS6502Reg<"NZ"> {
   let SubRegIndices = [subn, subz];
 }
 
-foreach i = 0 ... 255 in {
+def SPlo : MOS6502Reg<"SPlo">;
+def SPhi : MOS6502Reg<"SPhi">;
+
+foreach i = 0 ... 253 in {
   def ZP_#i : MOS6502Reg<"ZP_"#i>;
 }
 
-foreach i = 0 ... 127 in {
+def SP : MOS6502Reg<"SP"> {
+  let SubRegs = [SPlo, SPhi];
+  let SubRegIndices = [sublo, subhi];
+  let CoveredBySubRegs = true;
+}
+
+foreach i = 0 ... 126 in {
   defvar lo = !mul(i, 2);
   defvar hi = !add(lo, 1);
 
@@ -57,8 +66,8 @@ def Flag : MOS6502RegClass<[i1], 8, (add C, N, Z)> {
 def Ac : MOS6502RegClass<[i8], 8, (add A)>;
 def XY : MOS6502RegClass<[i8], 8, (add X, Y)>;
 
-def ZP : MOS6502RegClass<[i8], 8, (sequence "ZP_%u", 0, 255)>;
-def ZP_PTR : MOS6502RegClass<[i16], 8, (sequence "ZP_PTR_%u", 0, 127)>;
+def ZP : MOS6502RegClass<[i8], 8, (add SPlo, SPhi, (sequence "ZP_%u", 0, 253))>;
+def ZP_PTR : MOS6502RegClass<[i16], 8, (add SP, (sequence "ZP_PTR_%u", 0, 126))>;
 
 def Anyi8 : MOS6502RegClass<[i8], 8, (add GPR, ZP)>;
 def Anyi1 : MOS6502RegClass<[i1], 8, (add GPR, ZP, C)>;
