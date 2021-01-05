@@ -47,6 +47,7 @@ private:
   bool selectAdd(MachineInstr &I);
   bool selectCompareBranch(MachineInstr &I);
   bool selectConstant(MachineInstr &I);
+  bool selectFrameIndex(MachineInstr &I);
   bool selectGlobalValue(MachineInstr &I);
   bool selectLoad(MachineInstr &I);
   bool selectImplicitDef(MachineInstr &I);
@@ -54,6 +55,7 @@ private:
   bool selectMergeValues(MachineInstr &I);
   bool selectPhi(MachineInstr &I);
   bool selectPtrToInt(MachineInstr &I);
+  bool selectStore(MachineInstr &I);
   bool selectUAddE(MachineInstr &I);
   bool selectUnMergeValues(MachineInstr &I);
 
@@ -130,6 +132,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return selectCompareBranch(I);
   case MOS6502::G_CONSTANT:
     return selectConstant(I);
+  case MOS6502::G_FRAME_INDEX:
+    return selectFrameIndex(I);
   case MOS6502::G_GLOBAL_VALUE:
     return selectGlobalValue(I);
   case MOS6502::G_IMPLICIT_DEF:
@@ -144,6 +148,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
     return selectPhi(I);
   case MOS6502::G_PTRTOINT:
     return selectPtrToInt(I);
+  case MOS6502::G_STORE:
+    return selectStore(I);
   case MOS6502::G_UADDE:
     return selectUAddE(I);
   case MOS6502::G_UNMERGE_VALUES:
@@ -194,6 +200,14 @@ bool MOS6502InstructionSelector::selectConstant(MachineInstr &I) {
   buildCopy(Builder, I.getOperand(0).getReg(), MOS6502::C);
   I.eraseFromParent();
   return true;
+}
+
+bool MOS6502InstructionSelector::selectFrameIndex(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_FRAME_INDEX);
+
+  I.setDesc(TII.get(MOS6502::FrameAddr));
+  I.addImplicitDefUseOperands(*I.getMF());
+  return constrainSelectedInstRegOperands(I, TII, TRI, RBI);
 }
 
 bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &I) {
@@ -309,6 +323,23 @@ bool MOS6502InstructionSelector::selectPtrToInt(MachineInstr &I) {
   I.eraseFromParent();
   return true;
 }
+
+bool MOS6502InstructionSelector::selectStore(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_STORE);
+
+  MachineOperand &Src = I.getOperand(0);
+  MachineOperand &Addr = I.getOperand(1);
+  MachineIRBuilder Builder(I);
+
+  buildCopy(Builder, MOS6502::A, Src.getReg());
+  Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
+  auto Load = Builder.buildInstr(MOS6502::STAyindirr).add(Addr);
+  if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
+    return false;
+  I.removeFromParent();
+  return true;
+}
+
 
 bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I) {
   assert(I.getOpcode() == MOS6502::G_UADDE);

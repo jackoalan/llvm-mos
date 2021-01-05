@@ -15,6 +15,42 @@ class Pseudo : Instr {
   let isPseudo = true;
 }
 
+// Frame Pseudoinstructions
+
+// Load a value from the given hard stack offset. This instruction is used by the
+// register allocator to emit spills, and such operations do not recompute
+// liveness information for phsyical registers. Accordingly, this instruction
+// must be considered to preserve all physical registers. The details of arranging
+// this are deferred to pseudo expansion time.
+def LDhs : Pseudo {
+  dag InOperandList = (ins i8imm:$fi);
+  dag OutOperandList = (outs Anyi8:$dst);
+
+  let Defs = [];
+
+  let mayLoad = true;
+}
+
+// Store a value to the given hard stack offset. This instruction is used by the
+// register allocator to emit spills, and such operations do not recompute
+// liveness information for phsyical registers. Accordingly, this instruction
+// must be considered to preserve all physical registers. The details of arranging
+// this are deferred to pseudo expansion time.
+def SThs : Pseudo {
+  dag InOperandList = (ins Anyi8:$src, i8imm:$fi);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let mayStore = true;
+}
+
+def FrameAddr : Pseudo {
+  dag InOperandList = (ins i16imm:$fi);
+  dag OutOperandList = (outs ZP_PTR:$dst);
+  let Defs = [NZ];
+}
+
 def ADCimm : Instr {
   dag InOperandList = (ins i8imm:$r);
   dag OutOperandList = (outs);
@@ -55,20 +91,6 @@ def LDCimm : Instr {
   let Defs = [C];
 
   let isReMaterializable = true;
-}
-
-// Load a value from the given hard stack offset. This instruction is used by the
-// register allocator to emit spills, and such operations do not recompute
-// liveness information for phsyical registers. Accordingly, this instruction
-// must be considered to preserve all physical registers. The details of arranging
-// this are deferred to pseudo expansion time.
-def LDhs : Pseudo {
-  dag InOperandList = (ins i8imm:$fi);
-  dag OutOperandList = (outs Anyi8:$dst);
-
-  let Defs = [];
-
-  let mayLoad = true;
 }
 
 // Version of LDimm that promises not to overwrite NZ. This allows
@@ -259,20 +281,6 @@ def PLP : Instr {
   let mayLoad = true;
 }
 
-// Store a value to the given hard stack offset. This instruction is used by the
-// register allocator to emit spills, and such operations do not recompute
-// liveness information for phsyical registers. Accordingly, this instruction
-// must be considered to preserve all physical registers. The details of arranging
-// this are deferred to pseudo expansion time.
-def SThs : Pseudo {
-  dag InOperandList = (ins Anyi8:$src, i8imm:$fi);
-  dag OutOperandList = (outs);
-
-  let Defs = [];
-
-  let mayStore = true;
-}
-
 def STzpr : Pseudo {
   dag InOperandList = (ins GPR:$src);
   dag OutOperandList = (outs ZP:$dst);
@@ -298,6 +306,16 @@ def STAidx : Instr {
   let Uses = [A];
 
   let AsmString = "STA\t$addr,$idx";
+
+  let mayStore = true;
+}
+
+def STAyindirr : Pseudo {
+  dag InOperandList = (ins ZP_PTR:$addr);
+  dag OutOperandList = (outs);
+
+  let Uses = [A, Y];
+  let Defs = [];
 
   let mayStore = true;
 }

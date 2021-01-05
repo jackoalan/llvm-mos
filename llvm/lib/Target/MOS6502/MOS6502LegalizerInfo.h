@@ -11,6 +11,7 @@ public:
   MOS6502LegalizerInfo();
 
   bool legalizeCustom(LegalizerHelper &Helper, MachineInstr &MI) const override;
+  bool legalizeFrameIndex(LegalizerHelper &Helper, MachineRegisterInfo& MRI, MachineInstr &MI) const;
   bool legalizeShl(LegalizerHelper &Helper, MachineRegisterInfo& MRI, MachineInstr &MI) const;
   bool legalizeUAddO(LegalizerHelper &Helper, MachineRegisterInfo& MRI, MachineInstr &MI) const;
   bool legalizePtrAdd(LegalizerHelper &Helper, MachineRegisterInfo& MRI, MachineInstr &MI) const;
