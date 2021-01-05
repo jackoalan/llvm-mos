@@ -36,7 +36,7 @@ public:
                              MOS6502Subtarget &STI,
                              MOS6502RegisterBankInfo &RBI);
 
-  bool select(MachineInstr &I) override;
+  bool select(MachineInstr &MI) override;
   static const char *getName() { return DEBUG_TYPE; }
 
 private:
@@ -44,20 +44,20 @@ private:
   const MOS6502RegisterInfo &TRI;
   const MOS6502RegisterBankInfo &RBI;
 
-  bool selectAdd(MachineInstr &I);
-  bool selectCompareBranch(MachineInstr &I);
-  bool selectConstant(MachineInstr &I);
-  bool selectFrameIndex(MachineInstr &I);
-  bool selectGlobalValue(MachineInstr &I);
-  bool selectLoad(MachineInstr &I);
-  bool selectImplicitDef(MachineInstr &I);
-  bool selectIntToPtr(MachineInstr &I);
-  bool selectMergeValues(MachineInstr &I);
-  bool selectPhi(MachineInstr &I);
-  bool selectPtrToInt(MachineInstr &I);
-  bool selectStore(MachineInstr &I);
-  bool selectUAddE(MachineInstr &I);
-  bool selectUnMergeValues(MachineInstr &I);
+  bool selectAdd(MachineInstr &MI);
+  bool selectCompareBranch(MachineInstr &MI);
+  bool selectConstant(MachineInstr &MI);
+  bool selectFrameIndex(MachineInstr &MI);
+  bool selectGlobalValue(MachineInstr &MI);
+  bool selectLoad(MachineInstr &MI);
+  bool selectImplicitDef(MachineInstr &MI);
+  bool selectIntToPtr(MachineInstr &MI);
+  bool selectMergeValues(MachineInstr &MI);
+  bool selectPhi(MachineInstr &MI);
+  bool selectPtrToInt(MachineInstr &MI);
+  bool selectStore(MachineInstr &MI);
+  bool selectUAddE(MachineInstr &MI);
+  bool selectUnMergeValues(MachineInstr &MI);
 
   void buildCopy(MachineIRBuilder &Builder, Register Dst, Register Src);
 
@@ -71,7 +71,7 @@ private:
 
   /// tblgen-erated 'select' implementation, used as the initial selector for
   /// the patterns that don't require complex C++.
-  bool selectImpl(MachineInstr &I, CodeGenCoverage &CoverageInfo) const;
+  bool selectImpl(MachineInstr &MI, CodeGenCoverage &CoverageInfo) const;
 
 #define GET_GLOBALISEL_PREDICATES_DECL
 #include "MOS6502GenGlobalISel.inc"
@@ -114,53 +114,53 @@ static const TargetRegisterClass &getRegClassForType(LLT Ty) {
   }
 }
 
-bool MOS6502InstructionSelector::select(MachineInstr &I) {
-  if (!I.isPreISelOpcode()) {
+bool MOS6502InstructionSelector::select(MachineInstr &MI) {
+  if (!MI.isPreISelOpcode()) {
     // Copies can have generic VReg dests, so they must be constrained to a
     // register class.
-    if (I.isCopy())
-      constrainGenericOp(I);
+    if (MI.isCopy())
+      constrainGenericOp(MI);
     return true;
   }
-  if (selectImpl(I, *CoverageInfo))
+  if (selectImpl(MI, *CoverageInfo))
     return true;
 
-  switch (I.getOpcode()) {
+  switch (MI.getOpcode()) {
   default:
     return false;
   case MOS6502::G_BRCOND:
-    return selectCompareBranch(I);
+    return selectCompareBranch(MI);
   case MOS6502::G_CONSTANT:
-    return selectConstant(I);
+    return selectConstant(MI);
   case MOS6502::G_FRAME_INDEX:
-    return selectFrameIndex(I);
+    return selectFrameIndex(MI);
   case MOS6502::G_GLOBAL_VALUE:
-    return selectGlobalValue(I);
+    return selectGlobalValue(MI);
   case MOS6502::G_IMPLICIT_DEF:
-    return selectImplicitDef(I);
+    return selectImplicitDef(MI);
   case MOS6502::G_INTTOPTR:
-    return selectIntToPtr(I);
+    return selectIntToPtr(MI);
   case MOS6502::G_LOAD:
-    return selectLoad(I);
+    return selectLoad(MI);
   case MOS6502::G_MERGE_VALUES:
-    return selectMergeValues(I);
+    return selectMergeValues(MI);
   case MOS6502::G_PHI:
-    return selectPhi(I);
+    return selectPhi(MI);
   case MOS6502::G_PTRTOINT:
-    return selectPtrToInt(I);
+    return selectPtrToInt(MI);
   case MOS6502::G_STORE:
-    return selectStore(I);
+    return selectStore(MI);
   case MOS6502::G_UADDE:
-    return selectUAddE(I);
+    return selectUAddE(MI);
   case MOS6502::G_UNMERGE_VALUES:
-    return selectUnMergeValues(I);
+    return selectUnMergeValues(MI);
   }
 }
 
-bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I) {
-  MachineRegisterInfo &MRI = I.getMF()->getRegInfo();
-  Register CondReg = I.getOperand(0).getReg();
-  MachineBasicBlock *Tgt = I.getOperand(1).getMBB();
+bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &MI) {
+  MachineRegisterInfo &MRI = MI.getMF()->getRegInfo();
+  Register CondReg = MI.getOperand(0).getReg();
+  MachineBasicBlock *Tgt = MI.getOperand(1).getMBB();
 
   CmpInst::Predicate Pred;
   Register LHS;
@@ -168,7 +168,7 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I) {
   if (!mi_match(CondReg, MRI, m_GICmp(m_Pred(Pred), m_Reg(LHS), m_ICst(RHS))))
     return false;
 
-  MachineIRBuilder Builder(I);
+  MachineIRBuilder Builder(MI);
 
   auto Compare = Builder.buildInstr(MOS6502::CMPimm).addUse(LHS).addImm(RHS);
   if (!constrainSelectedInstRegOperands(*Compare, TII, TRI, RBI))
@@ -185,38 +185,39 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I) {
     Br.addUse(MOS6502::N).addImm(1);
     break;
   }
-  I.eraseFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectConstant(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_CONSTANT);
+bool MOS6502InstructionSelector::selectConstant(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_CONSTANT);
 
-  MachineIRBuilder Builder(I);
+  MachineIRBuilder Builder(MI);
   // s8 is handled by TableGen LDimm.
-  assert(Builder.getMRI()->getType(I.getOperand(0).getReg()) == LLT::scalar(1));
+  assert(Builder.getMRI()->getType(MI.getOperand(0).getReg()) ==
+         LLT::scalar(1));
   Builder.buildInstr(MOS6502::LDCimm)
-      .addImm(I.getOperand(1).getCImm()->getZExtValue());
-  buildCopy(Builder, I.getOperand(0).getReg(), MOS6502::C);
-  I.eraseFromParent();
+      .addImm(MI.getOperand(1).getCImm()->getZExtValue());
+  buildCopy(Builder, MI.getOperand(0).getReg(), MOS6502::C);
+  MI.eraseFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectFrameIndex(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_FRAME_INDEX);
+bool MOS6502InstructionSelector::selectFrameIndex(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_FRAME_INDEX);
 
-  I.setDesc(TII.get(MOS6502::FrameAddr));
-  I.addImplicitDefUseOperands(*I.getMF());
-  return constrainSelectedInstRegOperands(I, TII, TRI, RBI);
+  MI.setDesc(TII.get(MOS6502::FrameAddr));
+  MI.addImplicitDefUseOperands(*MI.getMF());
+  return constrainSelectedInstRegOperands(MI, TII, TRI, RBI);
 }
 
-bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_GLOBAL_VALUE);
+bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_GLOBAL_VALUE);
 
-  Register Dst = I.getOperand(0).getReg();
-  const GlobalValue *Global = I.getOperand(1).getGlobal();
+  Register Dst = MI.getOperand(0).getReg();
+  const GlobalValue *Global = MI.getOperand(1).getGlobal();
 
-  MachineIRBuilder Builder(I);
+  MachineIRBuilder Builder(MI);
   MachineRegisterInfo &MRI = *Builder.getMRI();
   LLT s8 = LLT::scalar(8);
   Register Lo = MRI.createGenericVirtualRegister(s8);
@@ -232,125 +233,127 @@ bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &I) {
   if (!constrainSelectedInstRegOperands(*HiImm, TII, TRI, RBI))
     return false;
   composePtr(Builder, Dst, Lo, Hi);
-  I.removeFromParent();
+  MI.removeFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectImplicitDef(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_IMPLICIT_DEF);
+bool MOS6502InstructionSelector::selectImplicitDef(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_IMPLICIT_DEF);
 
-  MachineIRBuilder Builder(I);
-  auto Def = Builder.buildInstr(MOS6502::IMPLICIT_DEF).add(I.getOperand(0));
+  MachineIRBuilder Builder(MI);
+  auto Def = Builder.buildInstr(MOS6502::IMPLICIT_DEF).add(MI.getOperand(0));
   constrainGenericOp(*Def);
-  I.eraseFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectIntToPtr(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_INTTOPTR);
+bool MOS6502InstructionSelector::selectIntToPtr(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_INTTOPTR);
 
-  MachineIRBuilder Builder(I);
-  buildCopy(Builder, I.getOperand(0).getReg(), I.getOperand(1).getReg());
-  I.eraseFromParent();
+  MachineIRBuilder Builder(MI);
+  buildCopy(Builder, MI.getOperand(0).getReg(), MI.getOperand(1).getReg());
+  MI.eraseFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectLoad(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_LOAD);
+bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_LOAD);
 
-  MachineOperand &Dst = I.getOperand(0);
-  MachineOperand &Addr = I.getOperand(1);
-  MachineIRBuilder Builder(I);
+  Register Dst = MI.getOperand(0).getReg();
+  Register Addr = MI.getOperand(1).getReg();
+  MachineIRBuilder Builder(MI);
   MachineRegisterInfo &MRI = *Builder.getMRI();
 
   // Use indexed addressing mode to load from Global + Offset.
-  MachineInstr *SumAddr = getOpcodeDef(MOS6502::G_PTR_ADD, Addr.getReg(), MRI);
+  MachineInstr *SumAddr = getOpcodeDef(MOS6502::G_PTR_ADD, Addr, MRI);
   if (SumAddr) {
     MachineInstr *BaseGlobal = getOpcodeDef(
         MOS6502::G_GLOBAL_VALUE, SumAddr->getOperand(1).getReg(), MRI);
     if (BaseGlobal) {
-      MachineOperand &Base = BaseGlobal->getOperand(1);
-      MachineOperand &Offset = SumAddr->getOperand(2);
-      auto Load =
-          Builder.buildInstr(MOS6502::LDidx).add(Dst).add(Base).add(Offset);
+      // The whole operand is needed, since it may also have a static index.
+      MachineOperand& Base = BaseGlobal->getOperand(1);
+      Register Offset = SumAddr->getOperand(2).getReg();
+      auto Load = Builder.buildInstr(MOS6502::LDidx)
+                      .addDef(Dst)
+                      .add(Base)
+                      .addUse(Offset);
       if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
         return false;
-      I.removeFromParent();
+      MI.removeFromParent();
       return true;
     }
   }
 
   Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
-  auto Load = Builder.buildInstr(MOS6502::LDAyindirr).add(Addr);
+  auto Load = Builder.buildInstr(MOS6502::LDAyindirr).addUse(Addr);
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
     return false;
-  buildCopy(Builder, Dst.getReg(), MOS6502::A);
-  I.removeFromParent();
+  buildCopy(Builder, Dst, MOS6502::A);
+  MI.removeFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectMergeValues(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_MERGE_VALUES);
+bool MOS6502InstructionSelector::selectMergeValues(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_MERGE_VALUES);
 
-  Register Dst = I.getOperand(0).getReg();
-  Register Lo = I.getOperand(1).getReg();
-  Register Hi = I.getOperand(2).getReg();
+  Register Dst = MI.getOperand(0).getReg();
+  Register Lo = MI.getOperand(1).getReg();
+  Register Hi = MI.getOperand(2).getReg();
 
-  MachineIRBuilder Builder(I);
+  MachineIRBuilder Builder(MI);
   composePtr(Builder, Dst, Lo, Hi);
-  I.removeFromParent();
+  MI.removeFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectPhi(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_PHI);
+bool MOS6502InstructionSelector::selectPhi(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_PHI);
 
-  MachineIRBuilder Builder(I);
+  MachineIRBuilder Builder(MI);
 
   auto Phi = Builder.buildInstr(MOS6502::PHI);
-  for (MachineOperand &Op : I.operands())
+  for (MachineOperand &Op : MI.operands())
     Phi.add(Op);
   constrainGenericOp(*Phi);
-  I.removeFromParent();
+  MI.removeFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectPtrToInt(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_PTRTOINT);
+bool MOS6502InstructionSelector::selectPtrToInt(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_PTRTOINT);
 
-  MachineIRBuilder Builder(I);
-  buildCopy(Builder, I.getOperand(0).getReg(), I.getOperand(1).getReg());
-  I.eraseFromParent();
+  MachineIRBuilder Builder(MI);
+  buildCopy(Builder, MI.getOperand(0).getReg(), MI.getOperand(1).getReg());
+  MI.eraseFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectStore(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_STORE);
+bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_STORE);
 
-  MachineOperand &Src = I.getOperand(0);
-  MachineOperand &Addr = I.getOperand(1);
-  MachineIRBuilder Builder(I);
+  Register Src = MI.getOperand(0).getReg();
+  Register Addr = MI.getOperand(1).getReg();
+  MachineIRBuilder Builder(MI);
 
-  buildCopy(Builder, MOS6502::A, Src.getReg());
+  buildCopy(Builder, MOS6502::A, Src);
   Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
-  auto Load = Builder.buildInstr(MOS6502::STAyindirr).add(Addr);
+  auto Load = Builder.buildInstr(MOS6502::STAyindirr).addUse(Addr);
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
     return false;
-  I.removeFromParent();
+  MI.removeFromParent();
   return true;
 }
 
+bool MOS6502InstructionSelector::selectUAddE(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_UADDE);
 
-bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_UADDE);
+  Register Sum = MI.getOperand(0).getReg();
+  Register CarryOut = MI.getOperand(1).getReg();
+  Register L = MI.getOperand(2).getReg();
+  Register R = MI.getOperand(3).getReg();
+  Register CarryIn = MI.getOperand(4).getReg();
 
-  Register Sum = I.getOperand(0).getReg();
-  Register CarryOut = I.getOperand(1).getReg();
-  Register L = I.getOperand(2).getReg();
-  Register R = I.getOperand(3).getReg();
-  Register CarryIn = I.getOperand(4).getReg();
-
-  MachineIRBuilder Builder(I);
+  MachineIRBuilder Builder(MI);
   auto RConst = getConstantVRegValWithLookThrough(R, *Builder.getMRI());
   if (!RConst)
     return false;
@@ -361,18 +364,18 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I) {
   buildCopy(Builder, Sum, MOS6502::A);
   buildCopy(Builder, CarryOut, MOS6502::C);
 
-  I.removeFromParent();
+  MI.removeFromParent();
   return true;
 }
 
-bool MOS6502InstructionSelector::selectUnMergeValues(MachineInstr &I) {
-  assert(I.getOpcode() == MOS6502::G_UNMERGE_VALUES);
+bool MOS6502InstructionSelector::selectUnMergeValues(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_UNMERGE_VALUES);
 
-  Register Lo = I.getOperand(0).getReg();
-  Register Hi = I.getOperand(1).getReg();
-  Register Src = I.getOperand(2).getReg();
+  Register Lo = MI.getOperand(0).getReg();
+  Register Hi = MI.getOperand(1).getReg();
+  Register Src = MI.getOperand(2).getReg();
 
-  MachineIRBuilder Builder(I);
+  MachineIRBuilder Builder(MI);
 
   auto LoCopy = Builder.buildInstr(MOS6502::COPY)
                     .addDef(Lo)
@@ -382,7 +385,7 @@ bool MOS6502InstructionSelector::selectUnMergeValues(MachineInstr &I) {
                     .addDef(Hi)
                     .addUse(Src, 0, MOS6502::subhi);
   constrainGenericOp(*HiCopy);
-  I.removeFromParent();
+  MI.removeFromParent();
   return true;
 }
 
