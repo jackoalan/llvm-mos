@@ -29,6 +29,10 @@
     entry:
       ret void
   }
+  define void @store() {
+    entry:
+      ret void
+  }
   define void @uadde_imm() {
     entry:
       ret void
@@ -128,6 +132,22 @@ body: |
 # CHECK:      $y = LDimm 0
 # CHECK-NEXT: LDAyindirr %0
 # CHECK-NEXT: %1:anyi8 = COPY $a
+...
+---
+name: store
+# CHECK-LABEL: name: store
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(s8) = G_IMPLICIT_DEF
+    %1:any(p0) = G_IMPLICIT_DEF
+    G_STORE %0, %1 :: (store 1)
+    RTS
+# CHECK:      $a = COPY %0
+# CHECK-NEXT: $y = LDimm 0
+# CHECK-NEXT: STAyindirr %1
+# CHECK-NEXT: RTS
 ...
 ---
 name: uadde_imm
