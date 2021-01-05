@@ -126,8 +126,6 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
   switch (I.getOpcode()) {
   default:
     return false;
-  case MOS6502::G_ADD:
-    return selectAdd(I);
   case MOS6502::G_BRCOND:
     return selectCompareBranch(I);
   case MOS6502::G_CONSTANT:
@@ -151,18 +149,6 @@ bool MOS6502InstructionSelector::select(MachineInstr &I) {
   case MOS6502::G_UNMERGE_VALUES:
     return selectUnMergeValues(I);
   }
-}
-
-bool MOS6502InstructionSelector::selectAdd(MachineInstr &I) {
-  MachineIRBuilder Builder(I);
-  LLT s1 = LLT::scalar(1);
-  auto Const = Builder.buildConstant(s1, 0);
-  auto Add = Builder.buildUAdde(I.getOperand(0), s1, I.getOperand(1),
-                                I.getOperand(2), Const->getOperand(0).getReg());
-  I.eraseFromParent();
-  if (!selectConstant(*Const))
-    return false;
-  return selectUAddE(*Add);
 }
 
 bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I) {
@@ -198,6 +184,8 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectConstant(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_CONSTANT);
+
   MachineIRBuilder Builder(I);
   // s8 is handled by TableGen LDimm.
   assert(Builder.getMRI()->getType(I.getOperand(0).getReg()) == LLT::scalar(1));
@@ -209,6 +197,8 @@ bool MOS6502InstructionSelector::selectConstant(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_GLOBAL_VALUE);
+
   Register Dst = I.getOperand(0).getReg();
   const GlobalValue *Global = I.getOperand(1).getGlobal();
 
@@ -233,6 +223,8 @@ bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectImplicitDef(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_IMPLICIT_DEF);
+
   MachineIRBuilder Builder(I);
   auto Def = Builder.buildInstr(MOS6502::IMPLICIT_DEF).add(I.getOperand(0));
   constrainGenericOp(*Def);
@@ -241,6 +233,8 @@ bool MOS6502InstructionSelector::selectImplicitDef(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectIntToPtr(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_INTTOPTR);
+
   MachineIRBuilder Builder(I);
   buildCopy(Builder, I.getOperand(0).getReg(), I.getOperand(1).getReg());
   I.eraseFromParent();
@@ -248,6 +242,8 @@ bool MOS6502InstructionSelector::selectIntToPtr(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectLoad(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_LOAD);
+
   MachineOperand &Dst = I.getOperand(0);
   MachineOperand &Addr = I.getOperand(1);
   MachineIRBuilder Builder(I);
@@ -280,6 +276,8 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectMergeValues(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_MERGE_VALUES);
+
   Register Dst = I.getOperand(0).getReg();
   Register Lo = I.getOperand(1).getReg();
   Register Hi = I.getOperand(2).getReg();
@@ -291,6 +289,8 @@ bool MOS6502InstructionSelector::selectMergeValues(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectPhi(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_PHI);
+
   MachineIRBuilder Builder(I);
 
   auto Phi = Builder.buildInstr(MOS6502::PHI);
@@ -302,6 +302,8 @@ bool MOS6502InstructionSelector::selectPhi(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectPtrToInt(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_PTRTOINT);
+
   MachineIRBuilder Builder(I);
   buildCopy(Builder, I.getOperand(0).getReg(), I.getOperand(1).getReg());
   I.eraseFromParent();
@@ -309,6 +311,8 @@ bool MOS6502InstructionSelector::selectPtrToInt(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_UADDE);
+
   Register Sum = I.getOperand(0).getReg();
   Register CarryOut = I.getOperand(1).getReg();
   Register L = I.getOperand(2).getReg();
@@ -331,6 +335,8 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &I) {
 }
 
 bool MOS6502InstructionSelector::selectUnMergeValues(MachineInstr &I) {
+  assert(I.getOpcode() == MOS6502::G_UNMERGE_VALUES);
+
   Register Lo = I.getOperand(0).getReg();
   Register Hi = I.getOperand(1).getReg();
   Register Src = I.getOperand(2).getReg();
