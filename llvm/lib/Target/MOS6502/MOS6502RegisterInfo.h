@@ -15,6 +15,10 @@ struct MOS6502RegisterInfo : public MOS6502GenRegisterInfo {
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 
+  const TargetRegisterClass *
+  getLargestLegalSuperClass(const TargetRegisterClass *RC,
+                            const MachineFunction &) const override;
+
   void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
                            unsigned FIOperandNum,
                            RegScavenger *RS = nullptr) const override;

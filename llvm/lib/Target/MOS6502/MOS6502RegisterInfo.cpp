@@ -38,11 +38,21 @@ MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   return Reserved;
 }
 
+const TargetRegisterClass *
+MOS6502RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC,
+                                               const MachineFunction &) const {
+  if (RC->contains(MOS6502::C))
+    return &MOS6502::Anyi1RegClass;
+  if (RC == &MOS6502::ZP_PTRRegClass)
+    return RC;
+  return &MOS6502::Anyi8RegClass;
+}
+
 void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
                                               int SPAdj, unsigned FIOperandNum,
                                               RegScavenger *RS) const {
-  const MachineFunction& MF = *MI->getMF();
-  const MOS6502FrameLowering& TFI = *getFrameLowering(MF);
+  const MachineFunction &MF = *MI->getMF();
+  const MOS6502FrameLowering &TFI = *getFrameLowering(MF);
 
   MachineOperand &Op = MI->getOperand(FIOperandNum);
 
