@@ -14,6 +14,10 @@ public:
   bool isReallyTriviallyReMaterializable(const MachineInstr &MI,
                                          AAResults *AA) const override;
 
+  MachineInstr *commuteInstructionImpl(MachineInstr &MI, bool NewMI,
+                                       unsigned OpIdx1,
+                                       unsigned OpIdx2) const override;
+
   void reMaterialize(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
                      Register DestReg, unsigned SubIdx,
                      const MachineInstr &Orig,
