@@ -819,6 +819,7 @@ CodeGenRegisterClass::CodeGenRegisterClass(CodeGenRegBank &RegBank,
       CopyCost(0), Allocatable(true), AllocationPriority(0) {
   Artificial = true;
   GeneratePressureSet = false;
+  IsPressureFineGrained = false;
   for (const auto R : Members) {
     TopoSigs.set(R->getTopoSig());
     Artificial &= R->Artificial;
