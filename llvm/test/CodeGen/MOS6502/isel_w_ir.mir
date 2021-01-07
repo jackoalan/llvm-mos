@@ -1,0 +1,20 @@
+# RUN: llc -mtriple=mos6502 -run-pass=instruction-select -verify-machineinstrs -o - %s | FileCheck %s
+--- |
+  @.str = constant [1 x i8] c"X"
+  define void @ldimm_global() {
+    entry:
+      ret void
+  }
+---
+name: ldimm_global
+# CHECK-LABEL: name: ldimm_global
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(p0) = G_GLOBAL_VALUE @.str
+    RTS implicit %0
+# CHECK:      %1:gpr = LDimm target-flags(lo) @.str
+# CHECK-NEXT: %2:gpr = LDimm target-flags(hi) @.str
+# CHECK-NEXT: %0:zp_ptr = REG_SEQUENCE %1, %subreg.sublo, %2, %subreg.subhi
+...
