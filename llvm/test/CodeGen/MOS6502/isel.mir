@@ -1,6 +1,10 @@
 # RUN: llc -mtriple=mos6502 -run-pass=instruction-select -verify-machineinstrs -o - %s | FileCheck %s
 --- |
   @.str = constant [1 x i8] c"X"
+  define void @asl() {
+    entry:
+      ret void
+  }
   define void @cmpimm_brne() {
     entry:
       ret void
@@ -29,6 +33,10 @@
     entry:
       ret void
   }
+  define void @rol() {
+    entry:
+      ret void
+  }
   define void @store() {
     entry:
       ret void
@@ -41,6 +49,21 @@
     entry:
       ret void
   }
+---
+name: asl
+# CHECK-LABEL: name: asl
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(s8) = G_IMPLICIT_DEF
+    %1:any(s8), %2:any(s1) = G_LSHO %0
+    RTS implicit %1, implicit %2
+# CHECK:      %0:azp = IMPLICIT_DEF
+# CHECK-NEXT: %1:azp = ASL %0
+# CHECK-NEXT: %2:anyi1 = COPY $c
+# CHECK-NEXT: RTS
+...
 ---
 name: cmpimm_brne
 # CHECK-LABEL: name: cmpimm_brne
@@ -132,6 +155,23 @@ body: |
 # CHECK:      $y = LDimm 0
 # CHECK-NEXT: LDAyindirr %0
 # CHECK-NEXT: %1:anyi8 = COPY $a
+...
+---
+name: rol
+# CHECK-LABEL: name: rol
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(s8) = G_IMPLICIT_DEF
+    %1:any(s1) = G_IMPLICIT_DEF
+    %2:any(s8), %3:any(s1) = G_LSHE %0, %1
+    RTS implicit %2, implicit %3
+# CHECK:      %0:azp = IMPLICIT_DEF
+# CHECK:      $c = COPY %1
+# CHECK-NEXT: %2:azp = ROL %0
+# CHECK-NEXT: %3:anyi1 = COPY $c
+# CHECK-NEXT: RTS
 ...
 ---
 name: store

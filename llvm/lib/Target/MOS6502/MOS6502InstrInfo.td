@@ -64,6 +64,16 @@ def ADCimm : Instr {
   let isReMaterializable = true;
 }
 
+def ASL : Instr {
+  dag InOperandList = (ins AZP:$src);
+  dag OutOperandList = (outs AZP:$dst);
+  let Constraints = "$dst = $src";
+
+  let Defs = [C, NZ];
+
+  let isReMaterializable = true;
+}
+
 def CMPimm : Instr {
   dag InOperandList = (ins GPR:$l, i8imm:$r);
   dag OutOperandList = (outs);
@@ -203,6 +213,17 @@ def LDAyindir : Instr {
   let AsmString = "LDA\t($addr),Y";
 
   let mayLoad = true;
+}
+
+def ROL : Instr {
+  dag InOperandList = (ins AZP:$src);
+  dag OutOperandList = (outs AZP:$dst);
+  let Constraints = "$dst = $src";
+
+  let Uses = [C];
+  let Defs = [C, NZ];
+
+  let isReMaterializable = true;
 }
 
 def TA_ : Instr {

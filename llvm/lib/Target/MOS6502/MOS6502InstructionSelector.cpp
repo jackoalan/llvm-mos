@@ -50,6 +50,8 @@ private:
   bool selectFrameIndex(MachineInstr &MI);
   bool selectGlobalValue(MachineInstr &MI);
   bool selectLoad(MachineInstr &MI);
+  bool selectLshO(MachineInstr &MI);
+  bool selectLshE(MachineInstr &MI);
   bool selectImplicitDef(MachineInstr &MI);
   bool selectIntToPtr(MachineInstr &MI);
   bool selectMergeValues(MachineInstr &MI);
@@ -142,6 +144,10 @@ bool MOS6502InstructionSelector::select(MachineInstr &MI) {
     return selectIntToPtr(MI);
   case MOS6502::G_LOAD:
     return selectLoad(MI);
+  case MOS6502::G_LSHO:
+    return selectLshO(MI);
+  case MOS6502::G_LSHE:
+    return selectLshE(MI);
   case MOS6502::G_MERGE_VALUES:
     return selectMergeValues(MI);
   case MOS6502::G_PHI:
@@ -271,7 +277,7 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
         MOS6502::G_GLOBAL_VALUE, SumAddr->getOperand(1).getReg(), MRI);
     if (BaseGlobal) {
       // The whole operand is needed, since it may also have a static index.
-      MachineOperand& Base = BaseGlobal->getOperand(1);
+      MachineOperand &Base = BaseGlobal->getOperand(1);
       Register Offset = SumAddr->getOperand(2).getReg();
       auto Load = Builder.buildInstr(MOS6502::LDidx)
                       .addDef(Dst)
@@ -289,6 +295,40 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
     return false;
   buildCopy(Builder, Dst, MOS6502::A);
+  MI.removeFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectLshO(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_LSHO);
+
+  Register Dst = MI.getOperand(0).getReg();
+  Register CarryOut = MI.getOperand(1).getReg();
+  Register Src = MI.getOperand(2).getReg();
+
+  MachineIRBuilder Builder(MI);
+  auto Asl = Builder.buildInstr(MOS6502::ASL).addDef(Dst).addUse(Src);
+  if (!constrainSelectedInstRegOperands(*Asl, TII, TRI, RBI))
+    return false;
+  buildCopy(Builder, CarryOut, MOS6502::C);
+  MI.removeFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectLshE(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_LSHE);
+
+  Register Dst = MI.getOperand(0).getReg();
+  Register CarryOut = MI.getOperand(1).getReg();
+  Register Src = MI.getOperand(2).getReg();
+  Register CarryIn = MI.getOperand(3).getReg();
+
+  MachineIRBuilder Builder(MI);
+  buildCopy(Builder, MOS6502::C, CarryIn);
+  auto Rol = Builder.buildInstr(MOS6502::ROL).addDef(Dst).addUse(Src);
+  if (!constrainSelectedInstRegOperands(*Rol, TII, TRI, RBI))
+    return false;
+  buildCopy(Builder, CarryOut, MOS6502::C);
   MI.removeFromParent();
   return true;
 }
