@@ -64,6 +64,21 @@ def ADCimm : Instr {
   let isReMaterializable = true;
 }
 
+def ADCzpr : Pseudo {
+  dag InOperandList = (ins Ac:$l, ZP:$r);
+  dag OutOperandList = (outs Ac:$dst);
+  let Constraints = "$dst = $l";
+
+  let Uses = [C];
+  let Defs = [C, NZ];
+
+  let AsmString = "ADC\t#$r";
+
+  let isAdd = true;
+  let isReMaterializable = true;
+  let isCommutable = true;
+}
+
 def ASL : Instr {
   dag InOperandList = (ins AZP:$src);
   dag OutOperandList = (outs AZP:$dst);

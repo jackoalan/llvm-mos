@@ -394,16 +394,21 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &MI) {
   Register CarryIn = MI.getOperand(4).getReg();
 
   MachineIRBuilder Builder(MI);
-  auto RConst = getConstantVRegValWithLookThrough(R, *Builder.getMRI());
-  if (!RConst)
-    return false;
-
   buildCopy(Builder, MOS6502::C, CarryIn);
-  buildCopy(Builder, MOS6502::A, L);
-  Builder.buildInstr(MOS6502::ADCimm).addImm(RConst->Value);
-  buildCopy(Builder, Sum, MOS6502::A);
-  buildCopy(Builder, CarryOut, MOS6502::C);
 
+  auto RConst = getConstantVRegValWithLookThrough(R, *Builder.getMRI());
+  if (RConst) {
+    buildCopy(Builder, MOS6502::A, L);
+    Builder.buildInstr(MOS6502::ADCimm).addImm(RConst->Value);
+    buildCopy(Builder, Sum, MOS6502::A);
+  } else {
+    auto Add =
+        Builder.buildInstr(MOS6502::ADCzpr).addDef(Sum).addUse(L).addUse(R);
+    if (!constrainSelectedInstRegOperands(*Add, TII, TRI, RBI))
+      return false;
+  }
+
+  buildCopy(Builder, CarryOut, MOS6502::C);
   MI.removeFromParent();
   return true;
 }

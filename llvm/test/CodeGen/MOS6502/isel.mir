@@ -45,6 +45,10 @@
     entry:
       ret void
   }
+  define void @uadde() {
+    entry:
+      ret void
+  }
   define void @unmerge() {
     entry:
       ret void
@@ -205,6 +209,25 @@ body: |
 # CHECK-NEXT: $a = COPY %0
 # CHECK-NEXT: ADCimm 42
 # CHECK-NEXT: %3:anyi8 = COPY $a
+# CHECK-NEXT: %4:anyi1 = COPY $c
+...
+---
+name: uadde
+# CHECK-LABEL: name: uadde
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    %0:any(s8) = G_IMPLICIT_DEF
+    %1:any(s8) = G_IMPLICIT_DEF
+    %2:any(s1) = G_IMPLICIT_DEF
+    %3:any(s8), %4:any(s1) = G_UADDE %0:any(s8), %1:any(s8), %2:any(s1)
+    RTS implicit %3, implicit %4
+# CHECK:      %0:ac = IMPLICIT_DEF
+# CHECK-NEXT: %1:zp = IMPLICIT_DEF
+# CHECK-NEXT: %2:anyi1 = IMPLICIT_DEF
+# CHECK-NEXT: $c = COPY %2
+# CHECK-NEXT: %3:ac = ADCzpr %0, %1
 # CHECK-NEXT: %4:anyi1 = COPY $c
 ...
 ---
