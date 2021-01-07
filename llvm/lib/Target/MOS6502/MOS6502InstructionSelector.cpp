@@ -184,8 +184,14 @@ bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &MI) {
   switch (Pred) {
   default:
     return false;
+  case CmpInst::ICMP_EQ:
+    Br.addUse(MOS6502::Z).addImm(1);
+    break;
   case CmpInst::ICMP_NE:
     Br.addUse(MOS6502::Z).addImm(0);
+    break;
+  case CmpInst::ICMP_UGE:
+    Br.addUse(MOS6502::N).addImm(0);
     break;
   case CmpInst::ICMP_ULT:
     Br.addUse(MOS6502::N).addImm(1);
