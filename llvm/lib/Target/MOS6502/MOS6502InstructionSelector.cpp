@@ -12,6 +12,7 @@
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
@@ -268,6 +269,30 @@ bool MOS6502InstructionSelector::selectIntToPtr(MachineInstr &MI) {
   return true;
 }
 
+// Determines whether Addr can be referenced using the X/Y indexed addressing
+// mode. If so, sets BaseOut to the base operand and Offset to the value that
+// should be in X/Y.
+static bool MatchIndexedAddressing(Register Addr, MachineOperand &BaseOut,
+                                   MachineOperand &OffsetOut,
+                                   const MachineRegisterInfo &MRI) {
+  MachineInstr *SumAddr = getOpcodeDef(MOS6502::G_PTR_ADD, Addr, MRI);
+  if (!SumAddr)
+    return false;
+
+  Register Base = SumAddr->getOperand(1).getReg();
+  Register Offset = SumAddr->getOperand(2).getReg();
+
+  MachineInstr *BaseGlobal = getOpcodeDef(MOS6502::G_GLOBAL_VALUE, Base, MRI);
+  if (!BaseGlobal)
+    return false;
+
+  BaseOut = BaseGlobal->getOperand(1);
+  // Constant offsets should already have been folded into the base.
+  OffsetOut = MachineOperand::CreateReg(Offset, /*isDef=*/false);
+
+  return true;
+}
+
 bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
   assert(MI.getOpcode() == MOS6502::G_LOAD);
 
@@ -276,24 +301,15 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
   MachineIRBuilder Builder(MI);
   MachineRegisterInfo &MRI = *Builder.getMRI();
 
-  // Use indexed addressing mode to load from Global + Offset.
-  MachineInstr *SumAddr = getOpcodeDef(MOS6502::G_PTR_ADD, Addr, MRI);
-  if (SumAddr) {
-    MachineInstr *BaseGlobal = getOpcodeDef(
-        MOS6502::G_GLOBAL_VALUE, SumAddr->getOperand(1).getReg(), MRI);
-    if (BaseGlobal) {
-      // The whole operand is needed, since it may also have a static index.
-      MachineOperand &Base = BaseGlobal->getOperand(1);
-      Register Offset = SumAddr->getOperand(2).getReg();
-      auto Load = Builder.buildInstr(MOS6502::LDidx)
-                      .addDef(Dst)
-                      .add(Base)
-                      .addUse(Offset);
-      if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
-        return false;
-      MI.removeFromParent();
-      return true;
-    }
+  MachineOperand Base = MachineOperand::CreateImm(0);
+  MachineOperand Offset = MachineOperand::CreateImm(0);
+  if (MatchIndexedAddressing(Addr, Base, Offset, MRI)) {
+    auto Load =
+        Builder.buildInstr(MOS6502::LDidx).addDef(Dst).add(Base).add(Offset);
+    if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
+      return false;
+    MI.removeFromParent();
+    return true;
   }
 
   Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
@@ -380,11 +396,23 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
   Register Src = MI.getOperand(0).getReg();
   Register Addr = MI.getOperand(1).getReg();
   MachineIRBuilder Builder(MI);
+  MachineRegisterInfo &MRI = *Builder.getMRI();
 
   buildCopy(Builder, MOS6502::A, Src);
+
+  MachineOperand Base = MachineOperand::CreateImm(0);
+  MachineOperand Offset = MachineOperand::CreateImm(0);
+  if (MatchIndexedAddressing(Addr, Base, Offset, MRI)) {
+    auto Store = Builder.buildInstr(MOS6502::STAidx).add(Base).add(Offset);
+    if (!constrainSelectedInstRegOperands(*Store, TII, TRI, RBI))
+      return false;
+    MI.removeFromParent();
+    return true;
+  }
+
   Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
-  auto Load = Builder.buildInstr(MOS6502::STAyindirr).addUse(Addr);
-  if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
+  auto Store = Builder.buildInstr(MOS6502::STAyindirr).addUse(Addr);
+  if (!constrainSelectedInstRegOperands(*Store, TII, TRI, RBI))
     return false;
   MI.removeFromParent();
   return true;
