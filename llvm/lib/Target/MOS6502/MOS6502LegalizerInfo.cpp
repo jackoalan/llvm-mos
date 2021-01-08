@@ -138,8 +138,8 @@ bool MOS6502LegalizerInfo::legalizeShl(LegalizerHelper &Helper,
   MachineOperand &Src = MI.getOperand(1);
   MachineOperand &Amt = MI.getOperand(2);
 
-  Optional<int64_t> ConstantAmt = getConstantVRegVal(Amt.getReg(), MRI);
-  if (!ConstantAmt || *ConstantAmt != 1) {
+  auto ConstantAmt = getConstantVRegValWithLookThrough(Amt.getReg(), MRI);
+  if (!ConstantAmt || ConstantAmt->Value != 1) {
     return false;
   }
 
@@ -189,14 +189,14 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
   MachineOperand &Offset = MI.getOperand(2);
 
   MachineInstr *GlobalBase = getOpcodeDef(G_GLOBAL_VALUE, Base.getReg(), MRI);
-  Optional<int64_t> ConstOffset = getConstantVRegVal(Offset.getReg(), MRI);
+  auto ConstOffset = getConstantVRegValWithLookThrough(Offset.getReg(), MRI);
 
   // Fold constant offsets into global value operand.
   if (GlobalBase && ConstOffset) {
     const MachineOperand &Op = GlobalBase->getOperand(1);
     Builder.buildInstr(G_GLOBAL_VALUE)
         .add(Result)
-        .addGlobalAddress(Op.getGlobal(), Op.getOffset() + *ConstOffset);
+        .addGlobalAddress(Op.getGlobal(), Op.getOffset() + ConstOffset->Value);
     MI.removeFromParent();
     return true;
   }
@@ -207,6 +207,15 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
   if (ZExtOffset) {
     Helper.Observer.changingInstr(MI);
     Offset.setReg(ZExtOffset->getOperand(1).getReg());
+    Helper.Observer.changedInstr(MI);
+    return true;
+  }
+
+  // Similarly for values that fit in 8-bit unsigned constants.
+  if (ConstOffset && 0 <= ConstOffset->Value && ConstOffset->Value < 256) {
+    auto Const = Builder.buildConstant(LLT::scalar(8), ConstOffset->Value);
+    Helper.Observer.changingInstr(MI);
+    Offset.setReg(Const->getOperand(0).getReg());
     Helper.Observer.changedInstr(MI);
     return true;
   }
