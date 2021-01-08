@@ -272,9 +272,9 @@ bool MOS6502InstructionSelector::selectIntToPtr(MachineInstr &MI) {
 // Determines whether Addr can be referenced using the X/Y indexed addressing
 // mode. If so, sets BaseOut to the base operand and Offset to the value that
 // should be in X/Y.
-static bool MatchIndexedAddressing(Register Addr, MachineOperand &BaseOut,
-                                   MachineOperand &OffsetOut,
-                                   const MachineRegisterInfo &MRI) {
+static bool MatchIndexed(Register Addr, MachineOperand &BaseOut,
+                         MachineOperand &OffsetOut,
+                         const MachineRegisterInfo &MRI) {
   MachineInstr *SumAddr = getOpcodeDef(MOS6502::G_PTR_ADD, Addr, MRI);
   if (!SumAddr)
     return false;
@@ -288,9 +288,37 @@ static bool MatchIndexedAddressing(Register Addr, MachineOperand &BaseOut,
 
   BaseOut = BaseGlobal->getOperand(1);
   // Constant offsets should already have been folded into the base.
-  OffsetOut = MachineOperand::CreateReg(Offset, /*isDef=*/false);
+  OffsetOut.ChangeToRegister(Offset, /*isDef=*/false);
 
   return true;
+}
+
+// Determines whether Addr can be referenced using the indirect-indexed (addr),Y
+// addressing mode. If so, sets BaseOut to the base operand and Offset to the
+// value that should be in Y.
+static void MatchIndirectIndexed(Register Addr, MachineOperand &BaseOut,
+                                 MachineOperand &OffsetOut,
+                                 const MachineRegisterInfo &MRI) {
+  MachineInstr *SumAddr = getOpcodeDef(MOS6502::G_PTR_ADD, Addr, MRI);
+  if (!SumAddr) {
+    BaseOut.ChangeToRegister(Addr, /*isDef=*/false);
+    OffsetOut.ChangeToImmediate(0);
+    return;
+  }
+
+  Register Base = SumAddr->getOperand(1).getReg();
+  Register Offset = SumAddr->getOperand(2).getReg();
+
+  BaseOut.ChangeToRegister(Base, /*isDef=*/false);
+  auto ConstOffset = getConstantVRegValWithLookThrough(Offset, MRI);
+  if (ConstOffset) {
+    // Value is sign extended, but we really want the unsigned value.
+    if (ConstOffset->Value < 0)
+      ConstOffset->Value += 256;
+    assert(0 <= ConstOffset->Value && ConstOffset->Value < 256);
+    OffsetOut.ChangeToImmediate(ConstOffset->Value);
+  } else
+    OffsetOut.ChangeToRegister(Offset, /*isDef=*/false);
 }
 
 bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
@@ -303,7 +331,7 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
 
   MachineOperand Base = MachineOperand::CreateImm(0);
   MachineOperand Offset = MachineOperand::CreateImm(0);
-  if (MatchIndexedAddressing(Addr, Base, Offset, MRI)) {
+  if (MatchIndexed(Addr, Base, Offset, MRI)) {
     auto Load =
         Builder.buildInstr(MOS6502::LDidx).addDef(Dst).add(Base).add(Offset);
     if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
@@ -312,11 +340,19 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
     return true;
   }
 
-  Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
-  auto Load = Builder.buildInstr(MOS6502::LDAyindirr).addUse(Addr);
+  MatchIndirectIndexed(Addr, Base, Offset, MRI);
+
+  if (Offset.isImm())
+    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).add(Offset);
+  else
+    buildCopy(Builder, MOS6502::Y, Offset.getReg());
+
+  auto Load = Builder.buildInstr(MOS6502::LDAyindirr).addUse(Base.getReg());
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
     return false;
+
   buildCopy(Builder, Dst, MOS6502::A);
+
   MI.removeFromParent();
   return true;
 }
@@ -402,7 +438,7 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
 
   MachineOperand Base = MachineOperand::CreateImm(0);
   MachineOperand Offset = MachineOperand::CreateImm(0);
-  if (MatchIndexedAddressing(Addr, Base, Offset, MRI)) {
+  if (MatchIndexed(Addr, Base, Offset, MRI)) {
     auto Store = Builder.buildInstr(MOS6502::STAidx).add(Base).add(Offset);
     if (!constrainSelectedInstRegOperands(*Store, TII, TRI, RBI))
       return false;
@@ -410,10 +446,17 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
     return true;
   }
 
-  Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(0);
-  auto Store = Builder.buildInstr(MOS6502::STAyindirr).addUse(Addr);
+  MatchIndirectIndexed(Addr, Base, Offset, MRI);
+
+  if (Offset.isImm())
+    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).add(Offset);
+  else
+    buildCopy(Builder, MOS6502::Y, Offset.getReg());
+
+  auto Store = Builder.buildInstr(MOS6502::STAyindirr).addUse(Base.getReg());
   if (!constrainSelectedInstRegOperands(*Store, TII, TRI, RBI))
     return false;
+
   MI.removeFromParent();
   return true;
 }
