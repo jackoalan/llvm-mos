@@ -52,15 +52,21 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
                                               int SPAdj, unsigned FIOperandNum,
                                               RegScavenger *RS) const {
   const MachineFunction &MF = *MI->getMF();
-  const MOS6502FrameLowering &TFI = *getFrameLowering(MF);
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
+
+  assert(!SPAdj);
 
   MachineOperand &Op = MI->getOperand(FIOperandNum);
 
-  Register FrameReg;
-  StackOffset Offset = TFI.getFrameIndexReference(MF, Op.getIndex(), FrameReg);
-  if (FrameReg != MOS6502::S)
-    report_fatal_error("Soft stack not yet implemented.");
-  Op.ChangeToImmediate(Offset.getFixed());
+  // If SP is taken as zero on entry.
+  int64_t Offset = MFI.getObjectOffset(Op.getIndex());
+
+  int64_t SPAtInstr = -MFI.getStackSize();
+
+  // If SPAtInstr is taken as zero.
+  int64_t RelativeOffset = Offset - SPAtInstr;
+
+  Op.ChangeToImmediate(RelativeOffset);
 }
 
 Register
