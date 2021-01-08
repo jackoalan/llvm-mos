@@ -3,21 +3,28 @@
 name: stack
 # CHECK-LABEL: name: stack
 stack:
-  - { id: 0, size: 1}
-  - { id: 1, size: 1}
+  - { id: 0, size: 32}
+  - { id: 1, size: 32}
   - { id: 2, size: 1}
   - { id: 3, size: 1}
+  - { id: 4, size: 1}
+  - { id: 5, size: 1}
 body:             |
   bb.0.entry:
-    SThs $a, %stack.0 :: (store 1 into %stack.0)
     SThs $a, %stack.2 :: (store 1 into %stack.2)
-    SThs $a, %stack.1 :: (store 1 into %stack.1)
-    $a = LDhs %stack.1 :: (load 1 from %stack.1)
+    $zp_ptr_1 = FrameAddr %stack.0, implicit-def $nz
+    $zp_ptr_2 = FrameAddr %stack.1, implicit-def $nz
+    SThs $a, %stack.4 :: (store 1 into %stack.4)
+    SThs $a, %stack.3 :: (store 1 into %stack.3)
+    $a = LDhs %stack.3 :: (load 1 from %stack.3)
+    $a = LDhs %stack.4 :: (load 1 from %stack.4)
     $a = LDhs %stack.2 :: (load 1 from %stack.2)
-    $a = LDhs %stack.0 :: (load 1 from %stack.0)
     RTS
 # CHECK-LABEL: bb.0.entry:
+# CHECK-NEXT:  IncSP -64
 # CHECK-NEXT:  PHA implicit $a
+# CHECK-NEXT:  $zp_ptr_1 = FrameAddr 32
+# CHECK-NEXT:  $zp_ptr_2 = FrameAddr 0
 # CHECK-NEXT:  PHA implicit undef $a
 # CHECK-NEXT:  PHA implicit $a
 # CHECK-NEXT:  PHA implicit undef $a
@@ -27,6 +34,7 @@ body:             |
 # CHECK-NEXT:  PLA implicit-def $a
 # CHECK-NEXT:  PLA implicit-def dead $a
 # CHECK-NEXT:  PLA implicit-def $a
+# CHECK-NEXT:  IncSP 64
 # CHECK-NEXT:  RTS
 ...
 ---

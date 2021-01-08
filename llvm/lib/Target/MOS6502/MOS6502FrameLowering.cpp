@@ -45,14 +45,18 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
                                         MachineBasicBlock &MBB) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
 
-  if (MFI.getStackSize())
-    report_fatal_error("Soft stack is not yet implemented.");
+  auto MI = MBB.begin();
+
+  // If soft stack is used, decrease the soft stack pointer SP.
+  if (MFI.getStackSize()) {
+    MachineIRBuilder Builder(MBB, MI);
+    Builder.buildInstr(MOS6502::IncSP).addImm(-MFI.getStackSize());
+  }
 
   uint64_t HsSize = hsSize(MFI);
 
   LLVM_DEBUG(dbgs() << "Emitting Prologue:\n");
 
-  auto MI = MBB.begin();
   // Value of S at MI, relative to its value on entry.
   int S = 0;
 
@@ -120,15 +124,18 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
 void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
                                         MachineBasicBlock &MBB) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  if (MFI.getStackSize())
-    report_fatal_error("Soft stack is not yet implemented.");
+
+  auto MI = MBB.getFirstTerminator();
+
+  // If soft stack is used, increase the soft stack pointer SP.
+  if (MFI.getStackSize()) {
+    MachineIRBuilder Builder(MBB, MI);
+    Builder.buildInstr(MOS6502::IncSP).addImm(MFI.getStackSize());
+  }
 
   uint64_t HsSize = hsSize(MFI);
 
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
-
-  auto MI = MBB.getFirstTerminator();
-  MachineIRBuilder Builder(MBB, MI);
 
   LLVM_DEBUG(dbgs() << "Emitting Epilogue:\n");
 

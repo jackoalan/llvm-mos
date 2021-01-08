@@ -15,7 +15,9 @@ class Pseudo : Instr {
   let isPseudo = true;
 }
 
+
 // Frame Pseudoinstructions
+
 
 // Load a value from the given hard stack offset. This instruction is used by the
 // register allocator to emit spills, and such operations do not recompute
@@ -50,6 +52,19 @@ def FrameAddr : Pseudo {
   dag OutOperandList = (outs ZP_PTR:$dst);
   let Defs = [NZ];
 }
+
+// Add $bytes bytes to SP, saving the result back in SP. A negative argument
+// decreases SP.
+def IncSP : Pseudo {
+  dag InOperandList = (ins i16imm:$bytes);
+  dag OutOperandList = (outs);
+  let Uses = [SP];
+  let Defs = [SP];
+}
+
+
+// Regular Instructions
+
 
 def ADCimm : Instr {
   dag InOperandList = (ins i8imm:$r);

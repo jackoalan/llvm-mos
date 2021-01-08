@@ -60,18 +60,24 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
 
   MachineOperand &Op = MI->getOperand(FIOperandNum);
 
-  if (MFI.getStackID(Op.getIndex()) != TargetStackID::Hard)
-    report_fatal_error("Soft stack not yet supported.");
+  int64_t StackSize;
+  switch (MI->getOpcode()) {
+  case MOS6502::FrameAddr: {
+    if (MFI.getStackID(Op.getIndex()) == TargetStackID::Hard)
+      report_fatal_error("Hard stack FrameAddr not yet supported.");
+    StackSize = MFI.getStackSize();
+    break;
+  }
+  case MOS6502::LDhs:
+  case MOS6502::SThs: {
+    if (MFI.getStackID(Op.getIndex()) != TargetStackID::Hard)
+      report_fatal_error("Soft stack LD/ST not yet supported.");
+    StackSize = TFL.hsSize(MFI);
+    break;
+  }
+  }
 
-  // If S is taken as zero on entry.
-  int64_t Offset = MFI.getObjectOffset(Op.getIndex());
-
-  int64_t SPAtInstr = -TFL.hsSize(MFI);
-
-  // If SPAtInstr is taken as zero.
-  int64_t RelativeOffset = Offset - SPAtInstr;
-
-  Op.ChangeToImmediate(RelativeOffset);
+  Op.ChangeToImmediate(StackSize + MFI.getObjectOffset(Op.getIndex()));
 }
 
 Register
