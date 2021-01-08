@@ -27,7 +27,8 @@ namespace TargetStackID {
   enum Value {
     Default = 0,
     SGPRSpill = 1,
-    ScalableVector = 2,
+    SVEVector = 2,
+    Hard = 3,
     NoAlloc = 255
   };
 }

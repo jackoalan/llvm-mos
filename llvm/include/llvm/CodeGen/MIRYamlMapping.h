@@ -347,7 +347,8 @@ struct ScalarEnumerationTraits<TargetStackID::Value> {
   static void enumeration(yaml::IO &IO, TargetStackID::Value &ID) {
     IO.enumCase(ID, "default", TargetStackID::Default);
     IO.enumCase(ID, "sgpr-spill", TargetStackID::SGPRSpill);
-    IO.enumCase(ID, "scalable-vector", TargetStackID::ScalableVector);
+    IO.enumCase(ID, "sve-vec", TargetStackID::SVEVector);
+    IO.enumCase(ID, "hard", TargetStackID::Hard);
     IO.enumCase(ID, "noalloc", TargetStackID::NoAlloc);
   }
 };

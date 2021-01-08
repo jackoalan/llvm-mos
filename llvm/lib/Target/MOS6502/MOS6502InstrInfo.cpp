@@ -356,16 +356,6 @@ void MOS6502InstrInfo::loadRegFromStackSlot(
       .addMemOperand(MMO);
 }
 
-// Return offset, relative to S, of the given frame offset. That is, the
-// addressing mode HSOffset(Offs),X would address the Off-th location from
-// the top of the hard stack, starting from 0.
-static int64_t HSOffset(int64_t FrameOffset) {
-  // S is one less than the address of the top of the stack, truncated to 8
-  // bits. Since the stack begins at 0x100, that means that the memory address
-  // of FO is 0x100 + (S + 1) + FO = (0x101 + FO) + S.
-  return 0x101 + FrameOffset;
-}
-
 bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   bool Changed;
   MachineIRBuilder Builder(MI);
@@ -424,7 +414,7 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     Builder.buildInstr(MOS6502::TSX);
     auto Ld = Builder.buildInstr(MOS6502::LDidx)
                   .add(MI.getOperand(0))
-                  .addImm(HSOffset(MI.getOperand(1).getImm()))
+                  .addImm(0x100 + MI.getOperand(1).getImm())
                   .addReg(MOS6502::X);
     Builder.setInsertPt(*Ld->getParent(), Ld);
     expandPostRAPseudoNoPreserve(Builder);
@@ -439,7 +429,7 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
 
     Builder.buildInstr(MOS6502::TSX);
     Builder.buildInstr(MOS6502::STAidx)
-        .addImm(HSOffset(MI.getOperand(1).getImm()))
+        .addImm(0x100 + MI.getOperand(1).getImm())
         .addReg(MOS6502::X);
     Changed = true;
     break;

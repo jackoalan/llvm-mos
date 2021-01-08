@@ -1,5 +1,6 @@
 #include "MOS6502RegisterInfo.h"
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
+#include "MOS6502FrameLowering.h"
 #include "MOS6502InstrInfo.h"
 #include "MOS6502Subtarget.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -53,15 +54,19 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
                                               RegScavenger *RS) const {
   const MachineFunction &MF = *MI->getMF();
   const MachineFrameInfo &MFI = MF.getFrameInfo();
+  const MOS6502FrameLowering &TFL = *getFrameLowering(MF);
 
   assert(!SPAdj);
 
   MachineOperand &Op = MI->getOperand(FIOperandNum);
 
-  // If SP is taken as zero on entry.
+  if (MFI.getStackID(Op.getIndex()) != TargetStackID::Hard)
+    report_fatal_error("Soft stack not yet supported.");
+
+  // If S is taken as zero on entry.
   int64_t Offset = MFI.getObjectOffset(Op.getIndex());
 
-  int64_t SPAtInstr = -MFI.getStackSize();
+  int64_t SPAtInstr = -TFL.hsSize(MFI);
 
   // If SPAtInstr is taken as zero.
   int64_t RelativeOffset = Offset - SPAtInstr;

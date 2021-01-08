@@ -13,9 +13,15 @@ public:
     return true;
   }
 
+  void processFunctionBeforeFrameFinalized(
+      MachineFunction &MF, RegScavenger *RS = nullptr) const override;
+
   void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   bool hasFP(const MachineFunction &MF) const override;
+
+  // Computes the size of the hard stack.
+  uint64_t hsSize(const MachineFrameInfo &MFI) const;
 };
 
 } // namespace llvm

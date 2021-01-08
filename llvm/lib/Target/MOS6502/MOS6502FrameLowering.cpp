@@ -8,6 +8,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -19,12 +20,35 @@ MOS6502FrameLowering::MOS6502FrameLowering()
     : TargetFrameLowering(StackGrowsDown, /*StackAlignment=*/Align(1),
                           /*LocalAreaOffset=*/0) {}
 
+void MOS6502FrameLowering::processFunctionBeforeFrameFinalized(
+    MachineFunction &MF, RegScavenger *RS) const {
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+
+  // Targeted value of S at end of prologue, with S=0 on entry.
+  int S = 0;
+
+  // Extract out as many values as will fit onto the hard stack.
+  for (int i = 0, e = MFI.getObjectIndexEnd(); i < e && S > -4; ++i) {
+    int64_t Size = MFI.getObjectSize(i);
+    if (S - Size < -4)
+      continue;
+    MFI.setStackID(i, TargetStackID::Hard);
+    // Hard stack offsets are S-relative, and S already points at the first byte
+    // of the object, since it's always one byte past the end of the stack.
+    MFI.setObjectOffset(i, S);
+    MFI.setStackSize(MFI.getStackSize() - Size);
+    S -= Size;
+  }
+}
+
 void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
                                         MachineBasicBlock &MBB) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
 
-  if (MFI.getStackSize() > 4)
-    report_fatal_error("Only small (<4 bytes) HS uses are supported.");
+  if (MFI.getStackSize())
+    report_fatal_error("Soft stack is not yet implemented.");
+
+  uint64_t HsSize = hsSize(MFI);
 
   LLVM_DEBUG(dbgs() << "Emitting Prologue:\n");
 
@@ -66,10 +90,7 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
     if (MI->getOperand(0).getReg() != MOS6502::A)
       break;
 
-    // S begins (S = 0) pointing at Offset -1, not Offset 0, since it points to
-    // the byte after the top of stack. Increase offsets by one byte to
-    // compensate.
-    int64_t Offset = MFI.getObjectOffset(MI->getOperand(1).getIndex()) + 1;
+    int64_t Offset = MFI.getObjectOffset(MI->getOperand(1).getIndex());
     LLVM_DEBUG(dbgs() << "S: " << S << "\n");
     LLVM_DEBUG(dbgs() << "SThs Offset: " << Offset << "\n");
 
@@ -93,14 +114,16 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Push any remaining bytes necessary to fully decrease S.
-  PushUntil(-MFI.getStackSize());
+  PushUntil(-HsSize);
 }
 
 void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
                                         MachineBasicBlock &MBB) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  if (!MFI.getStackSize())
-    return;
+  if (MFI.getStackSize())
+    report_fatal_error("Soft stack is not yet implemented.");
+
+  uint64_t HsSize = hsSize(MFI);
 
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
 
@@ -172,10 +195,7 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
     if (PrevMI->getOperand(0).getReg() != MOS6502::A)
       break;
 
-    // S begins (S = 0) pointing at Offset -1, not Offset 0, since it points to
-    // the byte after the top of stack. Increase offsets by one byte to
-    // compensate.
-    int64_t Offset = MFI.getObjectOffset(PrevMI->getOperand(1).getIndex()) + 1;
+    int64_t Offset = MFI.getObjectOffset(PrevMI->getOperand(1).getIndex());
     LLVM_DEBUG(dbgs() << "S: " << S << "\n");
     LLVM_DEBUG(dbgs() << "LDhs Offset: " << Offset << "\n");
 
@@ -199,7 +219,7 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
   }
 
   // Pull any remaining bytes necessary to fully decrease S.
-  PullUntil(-MFI.getStackSize());
+  PullUntil(-HsSize);
 }
 
 bool MOS6502FrameLowering::hasFP(const MachineFunction &MF) const {
@@ -207,4 +227,12 @@ bool MOS6502FrameLowering::hasFP(const MachineFunction &MF) const {
   if (MFI.isFrameAddressTaken() || MFI.hasVarSizedObjects())
     report_fatal_error("Frame pointer not yet supported.");
   return false;
+}
+
+uint64_t MOS6502FrameLowering::hsSize(const MachineFrameInfo &MFI) const {
+  uint64_t Size = 0;
+  for (int i = 0, e = MFI.getObjectIndexEnd(); i < e; ++i)
+    if (MFI.getStackID(i) == TargetStackID::Hard)
+      Size += MFI.getObjectSize(i);
+  return Size;
 }

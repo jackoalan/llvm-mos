@@ -21,8 +21,8 @@ body:             |
 # CHECK-NEXT:  PHA implicit undef $a
 # CHECK-NEXT:  PHA implicit $a
 # CHECK-NEXT:  PHA implicit undef $a
-# CHECK-NEXT:  SThs $a, 2
-# CHECK-NEXT:  $a = LDhs 2
+# CHECK-NEXT:  SThs $a, 3
+# CHECK-NEXT:  $a = LDhs 3
 # CHECK-NEXT:  PLA implicit-def dead $a
 # CHECK-NEXT:  PLA implicit-def $a
 # CHECK-NEXT:  PLA implicit-def dead $a
