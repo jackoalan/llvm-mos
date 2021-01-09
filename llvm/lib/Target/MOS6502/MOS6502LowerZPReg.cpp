@@ -156,20 +156,20 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
 
   if (UsesSP) {
     auto *Addr = new GlobalVariable(
-                                    M, WordTy, /*isConstant=*/false, GlobalValue::ExternalLinkage,
-                                    UndefValue::get(WordTy), "_SP",
-                                    /*InsertBefore=*/nullptr, GlobalValue::NotThreadLocal,
-                                    /*AddressSpace=*/1);
+        M, WordTy, /*isConstant=*/false, GlobalValue::ExternalLinkage,
+        UndefValue::get(WordTy), "_SP",
+        /*InsertBefore=*/nullptr, GlobalValue::NotThreadLocal,
+        /*AddressSpace=*/1);
     LLVM_DEBUG(dbgs() << "Adding SP:\t" << *Addr << "\n");
     auto *Lo = GlobalAlias::create(
-                                   ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage, "_SPlo",
-                                   ConstantExpr::getBitCast(Addr, ByteTy->getPointerTo(/*AddrSpace=*/1)),
-                                   &M);
+        ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage, "_SPlo",
+        ConstantExpr::getBitCast(Addr, ByteTy->getPointerTo(/*AddrSpace=*/1)),
+        &M);
     LLVM_DEBUG(dbgs() << "Adding lo:\t" << *Lo);
     auto *Hi = GlobalAlias::create(
-                                   ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage, "_SPhi",
-                                   ConstantExpr::getGetElementPtr(ByteTy, Lo, ConstantInt::get(WordTy, 1)),
-                                   &M);
+        ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage, "_SPhi",
+        ConstantExpr::getGetElementPtr(ByteTy, Lo, ConstantInt::get(WordTy, 1)),
+        &M);
     LLVM_DEBUG(dbgs() << "Adding hi:\t" << *Hi);
 
     ZPPtrAddrs[MOS6502::SP] = Addr;
@@ -178,13 +178,6 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
   }
 
   LLVM_DEBUG(dbgs() << "Replacing ZP pseudoinstructions.\n");
-
-  const auto ChangeZPOperand = [&](MachineOperand &MO) {
-    MO.ChangeToGA(ZPAddrs[MO.getReg()], /*Offset=*/0);
-  };
-  const auto ChangeZPPtrOperand = [&](MachineOperand &MO) {
-    MO.ChangeToGA(ZPPtrAddrs[MO.getReg()], /*Offset=*/0);
-  };
 
   for (Function &F : M.functions()) {
     MachineFunction &MF = MMI.getOrCreateMachineFunction(F);
@@ -195,29 +188,34 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
           continue;
 
         LLVM_DEBUG(dbgs() << "ZP Pseudo:\t" << I);
-        switch (I.getOpcode()) {
-        default:
-          llvm_unreachable("Unhandled pseudoinstruction.");
-        case MOS6502::ADCzpr:
-          I.setDesc(TII.get(MOS6502::ADCzp));
-          ChangeZPOperand(I.getOperand(2));
-          break;
-        case MOS6502::LDzpr:
-          I.setDesc(TII.get(MOS6502::LDzp));
-          ChangeZPOperand(I.getOperand(1));
-          break;
-        case MOS6502::LDAyindirr:
-          I.setDesc(TII.get(MOS6502::LDAyindir));
-          ChangeZPPtrOperand(I.getOperand(0));
-          break;
-        case MOS6502::STzpr:
-          I.setDesc(TII.get(MOS6502::STzp));
-          ChangeZPOperand(I.getOperand(0));
-          break;
-        case MOS6502::STAyindirr:
-          I.setDesc(TII.get(MOS6502::STAyindirr));
-          ChangeZPPtrOperand(I.getOperand(0));
-          break;
+
+        const auto LoweredOpcode = [](unsigned Opcode) {
+          switch (Opcode) {
+          default:
+            llvm_unreachable("Unhandled pseudoinstruction.");
+          case MOS6502::ADCzpr:
+            return MOS6502::ADCzp;
+          case MOS6502::LDzpr:
+            return MOS6502::LDzp;
+          case MOS6502::LDAyindirr:
+            return MOS6502::LDAyindir;
+          case MOS6502::STzpr:
+            return MOS6502::STzp;
+          case MOS6502::STAyindirr:
+            return MOS6502::STAyindirr;
+          }
+        };
+
+        I.setDesc(TII.get(LoweredOpcode(I.getOpcode())));
+
+        for (MachineOperand &MO : I.operands()) {
+          if (!MO.isReg() || MO.isImplicit())
+            continue;
+          Register Reg = MO.getReg();
+          if (MOS6502::ZPRegClass.contains(Reg))
+            MO.ChangeToGA(ZPAddrs[MO.getReg()], /*Offset=*/0);
+          else if (MOS6502::ZP_PTRRegClass.contains(Reg))
+            MO.ChangeToGA(ZPPtrAddrs[MO.getReg()], /*Offset=*/0);
         }
         LLVM_DEBUG(dbgs() << "Replaced with:\t" << I);
       }
