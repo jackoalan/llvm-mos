@@ -3,8 +3,9 @@ let Namespace = "MOS6502" in {
 def sublo : SubRegIndex<8>;
 def subhi : SubRegIndex<8>;
 def subcarry : SubRegIndex<1>;
-def subn : SubRegIndex<2>;
-def subz : SubRegIndex<2>;
+def subnz : SubRegIndex<2>;
+def subn : SubRegIndex<1>;
+def subz : SubRegIndex<1>;
 
 }
 
@@ -21,13 +22,14 @@ def S : MOS6502Reg<"S">;
 def C : MOS6502Reg<"C">;
 def N : MOS6502Reg<"N">;
 def Z : MOS6502Reg<"Z">;
-def P : MOS6502Reg<"P"> {
-  let SubRegs = [C, N, Z];
-  let SubRegIndices = [subcarry, subn, subz];
-}
 def NZ : MOS6502Reg<"NZ"> {
   let SubRegs = [N, Z];
   let SubRegIndices = [subn, subz];
+  let CoveredBySubRegs = true;
+}
+def P : MOS6502Reg<"P"> {
+  let SubRegs = [C, NZ];
+  let SubRegIndices = [subcarry, subnz];
 }
 
 def SPlo : MOS6502Reg<"SPlo">;

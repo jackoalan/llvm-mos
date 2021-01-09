@@ -467,8 +467,8 @@ MOS6502InstrInfo::getSerializableDirectMachineOperandTargetFlags() const {
 void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     MachineIRBuilder &Builder, std::function<void()> ExpandFn) const {
   MachineBasicBlock &MBB = Builder.getMBB();
-  const MCRegisterInfo &MCRI =
-      *MBB.getParent()->getTarget().getMCRegisterInfo();
+  const TargetRegisterInfo &TRI =
+      *MBB.getParent()->getSubtarget().getRegisterInfo();
 
   // Returns whether a physreg could be live into the pseudo.
   const auto IsMaybeLive = [&](Register Reg) {
@@ -480,16 +480,16 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   // Returns the locations modified by the given instruction.
   const auto GetWrites = [&](MachineInstr &MI) {
     SparseBitVector<> Writes;
-    for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < MCRI.getNumRegs();
+    for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < TRI.getNumRegs();
          ++Reg) {
-      if (MI.modifiesRegister(Reg))
+      if (MI.modifiesRegister(Reg, &TRI))
         Writes.set(Reg);
     }
     return Writes;
   };
 
   SparseBitVector<> MaybeLive;
-  for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < MCRI.getNumRegs();
+  for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < TRI.getNumRegs();
        ++Reg) {
     if (IsMaybeLive(Reg))
       MaybeLive.set(Reg);
@@ -524,10 +524,12 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   SparseBitVector<> Save = MaybeLive;
   Save &= Writes;
   Save.intersectWithComplement(ExpectedWrites);
-  // Restoring A clobbers NZ
-  if (Save.test(MOS6502::A) && MaybeLive.test(MOS6502::NZ) &&
-      !ExpectedWrites.test(MOS6502::NZ)) {
-    Save.set(MOS6502::NZ);
+  // Restoring A, X, or Y writes NZ.
+  if (Save.test(MOS6502::A) || Save.test(MOS6502::X) || Save.test(MOS6502::Y)) {
+    Writes.set(MOS6502::NZ);
+    Save = MaybeLive;
+    Save &= Writes;
+    Save.intersectWithComplement(ExpectedWrites);
   }
 
   if (Save.test(MOS6502::X) && Save.test(MOS6502::Z))
@@ -544,8 +546,15 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   // reserved reg for other purposes as well, so it shouldn't be too much of a
   // burden on register allocation.
 
+  const auto RecordSaved = [&](Register Reg) {
+    for (MCSubRegIterator SubReg(Reg, &TRI, /*IncludeSelf=*/true);
+         SubReg.isValid(); ++SubReg) {
+      Save.reset(*SubReg);
+    }
+  };
+
   Builder.setInsertPt(MBB, Begin);
-  if (Save.test(MOS6502::NZ))
+  if (Save.test(MOS6502::P))
     Builder.buildInstr(MOS6502::PHP);
   if (Save.test(MOS6502::A))
     Builder.buildInstr(MOS6502::PHA);
@@ -555,19 +564,39 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_0).addUse(MOS6502::Y);
 
   Builder.setInsertPt(MBB, End);
-  if (Save.test(MOS6502::A))
+  if (Save.test(MOS6502::A)) {
     Builder.buildInstr(MOS6502::PLA);
-  if (Save.test(MOS6502::X))
+    RecordSaved(MOS6502::A);
+  }
+  if (Save.test(MOS6502::X)) {
     Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::X).addUse(MOS6502::ZP_0);
-  else if (Save.test(MOS6502::Y))
+    RecordSaved(MOS6502::X);
+  } else if (Save.test(MOS6502::Y)) {
     Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::Y).addUse(MOS6502::ZP_0);
-  if (Save.test(MOS6502::NZ))
+    RecordSaved(MOS6502::Y);
+  }
+  if (Save.test(MOS6502::P)) {
     Builder.buildInstr(MOS6502::PLP);
+    RecordSaved(MOS6502::P);
+  }
 
-  Save.reset(MOS6502::NZ);
-  Save.reset(MOS6502::A);
-  Save.reset(MOS6502::X);
-  Save.reset(MOS6502::Y);
-  if (Save.count())
-    report_fatal_error("Cannot yet preserve register type.");
+  if (Save.count()) {
+    for (Register Reg : Save)
+      LLVM_DEBUG(dbgs() << "Unhandled saved register: " << TRI.getName(Reg)
+                        << "\n");
+
+    LLVM_DEBUG(dbgs() << "MaybeLive:\n");
+    for (Register Reg : MaybeLive)
+      LLVM_DEBUG(dbgs() << TRI.getName(Reg) << "\n");
+
+    LLVM_DEBUG(dbgs() << "Writes:\n");
+    for (Register Reg : Writes)
+      LLVM_DEBUG(dbgs() << TRI.getName(Reg) << "\n");
+
+    LLVM_DEBUG(dbgs() << "Expected Writes:\n");
+    for (Register Reg : ExpectedWrites)
+      LLVM_DEBUG(dbgs() << TRI.getName(Reg) << "\n");
+
+    report_fatal_error("Cannot yet preserve register.");
+  }
 }
