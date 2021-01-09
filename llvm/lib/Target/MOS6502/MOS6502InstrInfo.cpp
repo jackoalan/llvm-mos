@@ -512,7 +512,7 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     SparseBitVector<> Writes;
     for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < TRI.getNumRegs();
          ++Reg) {
-      if (MI.modifiesRegister(Reg, &TRI))
+      if (MI.definesRegister(Reg, &TRI))
         Writes.set(Reg);
     }
     return Writes;
@@ -584,7 +584,7 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   };
 
   Builder.setInsertPt(MBB, Begin);
-  if (Save.test(MOS6502::P))
+  if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C))
     Builder.buildInstr(MOS6502::PHP);
   if (Save.test(MOS6502::A))
     Builder.buildInstr(MOS6502::PHA);
@@ -605,7 +605,7 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::Y).addUse(MOS6502::ZP_0);
     RecordSaved(MOS6502::Y);
   }
-  if (Save.test(MOS6502::P)) {
+  if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C)) {
     Builder.buildInstr(MOS6502::PLP);
     RecordSaved(MOS6502::P);
   }
