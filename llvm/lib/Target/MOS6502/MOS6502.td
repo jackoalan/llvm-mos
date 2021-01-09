@@ -16,4 +16,5 @@ def MOS6502InstrInfo : InstrInfo {
 
 def MOS6502 : Target {
   let InstructionSet = MOS6502InstrInfo;
+  let AllowRegisterRenaming = 1;
 }
