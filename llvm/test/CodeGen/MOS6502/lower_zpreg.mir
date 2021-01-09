@@ -2,8 +2,11 @@
 # CHECK-LABEL: --- |
 # CHECK: @_ZP_PTR_0 = private addrspace(1) global i16 undef
 # CHECK: @_ZP_2 = private addrspace(1) global i8 undef
+# CHECK: @_SP = addrspace(1) global i16 undef
 # CHECK: @_ZP_0 = private alias i8, bitcast (i16 addrspace(1)* @_ZP_PTR_0 to i8 addrspace(1)*)
 # CHECK: @_ZP_1 = private alias i8, getelementptr (i8, i8 addrspace(1)* @_ZP_0, i16 1)
+# CHECK: @_SPlo = private alias i8, bitcast (i16 addrspace(1)* @_SP to i8 addrspace(1)*)
+# CHECK: @_SPhi = private alias i8, getelementptr (i8, i8 addrspace(1)* @_SPlo, i16 1)
 --- |
   define void @test() {
     entry:
@@ -17,8 +20,14 @@ body: |
     $a = LDzpr $zp_0, implicit-def $nz
     $zp_1 = STzpr $a
     $a = LDzpr $zp_2, implicit-def $nz
+    $a = LDzpr $splo, implicit-def $nz
+    $a = LDzpr $sphi, implicit-def $nz
+    LDAyindirr $sp, implicit-def $a, implicit-def $nz, implicit $y
 # CHECK: LDAyindir @_ZP_PTR_0, implicit-def $a, implicit-def $nz, implicit $y
 # CHECK: $a = LDzp @_ZP_0, implicit-def $nz
 # CHECK: STzp @_ZP_1, $a
 # CHECK: $a = LDzp @_ZP_2, implicit-def $nz
+# CHECK: $a = LDzp @_SPlo, implicit-def $nz
+# CHECK: $a = LDzp @_SPhi, implicit-def $nz
+# CHECK: LDAyindir @_SP, implicit-def $a, implicit-def $nz, implicit $y
 ...

@@ -44,6 +44,7 @@ MOS6502LowerZPReg::MOS6502LowerZPReg() : ModulePass(ID) {
 }
 
 bool MOS6502LowerZPReg::runOnModule(Module &M) {
+  bool UsesSP = false;
   MCRegister HighestZP;
   MCRegister HighestZPPtr;
 
@@ -60,9 +61,11 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
           if (!MO.isReg())
             continue;
           MCRegister R = MO.getReg();
-          if (MOS6502::ZPRegClass.contains(R))
+          if (R == MOS6502::SP || R == MOS6502::SPlo || R == MOS6502::SPhi)
+            UsesSP = true;
+          else if (MOS6502::ZPRegClass.contains(R))
             HighestZP = std::max(HighestZP, R);
-          if (MOS6502::ZP_PTRRegClass.contains(R))
+          else if (MOS6502::ZP_PTRRegClass.contains(R))
             HighestZPPtr = std::max(HighestZPPtr, R);
         }
       }
@@ -70,12 +73,14 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
   }
 
   const auto ZPIndex = [](MCRegister ZP) -> int {
-    if (!ZP.isValid()) return -1;
+    if (!ZP.isValid())
+      return -1;
     assert(MOS6502::ZPRegClass.contains(ZP));
     return ZP - MOS6502::ZP_0;
   };
   const auto ZPPtrIndex = [](MCRegister ZPPtr) -> int {
-    if (!ZPPtr.isValid()) return -1;
+    if (!ZPPtr.isValid())
+      return -1;
     assert(MOS6502::ZP_PTRRegClass.contains(ZPPtr));
     return ZPPtr - MOS6502::ZP_PTR_0;
   };
@@ -92,19 +97,17 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
   else
     LLVM_DEBUG(dbgs() << "No ZP_PTR registers used.\n");
 
+  if (UsesSP)
+    LLVM_DEBUG(dbgs() << "Uses SP register.\n");
+  else
+    LLVM_DEBUG(dbgs() << "Does not use SP register.\n");
+
   Type *WordTy = Type::getInt16Ty(M.getContext());
   Type *ByteTy = Type::getInt8Ty(M.getContext());
   MCRegister ZP = MOS6502::ZP_0;
 
-  auto ZPs = std::make_unique<GlobalValue *[]>(ZPIndex(HighestZP) + 1);
-  auto ZPPtrs = std::make_unique<GlobalValue *[]>(ZPPtrIndex(HighestZPPtr) + 1);
-
-  const auto ZPAddr = [&](MCRegister ZP) -> GlobalValue *& {
-    return ZPs[ZPIndex(ZP)];
-  };
-  const auto ZPPtrAddr = [&](MCRegister ZPPtr) -> GlobalValue *& {
-    return ZPPtrs[ZPPtrIndex(ZPPtr)];
-  };
+  auto ZPAddrs = std::make_unique<GlobalValue *[]>(MRI.getNumRegs() + 1);
+  auto ZPPtrAddrs = std::make_unique<GlobalValue *[]>(MRI.getNumRegs() + 1);
 
   for (MCRegister ZPPtr = MOS6502::ZP_PTR_0; ZPPtr <= HighestZPPtr;
        ZPPtr = ZPPtr + 1) {
@@ -114,7 +117,7 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
         /*InsertBefore=*/nullptr, GlobalValue::NotThreadLocal,
         /*AddressSpace=*/1);
 
-    ZPPtrAddr(ZPPtr) = Addr;
+    ZPPtrAddrs[ZPPtr] = Addr;
     LLVM_DEBUG(dbgs() << "Adding ptr:\t" << *Addr << "\n");
 
     GlobalAlias *Lo;
@@ -122,10 +125,9 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
       Lo = GlobalAlias::create(
           ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage,
           GetZPName(ZP, MRI),
-          ConstantExpr::getBitCast(Addr,
-                                   ByteTy->getPointerTo(/*AddrSpace=*/1)),
+          ConstantExpr::getBitCast(Addr, ByteTy->getPointerTo(/*AddrSpace=*/1)),
           &M);
-      ZPAddr(ZP) = Lo;
+      ZPAddrs[ZP] = Lo;
       LLVM_DEBUG(dbgs() << "Adding lo:\t" << *Lo);
       ZP = ZP + 1;
     }
@@ -137,7 +139,7 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
                                   ByteTy, Lo, ConstantInt::get(WordTy, 1)),
                               &M);
       LLVM_DEBUG(dbgs() << "Adding hi:\t" << *Hi);
-      ZPAddr(ZP) = Hi;
+      ZPAddrs[ZP] = Hi;
       ZP = ZP + 1;
     }
   }
@@ -148,17 +150,40 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
         UndefValue::get(ByteTy), GetZPName(ZP, MRI),
         /*InsertBefore=*/nullptr, GlobalValue::NotThreadLocal,
         /*AddressSpace=*/1);
-    ZPAddr(ZP) = Addr;
+    ZPAddrs[ZP] = Addr;
     LLVM_DEBUG(dbgs() << "Adding standalone zp:\t" << *Addr << "\n");
+  }
+
+  if (UsesSP) {
+    auto *Addr = new GlobalVariable(
+                                    M, WordTy, /*isConstant=*/false, GlobalValue::ExternalLinkage,
+                                    UndefValue::get(WordTy), "_SP",
+                                    /*InsertBefore=*/nullptr, GlobalValue::NotThreadLocal,
+                                    /*AddressSpace=*/1);
+    LLVM_DEBUG(dbgs() << "Adding SP:\t" << *Addr << "\n");
+    auto *Lo = GlobalAlias::create(
+                                   ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage, "_SPlo",
+                                   ConstantExpr::getBitCast(Addr, ByteTy->getPointerTo(/*AddrSpace=*/1)),
+                                   &M);
+    LLVM_DEBUG(dbgs() << "Adding lo:\t" << *Lo);
+    auto *Hi = GlobalAlias::create(
+                                   ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage, "_SPhi",
+                                   ConstantExpr::getGetElementPtr(ByteTy, Lo, ConstantInt::get(WordTy, 1)),
+                                   &M);
+    LLVM_DEBUG(dbgs() << "Adding hi:\t" << *Hi);
+
+    ZPPtrAddrs[MOS6502::SP] = Addr;
+    ZPAddrs[MOS6502::SPlo] = Lo;
+    ZPAddrs[MOS6502::SPhi] = Hi;
   }
 
   LLVM_DEBUG(dbgs() << "Replacing ZP pseudoinstructions.\n");
 
-  const auto ChangeZPOperand = [&](MachineOperand& MO) {
-    MO.ChangeToGA(ZPAddr(MO.getReg()), /*Offset=*/0);
+  const auto ChangeZPOperand = [&](MachineOperand &MO) {
+    MO.ChangeToGA(ZPAddrs[MO.getReg()], /*Offset=*/0);
   };
-  const auto ChangeZPPtrOperand = [&](MachineOperand& MO) {
-    MO.ChangeToGA(ZPPtrAddr(MO.getReg()), /*Offset=*/0);
+  const auto ChangeZPPtrOperand = [&](MachineOperand &MO) {
+    MO.ChangeToGA(ZPPtrAddrs[MO.getReg()], /*Offset=*/0);
   };
 
   for (Function &F : M.functions()) {
