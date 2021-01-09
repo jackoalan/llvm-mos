@@ -1,5 +1,35 @@
 # RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
 ---
+name: incsp
+# CHECK-LABEL: name: incsp
+body: |
+  bb.0.entry:
+    liveins: $c
+    IncSP -1234, implicit-def $sp, implicit $sp
+    RTS implicit $c
+# CHECK:      PHP
+# CHECK-NEXT: LDCimm 0
+# CHECK-NEXT: $a = LDimm 46
+# CHECK-NEXT: $a = ADCzpr $a, $splo
+# CHECK-NEXT: $splo = STzpr $a
+# CHECK-NEXT: $a = LDimm 251
+# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $sphi = STzpr $a
+# CHECK-NEXT: PLP
+...
+---
+name: incsp_hi_only
+# CHECK-LABEL: name: incsp
+body: |
+  bb.0.entry:
+    IncSP -512, implicit-def $sp, implicit $sp
+    RTS
+# CHECK:      LDCimm 0
+# CHECK-NEXT: $a = LDimm 254
+# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $sphi = STzpr $a
+...
+---
 name: ldaidx
 # CHECK-LABEL: name: ldaidx
 body: |

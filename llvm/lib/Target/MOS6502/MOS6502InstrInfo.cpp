@@ -369,6 +369,36 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
   auto &MI = *Builder.getInsertPt();
   bool Changed = false;
   switch (MI.getOpcode()) {
+  case MOS6502::IncSP: {
+    int64_t BytesImm = MI.getOperand(0).getImm();
+    assert(BytesImm);
+    assert(-32768 <= BytesImm && BytesImm < 32768);
+    auto Bytes = static_cast<uint16_t>(BytesImm);
+    auto LoBytes = Bytes & 0xFF;
+    auto HiBytes = Bytes >> 8;
+    assert(LoBytes || HiBytes);
+
+    Builder.buildInstr(MOS6502::LDCimm).addImm(0);
+    if (LoBytes) {
+      Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(LoBytes);
+      Builder.buildInstr(MOS6502::ADCzpr)
+          .addDef(MOS6502::A)
+          .addUse(MOS6502::A)
+          .addUse(MOS6502::SPlo);
+      Builder.buildInstr(MOS6502::STzpr)
+          .addDef(MOS6502::SPlo)
+          .addUse(MOS6502::A);
+    }
+    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(HiBytes);
+    Builder.buildInstr(MOS6502::ADCzpr)
+        .addDef(MOS6502::A)
+        .addUse(MOS6502::A)
+        .addUse(MOS6502::SPhi);
+    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::SPhi).addUse(MOS6502::A);
+    Changed = true;
+    break;
+  }
+
   case MOS6502::LDidx:
     // This occur when X or Y is both the destination and index register.
     // Since the 6502 has no instruction for this, use A as the destination
