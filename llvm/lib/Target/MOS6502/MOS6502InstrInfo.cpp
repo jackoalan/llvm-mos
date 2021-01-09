@@ -23,6 +23,13 @@ using namespace llvm;
 #define GET_INSTRINFO_CTOR_DTOR
 #include "MOS6502GenInstrInfo.inc"
 
+static bool isMaybeLive(MachineIRBuilder &Builder, Register Reg) {
+  const auto &MBB = Builder.getMBB();
+  return MBB.computeRegisterLiveness(
+             MBB.getParent()->getSubtarget().getRegisterInfo(), Reg,
+             Builder.getInsertPt()) != MachineBasicBlock::LQR_Dead;
+}
+
 bool MOS6502InstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI,
                                                          AAResults *AA) const {
   switch (MI.getOpcode()) {
@@ -304,6 +311,20 @@ void MOS6502InstrInfo::copyPhysRegNoPreserve(MachineIRBuilder &Builder,
     copyPhysRegNoPreserve(Builder, TRI.getSubReg(DestReg, MOS6502::subhi),
                           TRI.getSubReg(SrcReg, MOS6502::subhi));
   } else if (areClasses(MOS6502::ZPRegClass, MOS6502::ZPRegClass)) {
+    if (isMaybeLive(Builder, MOS6502::A)) {
+      // Try to using X or Y over A to avoid saving A.
+      if (!isMaybeLive(Builder, MOS6502::X)) {
+        copyPhysRegNoPreserve(Builder, MOS6502::X, SrcReg);
+        copyPhysRegNoPreserve(Builder, DestReg, MOS6502::X);
+        return;
+      }
+      if (!isMaybeLive(Builder, MOS6502::Y)) {
+        copyPhysRegNoPreserve(Builder, MOS6502::Y, SrcReg);
+        copyPhysRegNoPreserve(Builder, DestReg, MOS6502::Y);
+        return;
+      }
+    }
+
     copyPhysRegNoPreserve(Builder, MOS6502::A, SrcReg);
     copyPhysRegNoPreserve(Builder, DestReg, MOS6502::A);
   } else {
@@ -554,13 +575,6 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   const TargetRegisterInfo &TRI =
       *MBB.getParent()->getSubtarget().getRegisterInfo();
 
-  // Returns whether a physreg could be live into the pseudo.
-  const auto IsMaybeLive = [&](Register Reg) {
-    return MBB.computeRegisterLiveness(
-               MBB.getParent()->getSubtarget().getRegisterInfo(), Reg,
-               Builder.getInsertPt()) != MachineBasicBlock::LQR_Dead;
-  };
-
   // Returns the locations modified by the given instruction.
   const auto GetWrites = [&](MachineInstr &MI) {
     SparseBitVector<> Writes;
@@ -575,7 +589,7 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   SparseBitVector<> MaybeLive;
   for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < TRI.getNumRegs();
        ++Reg) {
-    if (IsMaybeLive(Reg))
+    if (isMaybeLive(Builder, Reg))
       MaybeLive.set(Reg);
   }
 
