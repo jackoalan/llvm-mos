@@ -12,8 +12,8 @@ stack:
 body:             |
   bb.0.entry:
     SThs $a, %stack.2 :: (store 1 into %stack.2)
-    $zp_ptr_1 = FrameAddr %stack.0, implicit-def $nz
-    $zp_ptr_2 = FrameAddr %stack.1, implicit-def $nz
+    $zp_ptr_1 = FrameAddr %stack.0, implicit-def $nz, implicit $sp
+    $zp_ptr_2 = FrameAddr %stack.1, implicit-def $nz, implicit $sp
     SThs $a, %stack.4 :: (store 1 into %stack.4)
     SThs $a, %stack.3 :: (store 1 into %stack.3)
     $a = LDhs %stack.3 :: (load 1 from %stack.3)

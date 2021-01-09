@@ -50,6 +50,8 @@ def SThs : Pseudo {
 def FrameAddr : Pseudo {
   dag InOperandList = (ins i16imm:$fi);
   dag OutOperandList = (outs ZP_PTR:$dst);
+
+  let Uses = [SP];
   let Defs = [NZ];
 }
 
@@ -58,6 +60,7 @@ def FrameAddr : Pseudo {
 def IncSP : Pseudo {
   dag InOperandList = (ins i16imm:$bytes);
   dag OutOperandList = (outs);
+
   let Uses = [SP];
   let Defs = [SP];
 }

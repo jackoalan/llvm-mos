@@ -1,5 +1,49 @@
 # RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
 ---
+name: frameaddr
+# CHECK-LABEL: name: frameaddr
+body: |
+  bb.0.entry:
+    liveins: $c
+    $zp_ptr_1 = FrameAddr 1234, implicit-def $nz, implicit $sp
+    RTS implicit $c
+# CHECK:      PHP
+# CHECK-NEXT: LDCimm 0
+# CHECK-NEXT: $a = LDimm 210
+# CHECK-NEXT: $a = ADCzpr $a, $splo
+# CHECK-NEXT: $zp_2 = STzpr $a
+# CHECK-NEXT: $a = LDimm 4
+# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $zp_3 = STzpr $a
+# CHECK-NEXT: PLP
+...
+---
+name: frameaddr_hi_only
+# CHECK-LABEL: name: frameaddr_hi_only
+body: |
+  bb.0.entry:
+    $zp_ptr_1 = FrameAddr 512, implicit-def $nz, implicit $sp
+    RTS
+# CHECK:      $a = LDzpr $splo
+# CHECK-NEXT: $zp_2 = STzpr $a
+# CHECK-NEXT: LDCimm 0
+# CHECK-NEXT: $a = LDimm 2
+# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $zp_3 = STzpr $a
+...
+---
+name: frameaddr0
+# CHECK-LABEL: name: frameaddr0
+body: |
+  bb.0.entry:
+    $zp_ptr_1 = FrameAddr 0, implicit-def $nz, implicit $sp
+    RTS
+# CHECK:      $a = LDzpr $splo
+# CHECK-NEXT: $zp_2 = STzpr $a
+# CHECK-NEXT: $a = LDzpr $sphi
+# CHECK-NEXT: $zp_3 = STzpr $a
+...
+---
 name: incsp
 # CHECK-LABEL: name: incsp
 body: |
