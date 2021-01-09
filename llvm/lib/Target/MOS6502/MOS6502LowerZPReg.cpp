@@ -213,8 +213,10 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
         case MOS6502::STzpr:
           I.setDesc(TII.get(MOS6502::STzp));
           ChangeZPOperand(I.getOperand(0));
-          while (I.getNumOperands() > 2)
-            I.RemoveOperand(I.getNumOperands() - 1);
+          break;
+        case MOS6502::STAyindirr:
+          I.setDesc(TII.get(MOS6502::STAyindirr));
+          ChangeZPPtrOperand(I.getOperand(0));
           break;
         }
         LLVM_DEBUG(dbgs() << "Replaced with:\t" << I);

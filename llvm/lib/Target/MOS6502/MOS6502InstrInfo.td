@@ -387,6 +387,18 @@ def STAyindirr : Pseudo {
   let mayStore = true;
 }
 
+def STAyindir : Instr {
+  dag InOperandList = (ins i16imm:$addr);
+  dag OutOperandList = (outs);
+
+  let Uses = [A, Y];
+  let Defs = [];
+
+  let AsmString = "LDA\t($addr),Y";
+
+  let mayStore = true;
+}
+
 // Branches to $tgt if $flag = $val.
 def BR : Instr {
   dag InOperandList = (ins label:$tgt, Flag:$flag, i1imm:$val);
