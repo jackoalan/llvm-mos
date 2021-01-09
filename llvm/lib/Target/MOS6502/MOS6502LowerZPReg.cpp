@@ -198,6 +198,10 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
         switch (I.getOpcode()) {
         default:
           llvm_unreachable("Unhandled pseudoinstruction.");
+        case MOS6502::ADCzpr:
+          I.setDesc(TII.get(MOS6502::ADCzp));
+          ChangeZPOperand(I.getOperand(2));
+          break;
         case MOS6502::LDzpr:
           I.setDesc(TII.get(MOS6502::LDzp));
           ChangeZPOperand(I.getOperand(1));

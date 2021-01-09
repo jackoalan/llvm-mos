@@ -87,7 +87,20 @@ def ADCzpr : Pseudo {
   let Uses = [C];
   let Defs = [C, NZ];
 
-  let AsmString = "ADC\t#$r";
+  let isAdd = true;
+  let isReMaterializable = true;
+  let isCommutable = true;
+}
+
+def ADCzp : Instr {
+  dag InOperandList = (ins Ac:$l, i8imm:$r);
+  dag OutOperandList = (outs Ac:$dst);
+  let Constraints = "$dst = $l";
+
+  let Uses = [C];
+  let Defs = [C, NZ];
+
+  let AsmString = "ADC\t$r";
 
   let isAdd = true;
   let isReMaterializable = true;
