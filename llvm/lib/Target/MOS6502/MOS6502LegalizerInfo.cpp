@@ -196,7 +196,8 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
     const MachineOperand &Op = GlobalBase->getOperand(1);
     Builder.buildInstr(G_GLOBAL_VALUE)
         .add(Result)
-        .addGlobalAddress(Op.getGlobal(), Op.getOffset() + ConstOffset->Value);
+        .addGlobalAddress(Op.getGlobal(),
+                          Op.getOffset() + ConstOffset->Value.getSExtValue());
     MI.removeFromParent();
     return true;
   }
@@ -212,8 +213,10 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
   }
 
   // Similarly for values that fit in 8-bit unsigned constants.
-  if (ConstOffset && 0 <= ConstOffset->Value && ConstOffset->Value < 256) {
-    auto Const = Builder.buildConstant(LLT::scalar(8), ConstOffset->Value);
+  if (ConstOffset && ConstOffset->Value.isNonNegative() &&
+      ConstOffset->Value.getActiveBits() <= 8) {
+    auto Const =
+        Builder.buildConstant(LLT::scalar(8), ConstOffset->Value.trunc(8));
     Helper.Observer.changingInstr(MI);
     Offset.setReg(Const->getOperand(0).getReg());
     Helper.Observer.changedInstr(MI);

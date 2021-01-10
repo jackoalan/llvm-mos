@@ -312,11 +312,8 @@ static void MatchIndirectIndexed(Register Addr, MachineOperand &BaseOut,
   BaseOut.ChangeToRegister(Base, /*isDef=*/false);
   auto ConstOffset = getConstantVRegValWithLookThrough(Offset, MRI);
   if (ConstOffset) {
-    // Value is sign extended, but we really want the unsigned value.
-    if (ConstOffset->Value < 0)
-      ConstOffset->Value += 256;
-    assert(0 <= ConstOffset->Value && ConstOffset->Value < 256);
-    OffsetOut.ChangeToImmediate(ConstOffset->Value);
+    assert(ConstOffset->Value.getBitWidth() == 8);
+    OffsetOut.ChangeToImmediate(ConstOffset->Value.getZExtValue());
   } else
     OffsetOut.ChangeToRegister(Offset, /*isDef=*/false);
 }
@@ -475,8 +472,9 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &MI) {
 
   auto RConst = getConstantVRegValWithLookThrough(R, *Builder.getMRI());
   if (RConst) {
+    assert(RConst->Value.getBitWidth() == 8);
     buildCopy(Builder, MOS6502::A, L);
-    Builder.buildInstr(MOS6502::ADCimm).addImm(RConst->Value);
+    Builder.buildInstr(MOS6502::ADCimm).addImm(RConst->Value.getZExtValue());
     buildCopy(Builder, Sum, MOS6502::A);
   } else {
     auto Add =

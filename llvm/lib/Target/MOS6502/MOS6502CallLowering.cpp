@@ -3,6 +3,7 @@
 #include "MOS6502CallingConv.h"
 
 #include "llvm/CodeGen/Analysis.h"
+#include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -103,7 +104,8 @@ void adjustArgFlags(CallLowering::ArgInfo &Arg, LLT Ty) {
 
 bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
                                       const Value *Val,
-                                      ArrayRef<Register> VRegs) const {
+                                      ArrayRef<Register> VRegs,
+                                      FunctionLoweringInfo &FLI) const {
   auto Return = MIRBuilder.buildInstrNoInsert(MOS6502::RTS);
 
   if (Val) {
@@ -143,7 +145,7 @@ bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
 
 bool MOS6502CallLowering::lowerFormalArguments(
     MachineIRBuilder &MIRBuilder, const Function &F,
-    ArrayRef<ArrayRef<Register>> VRegs) const {
+    ArrayRef<ArrayRef<Register>> VRegs, FunctionLoweringInfo &FLI) const {
   MachineFunction &MF = MIRBuilder.getMF();
   const DataLayout &DL = MF.getDataLayout();
   MachineRegisterInfo &MRI = MF.getRegInfo();
