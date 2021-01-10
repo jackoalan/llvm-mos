@@ -141,23 +141,23 @@ __ZP__5 = __ZP__4+1
 
 Notes:
 
-  - Setting up the stack frame only adjusts the high byte of __SP, since the
+  - Setting up the stack frame only adjusts the high byte of `__SP`, since the
     frame is a multiple of 256 bytes.
   - The compiler uses memset to clear the counts array.
   - Since next_char and report_counts are both external, the compiler cannot be
     certain that they do not call char_stats recursively, forcing the use of the
     C stack instead of static memory.
   - The character retrieved from next_char is shifted left to form the array
-    offset, with the low byte in A and the high byte in __ZP__1.
+    offset, with the low byte in A and the high byte in `__ZP__1`.
   - The offset is added to the array start to form the count address in
-    __ZP__PTR__2.
-  - The current two-byte count is loaded into X and Y from __ZP__PTR__2. This
+    `__ZP__PTR__2`.
+  - The current two-byte count is loaded into `X` and `Y` from `__ZP__PTR__2`. This
     isn't special cased; the register allocator decides that these values can be
     efficiently kept in registers.
   - Once the count has been incremented, it is stored back into the array.
-  - The ROL of __ZP__1 seems like a bit overkill to shift one bit out of the
+  - The `ROL` of `__ZP__1` seems like a bit overkill to shift one bit out of the
     carry into an all-zero byte, but it's not much slower than using a `BCC` or
-    saving/restoring A. (A is live at this point.)
+    saving/restoring `A`. (`A` is live at this point.)
     - The generated `LDX #0; STX z:__ZP__1; ROL __ZP__1` takes 6 bytes and 10 cycles.
     - `LDX #0; BCC end; LDX #1; end: STX __ZP__1` takes 8 bytes and 9-11 cycles.
     - `PHA; LDA #0; ROL A; STA __ZP__1; PLA` takes 10 bytes and 14 cycles.
@@ -177,10 +177,11 @@ TODO:
         concatenated together into one logical 8-bit array that is twice as
         long. This should simplify the handling of the array, since it would
         have the same size as the original.
-  - The offset of the array is copied into __ZP__PTR__1, even though it's
-    identical to __SP. __SP should be used directly.
-  - The current count in X and Y should be incremented directly using INX and
-    INY without moving them back to A.
+  - The offset of the array is copied into `__ZP__PTR__1`, even though it's
+    identical to `__SP`. `__SP` should be used directly.
+  - The current count in `X` and `Y` should be incremented directly using `INX` and
+    `INY` without moving them to `A`.
+  - `LDY #1` can be replaced with `INY`, saving a byte.
 
 </details>
 
@@ -189,10 +190,11 @@ TODO:
 ### Calling convention
 
 The calling convention is presently very barebones:
-- Non-pointer arguments/return values are passed in A, then X, then Y.
+- Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`.
 - Pointer arguments/return values are passed in successively increasing pairs
-  of ZP locations (ZP_PTR_1 -- ZP_PTR_127). ZP_PTR_0 is reserved, so it is not
-  used by the calling convention.
+  of ZP locations (`ZP_PTR_1` -- `ZP_PTR_127`). `ZP_PTR_0` overlaps with
+  `ZP_0`, which is reserved, so `ZP_PTR_0` is not used by the calling
+  convention.
 - The compiler bails if the arguments/return value don't fit.
 - All compiler-used ZP locations, all registers, and all flags are caller-saved.
   - Use of most physical registers/flags are mandatory for certain operations,
@@ -240,10 +242,14 @@ at the end of code generation, references to the zero page registers are lowered
 to abstract symbols placed in the zero page by the linker. Only registers
 actually accessed are emitted.
 
-Two 2-byte pointer registers are presently reserved by the compiler. One is used
-for last-chance saving/restoring of values after register allocation; the other
-is the soft stack pointer. Accordingly, at least two consecutive pairs of zero
-page registers must be available for compiler use.
+One 2-byte pointer register and one zero-page location are presently reserved by
+the compiler. The pointer is used for the soft stack pointer; the other is used 
+for last-chance saving/restoring of values after register allocation. The
+standalone register is considered `ZP_0`, which means it's the low byte of an
+nusable pointer register, `ZP_PTR_0`. `ZP_1` is freely usable for register
+allocation purposes, but any uses of `ZP_PTR_0` would clobber `ZP_0`, which is
+disallowed. Accordingly, at least two consecutive pairs of zero page registers
+must be available for compiler use, one for `SP`, and one for `ZP_PTR_0`.
 
 Eventually, a compiler flag should allow the user to specify how many zero page
 locations are available for use by the compiler. This will limit the register
