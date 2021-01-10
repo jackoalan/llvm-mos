@@ -155,26 +155,19 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
   }
 
   if (UsesSP) {
+    // External declaration, not definition.
     auto *Addr = new GlobalVariable(
         M, WordTy, /*isConstant=*/false, GlobalValue::ExternalLinkage,
-        UndefValue::get(WordTy), "_SP",
+        /*Initializer=*/nullptr, "_SP",
         /*InsertBefore=*/nullptr, GlobalValue::NotThreadLocal,
         /*AddressSpace=*/1);
     LLVM_DEBUG(dbgs() << "Adding SP:\t" << *Addr << "\n");
-    auto *Lo = GlobalAlias::create(
-        ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage, "_SPlo",
-        ConstantExpr::getBitCast(Addr, ByteTy->getPointerTo(/*AddrSpace=*/1)),
-        &M);
-    LLVM_DEBUG(dbgs() << "Adding lo:\t" << *Lo);
-    auto *Hi = GlobalAlias::create(
-        ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage, "_SPhi",
-        ConstantExpr::getGetElementPtr(ByteTy, Lo, ConstantInt::get(WordTy, 1)),
-        &M);
-    LLVM_DEBUG(dbgs() << "Adding hi:\t" << *Hi);
+
+    // Aliases to external declarations are not allowed, so SPhi needs
+    // to be special-cased.
 
     ZPPtrAddrs[MOS6502::SP] = Addr;
-    ZPAddrs[MOS6502::SPlo] = Lo;
-    ZPAddrs[MOS6502::SPhi] = Hi;
+    ZPAddrs[MOS6502::SPlo] = Addr;
   }
 
   LLVM_DEBUG(dbgs() << "Replacing ZP pseudoinstructions.\n");
@@ -232,7 +225,9 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
           if (!MO.isReg() || MO.isImplicit())
             continue;
           Register Reg = MO.getReg();
-          if (MOS6502::ZPRegClass.contains(Reg))
+          if (Reg == MOS6502::SPhi)
+            MO.ChangeToGA(ZPAddrs[MOS6502::SPlo], /*Offset=*/1);
+          else if (MOS6502::ZPRegClass.contains(Reg))
             MO.ChangeToGA(ZPAddrs[MO.getReg()], /*Offset=*/0);
           else if (MOS6502::ZP_PTRRegClass.contains(Reg))
             MO.ChangeToGA(ZPPtrAddrs[MO.getReg()], /*Offset=*/0);

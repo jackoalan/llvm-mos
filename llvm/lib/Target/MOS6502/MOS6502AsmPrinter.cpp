@@ -45,7 +45,7 @@ void MOS6502AsmPrinter::emitEndOfAsmFile(Module &M) {
     OutStreamer->emitSymbolAttribute(S, MCSA_Global);
   ExternalSymbols.clear();
 
-  for (const auto &G : M) {
+  for (const auto &G : M.global_values()) {
     if (!G.isDeclaration())
       continue;
     MCSymbol *Symbol = getSymbol(&G);

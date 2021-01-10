@@ -53,36 +53,32 @@ void char_stats() {
 
 ```asm
 .code
-.global	char__stats                     ; -- Begin function char_stats
-char__stats:                            ; @char_stats
-; %bb.0:                                ; %entry
+.global	char__stats
+char__stats:
 	CLC
 	LDA	#254
-	ADC	z:__SPhi
-	STA	z:__SPhi
-	LDA	z:__SPlo
+	ADC	z:__SP+1
+	STA	z:__SP+1
+	LDA	z:__SP
 	STA	z:__ZP__2
-	LDA	z:__SPhi
+	LDA	z:__SP+1
 	STA	z:__ZP__3
 	LDA	#0
 	LDX	#0
 	LDY	#2
 	JSR	memset
-LBB0__1:                                ; %while.body
-                                        ; =>This Inner Loop Header: Depth=1
+LBB0__1:
 	JSR	next__char
 	CMP	#0
 	BEQ	LBB0__3
-; %bb.2:                                ; %while.body
-                                        ;   in Loop: Header=BB0_1 Depth=1
 	ASL	A
 	LDX	#0
 	STX	z:__ZP__1
 	ROL	z:__ZP__1
 	CLC
-	LDX	z:__SPlo
+	LDX	z:__SP
 	STX	z:__ZP__2
-	LDX	z:__SPhi
+	LDX	z:__SP+1
 	STX	z:__ZP__3
 	ADC	z:__ZP__2
 	STA	z:__ZP__4
@@ -109,30 +105,26 @@ LBB0__1:                                ; %while.body
 	LDY	#1
 	STA	(__ZP__PTR__2),Y
 	JMP	LBB0__1
-LBB0__3:                                ; %while.end
-	LDA	z:__SPlo
+LBB0__3:
+	LDA	z:__SP
 	STA	z:__ZP__2
-	LDA	z:__SPhi
+	LDA	z:__SP+1
 	STA	z:__ZP__3
 	JSR	report__counts
 	CLC
 	LDA	#2
-	ADC	z:__SPhi
-	STA	z:__SPhi
+	ADC	z:__SP+1
+	STA	z:__SP+1
 	RTS
-                                        ; -- End function
+
 .zeropage
-__ZP__PTR__0:                           ; @_ZP_PTR_0
+__ZP__PTR__0:
 	.res	2
 
-__ZP__PTR__1:                           ; @_ZP_PTR_1
+__ZP__PTR__1:
 	.res	2
 
-__ZP__PTR__2:                           ; @_ZP_PTR_2
-	.res	2
-
-.global	__SP                            ; @_SP
-__SP:
+__ZP__PTR__2:
 	.res	2
 
 __ZP__0 = __ZP__PTR__0
@@ -141,11 +133,10 @@ __ZP__2 = __ZP__PTR__1
 __ZP__3 = __ZP__2+1
 __ZP__4 = __ZP__PTR__2
 __ZP__5 = __ZP__4+1
-__SPlo = __SP
-__SPhi = __SPlo+1
 .global	memset
 .global	next__char
 .global	report__counts
+.global	__SP
 ```
 
 Notes:
