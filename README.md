@@ -155,9 +155,28 @@ Notes:
     isn't special cased; the register allocator decides that these values can be
     efficiently kept in registers.
   - Once the count has been incremented, it is stored back into the array.
+  - The ROL of __ZP__1 seems like a bit overkill to shift one bit out of the
+    carry into an all-zero byte, but it's not much slower than using a `BCC` or
+    saving/restoring A. (A is live at this point.)
+    - The generated `LDX #0; STX z:__ZP__1; ROL __ZP__1` takes 6 bytes and 10 cycles.
+    - `LDX #0; BCC end; LDX #1; end: STX __ZP__1` takes 8 bytes and 9-11 cycles.
+    - `PHA; LDA #0; ROL A; STA __ZP__1; PLA` takes 10 bytes and 14 cycles.
 
 TODO:
 
+  - Since the 6502 can only manipulate one byte at a time, there's no
+    requirement for this case for the low and high bytes of the counts array to
+    be stored contiguously. If the low bytes and high bytes were broken out into
+    two separate arrays, then both could be accessed via the indirect indexed
+    addressing modes, saving a 16-bit shift and a 16-bit pointer addition.
+      - This wouldn't work if any pointers to the contents of the array were used
+        for anything other than load/store.
+      - This would make the program slower if the array had more than 256 entries,
+        since two 16-bit pointers would need to be calculated instead of one.
+      - Instead of requiring two memset loops, the low and high arrays could be
+        concatenated together into one logical 8-bit array that is twice as
+        long. This should simplify the handling of the array, since it would
+        have the same size as the original.
   - The offset of the array is copied into __ZP__PTR__1, even though it's
     identical to __SP. __SP should be used directly.
   - The current count in X and Y should be incremented directly using INX and
