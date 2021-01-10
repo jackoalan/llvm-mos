@@ -61,6 +61,8 @@ public:
   const InlineAsmLowering *getInlineAsmLowering() const override {
     return InlineAsmLoweringInfo.get();
   }
+
+  bool enableSubRegLiveness() const override { return true; }
 };
 
 } // namespace llvm
