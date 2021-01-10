@@ -103,14 +103,14 @@ def ADCzp : Instr {
   let Uses = [C];
   let Defs = [C, NZ];
 
-  let AsmString = "ADC\t$r";
+  let AsmString = "ADC\tz:$r";
 
   let isAdd = true;
   let isReMaterializable = true;
   let isCommutable = true;
 }
 
-def ASL : Instr {
+def ASL : Pseudo {
   dag InOperandList = (ins AZP:$src);
   dag OutOperandList = (outs AZP:$dst);
   let Constraints = "$dst = $src";
@@ -120,6 +120,31 @@ def ASL : Instr {
   let AsmString = "ASL\t$dst";
 
   let isReMaterializable = true;
+}
+
+def ASLA : Instr {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs);
+
+  let Uses = [A];
+  let Defs = [A, C, NZ];
+
+  let AsmString = "ASL\tA";
+
+  let isReMaterializable = true;
+}
+
+def ASLzp : Instr {
+  dag InOperandList = (ins i8imm:$zp);
+  dag OutOperandList = (outs);
+
+  let Defs = [C, NZ];
+
+  let AsmString = "ASL\tz:$zp";
+
+  let isReMaterializable = true;
+  let mayLoad = true;
+  let mayStore = true;
 }
 
 def CMPimm : Instr {
@@ -263,7 +288,7 @@ def LDAyindir : Instr {
   let mayLoad = true;
 }
 
-def ROL : Instr {
+def ROL : Pseudo {
   dag InOperandList = (ins AZP:$src);
   dag OutOperandList = (outs AZP:$dst);
   let Constraints = "$dst = $src";
@@ -271,9 +296,32 @@ def ROL : Instr {
   let Uses = [C];
   let Defs = [C, NZ];
 
-  let AsmString = "ROL\t$dst";
+  let isReMaterializable = true;
+}
+
+def ROLA : Instr {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs);
+
+  let Uses = [A];
+  let Defs = [A, C, NZ];
+
+  let AsmString = "ROL\tA";
 
   let isReMaterializable = true;
+}
+
+def ROLzp : Instr {
+  dag InOperandList = (ins i8imm:$zp);
+  dag OutOperandList = (outs);
+
+  let Defs = [C, NZ];
+
+  let AsmString = "ROL\tz:$zp";
+
+  let isReMaterializable = true;
+  let mayLoad = true;
+  let mayStore = true;
 }
 
 def TA_ : Instr {

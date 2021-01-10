@@ -56,8 +56,8 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
   for (Function &F : M.functions()) {
     MachineFunction &MF = MMI.getOrCreateMachineFunction(F);
     for (MachineBasicBlock &BB : MF) {
-      for (MachineInstr &I : BB) {
-        for (MachineOperand &MO : I.operands()) {
+      for (MachineInstr &MI : BB) {
+        for (MachineOperand &MO : MI.operands()) {
           if (!MO.isReg())
             continue;
           MCRegister R = MO.getReg();
@@ -183,18 +183,36 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
     MachineFunction &MF = MMI.getOrCreateMachineFunction(F);
     const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
     for (MachineBasicBlock &BB : MF) {
-      for (MachineInstr &I : BB) {
-        if (!I.isPseudo() || I.isInlineAsm())
+      for (MachineInstr &MI : BB) {
+        if (!MI.isPseudo() || MI.isInlineAsm())
           continue;
 
-        LLVM_DEBUG(dbgs() << "ZP Pseudo:\t" << I);
+        LLVM_DEBUG(dbgs() << "ZP Pseudo:\t" << MI);
 
-        const auto LoweredOpcode = [](unsigned Opcode) {
-          switch (Opcode) {
+        const auto LowerOp = [](MachineInstr &MI) {
+          switch (MI.getOpcode()) {
           default:
             llvm_unreachable("Unhandled pseudoinstruction.");
           case MOS6502::ADCzpr:
             return MOS6502::ADCzp;
+          case MOS6502::ASL:
+            if (MI.getOperand(0).getReg() == MOS6502::A) {
+              MI.RemoveOperand(0);
+              return MOS6502::ASLA;
+            } else {
+              assert(MOS6502::ZPRegClass.contains(MI.getOperand(0).getReg()));
+              MI.RemoveOperand(0);
+              return MOS6502::ASLzp;
+            }
+          case MOS6502::ROL:
+            if (MI.getOperand(0).getReg() == MOS6502::A) {
+              MI.RemoveOperand(0);
+              return MOS6502::ROLA;
+            } else {
+              assert(MOS6502::ZPRegClass.contains(MI.getOperand(0).getReg()));
+              MI.RemoveOperand(0);
+              return MOS6502::ROLzp;
+            }
           case MOS6502::LDzpr:
             return MOS6502::LDzp;
           case MOS6502::LDAyindirr:
@@ -206,9 +224,9 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
           }
         };
 
-        I.setDesc(TII.get(LoweredOpcode(I.getOpcode())));
+        MI.setDesc(TII.get(LowerOp(MI)));
 
-        for (MachineOperand &MO : I.operands()) {
+        for (MachineOperand &MO : MI.operands()) {
           if (!MO.isReg() || MO.isImplicit())
             continue;
           Register Reg = MO.getReg();
@@ -217,7 +235,7 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
           else if (MOS6502::ZP_PTRRegClass.contains(Reg))
             MO.ChangeToGA(ZPPtrAddrs[MO.getReg()], /*Offset=*/0);
         }
-        LLVM_DEBUG(dbgs() << "Replaced with:\t" << I);
+        LLVM_DEBUG(dbgs() << "Replaced with:\t" << MI);
       }
     }
   }
