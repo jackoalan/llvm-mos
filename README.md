@@ -172,6 +172,8 @@ TODO:
   - The current count in X and Y should be incremented directly using INX and
     INY without moving them back to A.
 
+</details>
+
 ## Generated code characteristics
 
 ### Calling convention
