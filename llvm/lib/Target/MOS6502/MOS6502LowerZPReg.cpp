@@ -202,7 +202,7 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
           case MOS6502::STzpr:
             return MOS6502::STzp;
           case MOS6502::STAyindirr:
-            return MOS6502::STAyindirr;
+            return MOS6502::STAyindir;
           }
         };
 

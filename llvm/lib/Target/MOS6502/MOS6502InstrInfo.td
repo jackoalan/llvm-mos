@@ -117,6 +117,8 @@ def ASL : Instr {
 
   let Defs = [C, NZ];
 
+  let AsmString = "ASL\t$dst";
+
   let isReMaterializable = true;
 }
 
@@ -269,6 +271,8 @@ def ROL : Instr {
   let Uses = [C];
   let Defs = [C, NZ];
 
+  let AsmString = "ROL\t$dst";
+
   let isReMaterializable = true;
 }
 
@@ -394,7 +398,7 @@ def STAyindir : Instr {
   let Uses = [A, Y];
   let Defs = [];
 
-  let AsmString = "LDA\t($addr),Y";
+  let AsmString = "STA\t($addr),Y";
 
   let mayStore = true;
 }

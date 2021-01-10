@@ -2,6 +2,7 @@
 #include "MOS6502MCTargetDesc.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -13,6 +14,10 @@ using namespace llvm;
 void MOS6502InstPrinter::printInst(const MCInst *MI, uint64_t Address,
                                    StringRef Annot, const MCSubtargetInfo &STI,
                                    raw_ostream &OS) {
+  LLVM_DEBUG(dbgs() << "Printing instruction: ");
+  LLVM_DEBUG(MI->dump_pretty(dbgs(), this));
+  LLVM_DEBUG(dbgs() << "\n");
+
   switch (MI->getOpcode()) {
   default:
     printInstruction(MI, Address, OS);
