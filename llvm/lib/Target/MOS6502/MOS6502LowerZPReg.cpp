@@ -197,6 +197,7 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
             return MOS6502::ADCzp;
           case MOS6502::ASL:
             if (MI.getOperand(0).getReg() == MOS6502::A) {
+              MI.RemoveOperand(1);
               MI.RemoveOperand(0);
               return MOS6502::ASLA;
             } else {
@@ -206,6 +207,7 @@ bool MOS6502LowerZPReg::runOnModule(Module &M) {
             }
           case MOS6502::ROL:
             if (MI.getOperand(0).getReg() == MOS6502::A) {
+              MI.RemoveOperand(1);
               MI.RemoveOperand(0);
               return MOS6502::ROLA;
             } else {

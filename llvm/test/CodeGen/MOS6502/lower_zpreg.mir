@@ -23,6 +23,8 @@ body: |
     $a = LDzpr $splo, implicit-def $nz
     $a = LDzpr $sphi, implicit-def $nz
     LDAyindirr $sp, implicit-def $a, implicit-def $nz, implicit $y
+    $a = ASL $a, implicit-def $c, implicit-def $nz
+    $zp_0 = ASL $zp_0, implicit-def $c, implicit-def $nz
 # CHECK: LDAyindir @_ZP_PTR_0, implicit-def $a, implicit-def $nz, implicit $y
 # CHECK: $a = LDzp @_ZP_0, implicit-def $nz
 # CHECK: STzp @_ZP_1, $a
@@ -30,4 +32,6 @@ body: |
 # CHECK: $a = LDzp @_SPlo, implicit-def $nz
 # CHECK: $a = LDzp @_SPhi, implicit-def $nz
 # CHECK: LDAyindir @_SP, implicit-def $a, implicit-def $nz, implicit $y
+# CHECK: ASLA
+# CHECK: ASLzp @_ZP_0
 ...
