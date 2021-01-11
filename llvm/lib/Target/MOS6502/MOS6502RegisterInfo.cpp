@@ -62,7 +62,8 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
 
   int64_t StackSize;
   switch (MI->getOpcode()) {
-  case MOS6502::FrameAddr: {
+  case MOS6502::AddFiLo:
+  case MOS6502::AdcFiHi: {
     if (MFI.getStackID(Op.getIndex()) == TargetStackID::Hard)
       report_fatal_error("Hard stack FrameAddr not yet supported.");
     StackSize = MFI.getStackSize();

@@ -12,8 +12,8 @@ stack:
 body:             |
   bb.0.entry:
     SThs $a, %stack.2 :: (store 1 into %stack.2)
-    $zp_ptr_1 = FrameAddr %stack.0, implicit-def $nz, implicit $sp
-    $zp_ptr_2 = FrameAddr %stack.1, implicit-def $nz, implicit $sp
+    $a = AddFiLo %stack.0, implicit-def $c, implicit-def $nz, implicit $sp
+    $a = AdcFiHi %stack.1, implicit-def $c, implicit-def $nz, implicit $sp, implicit $c
     SThs $a, %stack.4 :: (store 1 into %stack.4)
     SThs $a, %stack.3 :: (store 1 into %stack.3)
     $a = LDhs %stack.3 :: (load 1 from %stack.3)
@@ -23,8 +23,8 @@ body:             |
 # CHECK-LABEL: bb.0.entry:
 # CHECK-NEXT:  IncSP -64
 # CHECK-NEXT:  PHA implicit $a
-# CHECK-NEXT:  $zp_ptr_1 = FrameAddr 32
-# CHECK-NEXT:  $zp_ptr_2 = FrameAddr 0
+# CHECK-NEXT:  $a = AddFiLo 32
+# CHECK-NEXT:  $a = AdcFiHi 0
 # CHECK-NEXT:  PHA implicit undef $a
 # CHECK-NEXT:  PHA implicit $a
 # CHECK-NEXT:  PHA implicit undef $a

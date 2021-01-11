@@ -18,6 +18,7 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/ObjectYAML/MachOYAML.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
@@ -219,9 +220,28 @@ bool MOS6502InstructionSelector::selectConstant(MachineInstr &MI) {
 bool MOS6502InstructionSelector::selectFrameIndex(MachineInstr &MI) {
   assert(MI.getOpcode() == MOS6502::G_FRAME_INDEX);
 
-  MI.setDesc(TII.get(MOS6502::FrameAddr));
-  MI.addImplicitDefUseOperands(*MI.getMF());
-  return constrainSelectedInstRegOperands(MI, TII, TRI, RBI);
+  MachineIRBuilder Builder(MI);
+  MachineRegisterInfo &MRI = *Builder.getMRI();
+  LLT s8 = LLT::scalar(8);
+  Register Lo = MRI.createGenericVirtualRegister(s8);
+  Register Hi = MRI.createGenericVirtualRegister(s8);
+  Register Carry = MRI.createGenericVirtualRegister(LLT::scalar(1));
+  auto LoAdd =
+      Builder.buildInstr(MOS6502::AddFiLo).addDef(Lo).add(MI.getOperand(1));
+  if (!constrainSelectedInstRegOperands(*LoAdd, TII, TRI, RBI))
+    return false;
+
+  buildCopy(Builder, Carry, MOS6502::C);
+  buildCopy(Builder, MOS6502::C, Carry);
+
+  auto HiAdc =
+      Builder.buildInstr(MOS6502::AdcFiHi).addDef(Hi).add(MI.getOperand(1));
+  if (!constrainSelectedInstRegOperands(*HiAdc, TII, TRI, RBI))
+    return false;
+
+  composePtr(Builder, MI.getOperand(0).getReg(), Lo, Hi);
+  MI.eraseFromParent();
+  return true;
 }
 
 bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &MI) {

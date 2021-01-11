@@ -47,12 +47,30 @@ def SThs : Pseudo {
   let mayStore = true;
 }
 
-def FrameAddr : Pseudo {
+// Adds the low byte of the given offset/frame-index to the low byte of the
+// stack pointer. Outputs a sum and carry.
+def AddFiLo : Pseudo {
   dag InOperandList = (ins i16imm:$fi);
-  dag OutOperandList = (outs ZP_PTR:$dst);
+  dag OutOperandList = (outs Anyi8:$dst);
 
   let Uses = [SP];
-  let Defs = [NZ];
+  let Defs = [C, NZ];
+
+  let isAdd = true;
+  let isReMaterializable = true;
+}
+
+// Adds the high byte of the given offset/frame-index to the high byte of the
+// stack pointer, accepting a carry.
+def AdcFiHi : Pseudo {
+  dag InOperandList = (ins i16imm:$fi);
+  dag OutOperandList = (outs Anyi8:$dst);
+
+  let Uses = [SP, C];
+  let Defs = [C, NZ];
+
+  let isAdd = true;
+  let isReMaterializable = true;
 }
 
 // Add $bytes bytes to SP, saving the result back in SP. A negative argument

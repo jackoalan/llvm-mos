@@ -53,8 +53,9 @@ void char_stats() {
 
 ```asm
 .code
-.global	char__stats
-char__stats:
+.global	char__stats                     ; -- Begin function char_stats
+char__stats:                            ; @char_stats
+; %bb.0:                                ; %entry
 	CLC
 	LDA	#254
 	ADC	z:__SP+1
@@ -67,23 +68,24 @@ char__stats:
 	LDX	#0
 	LDY	#2
 	JSR	memset
-LBB0__1:
 	JSR	next__char
 	CMP	#0
 	BEQ	LBB0__3
-	ASL	A
-	LDX	#0
-	STX	z:__ZP__1
-	ROL	z:__ZP__1
+; %bb.1:                                ; %while.body.preheader
+	STA	z:__ZP__1
+LBB0__2:                                ; %while.body
+                                        ; =>This Inner Loop Header: Depth=1
+	ASL	z:__ZP__1
+	LDA	#0
+	STA	z:__ZP__2
+	ROL	z:__ZP__2
+	LDA	z:__SP
+	LDY	z:__SP+1
 	CLC
-	LDX	z:__SP
-	STX	z:__ZP__2
-	LDX	z:__SP+1
-	STX	z:__ZP__3
-	ADC	z:__ZP__2
-	STA	z:__ZP__4
-	LDA	z:__ZP__3
 	ADC	z:__ZP__1
+	STA	z:__ZP__4
+	TYA
+	ADC	z:__ZP__2
 	STA	z:__ZP__5
 	LDY	#0
 	LDA	(__ZP__PTR__2),Y
@@ -104,8 +106,11 @@ LBB0__1:
 	LDA	z:__ZP__1
 	LDY	#1
 	STA	(__ZP__PTR__2),Y
-	JMP	LBB0__1
-LBB0__3:
+	JSR	next__char
+	CMP	#0
+	STA	z:__ZP__1
+	BNE	LBB0__2
+LBB0__3:                                ; %while.end
 	LDA	z:__SP
 	STA	z:__ZP__2
 	LDA	z:__SP+1
@@ -116,15 +121,15 @@ LBB0__3:
 	ADC	z:__SP+1
 	STA	z:__SP+1
 	RTS
-
+                                        ; -- End function
 .zeropage
-__ZP__PTR__0:
+__ZP__PTR__0:                           ; @_ZP_PTR_0
 	.res	2
 
-__ZP__PTR__1:
+__ZP__PTR__1:                           ; @_ZP_PTR_1
 	.res	2
 
-__ZP__PTR__2:
+__ZP__PTR__2:                           ; @_ZP_PTR_2
 	.res	2
 
 __ZP__0 = __ZP__PTR__0
@@ -148,19 +153,13 @@ Notes:
     certain that they do not call char_stats recursively, forcing the use of the
     C stack instead of static memory.
   - The character retrieved from next_char is shifted left to form the array
-    offset, with the low byte in A and the high byte in `__ZP__1`.
+    offset, with the low byte in `__ZP__1` and the high byte in `__ZP__2`.
   - The offset is added to the array start to form the count address in
     `__ZP__PTR__2`.
   - The current two-byte count is loaded into `X` and `Y` from `__ZP__PTR__2`. This
     isn't special cased; the register allocator decides that these values can be
     efficiently kept in registers.
   - Once the count has been incremented, it is stored back into the array.
-  - The `ROL` of `__ZP__1` seems like a bit overkill to shift one bit out of the
-    carry into an all-zero byte, but it's not much slower than using a `BCC` or
-    saving/restoring `A`. (`A` is live at this point.)
-    - The generated `LDX #0; STX z:__ZP__1; ROL __ZP__1` takes 6 bytes and 10 cycles.
-    - `LDX #0; BCC end; LDX #1; end: STX __ZP__1` takes 8 bytes and 9-11 cycles.
-    - `PHA; LDA #0; ROL A; STA __ZP__1; PLA` takes 10 bytes and 14 cycles.
 
 TODO:
 
@@ -177,8 +176,8 @@ TODO:
         concatenated together into one logical 8-bit array that is twice as
         long. This should simplify the handling of the array, since it would
         have the same size as the original.
-  - The offset of the array is copied into `__ZP__PTR__1`, even though it's
-    identical to `__SP`. `__SP` should be used directly.
+  - The `ASL z:__ZP__1` in both cases follows a `STA z:__ZP__1`, when it'd be
+    more efficient to do `ASL A; STA z:__ZP__1`.
   - The current count in `X` and `Y` should be incremented directly using `INX` and
     `INY` without moving them to `A`.
   - `LDY #1` can be replaced with `INY`, saving a byte.
