@@ -13,6 +13,9 @@ struct MOS6502RegisterInfo : public MOS6502GenRegisterInfo {
 
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
 
+  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID) const override;
+
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 
   const TargetRegisterClass *
@@ -24,9 +27,6 @@ struct MOS6502RegisterInfo : public MOS6502GenRegisterInfo {
                            RegScavenger *RS = nullptr) const override;
 
   Register getFrameRegister(const MachineFunction &MF) const override;
-
-  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
-                                       CallingConv::ID) const override;
 };
 
 } // namespace llvm

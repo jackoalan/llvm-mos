@@ -20,8 +20,13 @@ MOS6502RegisterInfo::MOS6502RegisterInfo()
 
 const MCPhysReg *
 MOS6502RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  static const MCPhysReg regs[] = {0};
-  return regs;
+  return MOS6502_NoRegs_SaveList;
+}
+
+const uint32_t *
+MOS6502RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
+                                          CallingConv::ID) const {
+  return MOS6502_NoRegs_RegMask;
 }
 
 BitVector
@@ -84,10 +89,4 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
 Register
 MOS6502RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return MOS6502::S;
-}
-
-const uint32_t *
-MOS6502RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
-                                          CallingConv::ID) const {
-  return MOS6502_NoRegs_RegMask;
 }
