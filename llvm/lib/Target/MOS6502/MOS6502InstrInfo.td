@@ -101,7 +101,11 @@ def ADCimm : Instr {
 }
 
 def ADCzpr : Pseudo {
-  dag InOperandList = (ins Ac:$l, ZP:$r);
+  // The fiction of $l accepting AZP allows $l and $r to be commuted without
+  // confusing LLVM passes, which broadly seem to assume commutable arguments
+  // have the same instruction class. The register class constraint ensures that
+  // $l is assigned to $a during register allocation.
+  dag InOperandList = (ins AZP:$l, AZP:$r);
   dag OutOperandList = (outs Ac:$dst);
   let Constraints = "$dst = $l";
 
