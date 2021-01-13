@@ -63,6 +63,9 @@ public:
   }
 
   bool enableSubRegLiveness() const override { return true; }
+
+  void overrideSchedPolicy(MachineSchedPolicy &Policy,
+                           unsigned NumRegionInstrs) const override;
 };
 
 } // namespace llvm

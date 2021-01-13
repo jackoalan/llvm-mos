@@ -1,10 +1,12 @@
 #include "MOS6502Subtarget.h"
 
 #include "MOS6502CallLowering.h"
+#include "MOS6502ISelLowering.h"
 #include "MOS6502InstructionSelector.h"
 #include "MOS6502LegalizerInfo.h"
 #include "MOS6502RegisterBankInfo.h"
 #include "llvm/CodeGen/GlobalISel/InlineAsmLowering.h"
+#include "llvm/CodeGen/MachineScheduler.h"
 
 using namespace llvm;
 
@@ -24,4 +26,10 @@ MOS6502Subtarget::MOS6502Subtarget(const Triple &TT, StringRef CPU,
   InstSelector.reset(createMOS6502InstructionSelector(
       *static_cast<const MOS6502TargetMachine *>(&TM), *this, *RBI));
   InlineAsmLoweringInfo.reset(new InlineAsmLowering(getTargetLowering()));
+}
+
+void MOS6502Subtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,
+                                           unsigned NumRegionInstrs) const {
+  Policy.OnlyBottomUp = false;
+  Policy.OnlyTopDown = false;
 }
