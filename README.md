@@ -146,19 +146,6 @@ Notes:
 
 TODO:
 
-  - Since the 6502 can only manipulate one byte at a time, there's no
-    requirement for this case for the low and high bytes of the counts array to
-    be stored contiguously. If the low bytes and high bytes were broken out into
-    two separate arrays, then both could be accessed via the indirect indexed
-    addressing modes, saving a 16-bit shift and a 16-bit pointer addition.
-      - This wouldn't work if any pointers to the contents of the array were used
-        for anything other than load/store.
-      - This would make the program slower if the array had more than 256 entries,
-        since two 16-bit pointers would need to be calculated instead of one.
-      - Instead of requiring two memset loops, the low and high arrays could be
-        concatenated together into one logical 8-bit array that is twice as
-        long. This should simplify the handling of the array, since it would
-        have the same size as the original.
   - `__SPlo/hi` is copied to `__ZP_2/3` before it is added to the offset, but it
     could instead be used directly. This will require a target pass, since
     Machine Copy Propagation refuses to propagate copies of reserved variables
