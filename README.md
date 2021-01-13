@@ -53,45 +53,43 @@ void char_stats() {
 
 ```asm
 .code
-.global	char__stats                     ; -- Begin function char_stats
-char__stats:                            ; @char_stats
-; %bb.0:                                ; %entry
+.global	char__stats
+char__stats:
 	CLC
 	LDA	#254
 	ADC	z:__SP+1
 	STA	z:__SP+1
 	LDA	z:__SP
 	STA	z:__ZP__2
-	LDA	z:__SP+1
-	STA	z:__ZP__3
 	LDA	#0
 	LDX	#0
+	LDY	z:__SP+1
+	STY	z:__ZP__3
 	LDY	#2
 	JSR	memset
+LBB0__1:
 	JSR	next__char
 	CMP	#0
 	BEQ	LBB0__3
-; %bb.1:                                ; %while.body.preheader
-	STA	z:__ZP__1
-LBB0__2:                                ; %while.body
-                                        ; =>This Inner Loop Header: Depth=1
-	ASL	z:__ZP__1
-	LDA	#0
-	STA	z:__ZP__2
-	ROL	z:__ZP__2
-	LDA	z:__SP
-	LDY	z:__SP+1
+	ASL	A
+	LDX	#0
+	STX	z:__ZP__1
+	ROL	z:__ZP__1
+	LDY	z:__SP
+	STY	z:__ZP__2
+	LDX	z:__SP+1
+	STX	z:__ZP__3
 	CLC
-	ADC	z:__ZP__1
-	STA	z:__ZP__4
-	TYA
 	ADC	z:__ZP__2
-	STA	z:__ZP__5
+	STA	z:__ZP__2
+	LDA	z:__ZP__3
+	ADC	z:__ZP__1
+	STA	z:__ZP__3
 	LDY	#0
-	LDA	(__ZP__PTR__2),Y
+	LDA	(__ZP__PTR__1),Y
 	TAX
 	LDY	#1
-	LDA	(__ZP__PTR__2),Y
+	LDA	(__ZP__PTR__1),Y
 	TAY
 	CLC
 	TXA
@@ -100,17 +98,14 @@ LBB0__2:                                ; %while.body
 	TYA
 	ADC	#0
 	STA	z:__ZP__1
-	TXA
 	LDY	#0
-	STA	(__ZP__PTR__2),Y
-	LDA	z:__ZP__1
+	TXA
+	STA	(__ZP__PTR__1),Y
 	LDY	#1
-	STA	(__ZP__PTR__2),Y
-	JSR	next__char
-	CMP	#0
-	STA	z:__ZP__1
-	BNE	LBB0__2
-LBB0__3:                                ; %while.end
+	LDA	z:__ZP__1
+	STA	(__ZP__PTR__1),Y
+	JMP	LBB0__1
+LBB0__3:
 	LDA	z:__SP
 	STA	z:__ZP__2
 	LDA	z:__SP+1
@@ -121,23 +116,18 @@ LBB0__3:                                ; %while.end
 	ADC	z:__SP+1
 	STA	z:__SP+1
 	RTS
-                                        ; -- End function
+
 .zeropage
-__ZP__PTR__0:                           ; @_ZP_PTR_0
+__ZP__PTR__0:
 	.res	2
 
-__ZP__PTR__1:                           ; @_ZP_PTR_1
-	.res	2
-
-__ZP__PTR__2:                           ; @_ZP_PTR_2
+__ZP__PTR__1:
 	.res	2
 
 __ZP__0 = __ZP__PTR__0
 __ZP__1 = __ZP__0+1
 __ZP__2 = __ZP__PTR__1
 __ZP__3 = __ZP__2+1
-__ZP__4 = __ZP__PTR__2
-__ZP__5 = __ZP__4+1
 .global	memset
 .global	next__char
 .global	report__counts
@@ -153,7 +143,7 @@ Notes:
     certain that they do not call char_stats recursively, forcing the use of the
     C stack instead of static memory.
   - The character retrieved from next_char is shifted left to form the array
-    offset, with the low byte in `__ZP__1` and the high byte in `__ZP__2`.
+    offset, with the low byte in `A` and the high byte in `__ZP__1`.
   - The offset is added to the array start to form the count address in
     `__ZP__PTR__2`.
   - The current two-byte count is loaded into `X` and `Y` from `__ZP__PTR__2`. This
@@ -176,8 +166,10 @@ TODO:
         concatenated together into one logical 8-bit array that is twice as
         long. This should simplify the handling of the array, since it would
         have the same size as the original.
-  - The `ASL z:__ZP__1` in both cases follows a `STA z:__ZP__1`, when it'd be
-    more efficient to do `ASL A; STA z:__ZP__1`.
+  - `__SP` is copied to `__ZP_PTR_1` before it is added to the offset, but it
+    could instead be used directly. This will require a target pass, since
+    Machine Copy Propagation refuses to propagate copies of reserved variables
+    like the stack pointer, since it cannot generally reason about their value.
   - The current count in `X` and `Y` should be incremented directly using `INX` and
     `INY` without moving them to `A`.
   - `LDY #1` can be replaced with `INY`, saving a byte.
@@ -486,4 +478,4 @@ TODO:
 
 </details>
 
-Updated January 10, 2021.
+Updated January 12, 2021.
