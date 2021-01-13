@@ -16,7 +16,15 @@ using namespace llvm;
 
 MOS6502RegisterInfo::MOS6502RegisterInfo()
     : MOS6502GenRegisterInfo(/*RA=*/0, /*DwarfFlavor=*/0, /*EHFlavor=*/0,
-                             /*PC=*/0, /*HwMode=*/0) {}
+                             /*PC=*/0, /*HwMode=*/0),
+      ZPSymbolNames(new std::string[getNumRegs()]) {
+  for (unsigned Reg = 0; Reg < getNumRegs(); ++Reg) {
+    if (!MOS6502::ZPRegClass.contains(Reg))
+      continue;
+    ZPSymbolNames[Reg] = "_";
+    ZPSymbolNames[Reg] += getName(Reg);
+  }
+}
 
 const MCPhysReg *
 MOS6502RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {

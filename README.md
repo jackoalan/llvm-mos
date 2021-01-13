@@ -57,13 +57,13 @@ void char_stats() {
 char__stats:
 	CLC
 	LDA	#254
-	ADC	z:__SP+1
-	STA	z:__SP+1
-	LDA	z:__SP
+	ADC	z:__SPhi
+	STA	z:__SPhi
+	LDA	z:__SPlo
 	STA	z:__ZP__2
 	LDA	#0
 	LDX	#0
-	LDY	z:__SP+1
+	LDY	z:__SPhi
 	STY	z:__ZP__3
 	LDY	#2
 	JSR	memset
@@ -75,9 +75,9 @@ LBB0__1:
 	LDX	#0
 	STX	z:__ZP__1
 	ROL	z:__ZP__1
-	LDY	z:__SP
+	LDY	z:__SPlo
 	STY	z:__ZP__2
-	LDX	z:__SP+1
+	LDX	z:__SPhi
 	STX	z:__ZP__3
 	CLC
 	ADC	z:__ZP__2
@@ -86,10 +86,10 @@ LBB0__1:
 	ADC	z:__ZP__1
 	STA	z:__ZP__3
 	LDY	#0
-	LDA	(__ZP__PTR__1),Y
+	LDA	(__ZP__2),Y
 	TAX
 	LDY	#1
-	LDA	(__ZP__PTR__1),Y
+	LDA	(__ZP__2),Y
 	TAY
 	CLC
 	TXA
@@ -100,38 +100,31 @@ LBB0__1:
 	STA	z:__ZP__1
 	LDY	#0
 	TXA
-	STA	(__ZP__PTR__1),Y
+	STA	(__ZP__2),Y
 	LDY	#1
 	LDA	z:__ZP__1
-	STA	(__ZP__PTR__1),Y
+	STA	(__ZP__2),Y
 	JMP	LBB0__1
 LBB0__3:
-	LDA	z:__SP
+	LDA	z:__SPlo
 	STA	z:__ZP__2
-	LDA	z:__SP+1
+	LDA	z:__SPhi
 	STA	z:__ZP__3
 	JSR	report__counts
 	CLC
 	LDA	#2
-	ADC	z:__SP+1
-	STA	z:__SP+1
+	ADC	z:__SPhi
+	STA	z:__SPhi
 	RTS
 
-.zeropage
-__ZP__PTR__0:
-	.res	2
-
-__ZP__PTR__1:
-	.res	2
-
-__ZP__0 = __ZP__PTR__0
-__ZP__1 = __ZP__0+1
-__ZP__2 = __ZP__PTR__1
-__ZP__3 = __ZP__2+1
+.global	__SPhi
+.global	__SPlo
+.global	__ZP__2
+.global	__ZP__3
 .global	memset
+.global	__ZP__1
 .global	next__char
 .global	report__counts
-.global	__SP
 ```
 
 Notes:
@@ -166,7 +159,7 @@ TODO:
         concatenated together into one logical 8-bit array that is twice as
         long. This should simplify the handling of the array, since it would
         have the same size as the original.
-  - `__SP` is copied to `__ZP_PTR_1` before it is added to the offset, but it
+  - `__SPlo/hi` is copied to `__ZP_2/3` before it is added to the offset, but it
     could instead be used directly. This will require a target pass, since
     Machine Copy Propagation refuses to propagate copies of reserved variables
     like the stack pointer, since it cannot generally reason about their value.
@@ -183,9 +176,7 @@ TODO:
 The calling convention is presently very barebones:
 - Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`.
 - Pointer arguments/return values are passed in successively increasing pairs
-  of ZP locations (`ZP_PTR_1` -- `ZP_PTR_127`). `ZP_PTR_0` overlaps with
-  `ZP_0`, which is reserved, so `ZP_PTR_0` is not used by the calling
-  convention.
+  of ZP locations, starting with `ZP_2`.
 - The compiler bails if the arguments/return value don't fit.
 - All compiler-used ZP locations, all registers, and all flags are caller-saved.
   - Use of most physical registers/flags are mandatory for certain operations,
@@ -234,13 +225,11 @@ to abstract symbols placed in the zero page by the linker. Only registers
 actually accessed are emitted.
 
 One 2-byte pointer register and one zero-page location are presently reserved by
-the compiler. The pointer is used for the soft stack pointer; the other is used 
+the compiler. The pointer is used for the soft stack pointer; the other is used
 for last-chance saving/restoring of values after register allocation. The
 standalone register is considered `ZP_0`, which means it's the low byte of an
-nusable pointer register, `ZP_PTR_0`. `ZP_1` is freely usable for register
-allocation purposes, but any uses of `ZP_PTR_0` would clobber `ZP_0`, which is
-disallowed. Accordingly, at least two consecutive pairs of zero page registers
-must be available for compiler use, one for `SP`, and one for `ZP_PTR_0`.
+unusable pointer register, `ZP_0/ZP_1`. `ZP_1` is otherwise freely usable for
+register.
 
 Eventually, a compiler flag should allow the user to specify how many zero page
 locations are available for use by the compiler. This will limit the register

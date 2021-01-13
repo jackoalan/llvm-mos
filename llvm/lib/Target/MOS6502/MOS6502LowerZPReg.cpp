@@ -2,17 +2,16 @@
 
 #include "MOS6502.h"
 #include "MOS6502RegisterInfo.h"
+#include "MOS6502Subtarget.h"
 
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "llvm-c/Core.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/Module.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -22,227 +21,86 @@ using namespace llvm;
 
 namespace llvm {
 
-class MOS6502LowerZPReg : public ModulePass {
+class MOS6502LowerZPReg : public MachineFunctionPass {
 public:
   static char ID;
 
   MOS6502LowerZPReg();
-  bool runOnModule(Module &M) override;
-  void getAnalysisUsage(AnalysisUsage &AU) const override;
+  bool runOnMachineFunction(MachineFunction &MF) override;
 };
 
 } // namespace llvm
 
-std::string GetZPName(MCRegister R, const MCRegisterInfo &MRI) {
-  assert(MOS6502::ZPRegClass.contains(R) ||
-         MOS6502::ZP_PTRRegClass.contains(R));
-  return (Twine("_") + MRI.getName(R)).str();
-}
-
-MOS6502LowerZPReg::MOS6502LowerZPReg() : ModulePass(ID) {
+MOS6502LowerZPReg::MOS6502LowerZPReg() : MachineFunctionPass(ID) {
   initializeMOS6502LowerZPRegPass(*PassRegistry::getPassRegistry());
 }
 
-bool MOS6502LowerZPReg::runOnModule(Module &M) {
-  bool UsesSP = false;
-  MCRegister HighestZP;
-  MCRegister HighestZPPtr;
-
+bool MOS6502LowerZPReg::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "********** LOWERING MOS6502 ZP REGS **********\n");
 
-  MachineModuleInfo &MMI = getAnalysis<MachineModuleInfoWrapperPass>().getMMI();
-  const MCRegisterInfo &MRI = *MMI.getTarget().getMCRegisterInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+  const MOS6502RegisterInfo &TRI = *MF.getSubtarget<MOS6502Subtarget>().getRegisterInfo();
+  for (MachineBasicBlock &BB : MF) {
+    for (MachineInstr &MI : BB) {
+      if (!MI.isPseudo() || MI.isInlineAsm())
+        continue;
 
-  for (Function &F : M.functions()) {
-    MachineFunction &MF = MMI.getOrCreateMachineFunction(F);
-    for (MachineBasicBlock &BB : MF) {
-      for (MachineInstr &MI : BB) {
-        for (MachineOperand &MO : MI.operands()) {
-          if (!MO.isReg())
-            continue;
-          MCRegister R = MO.getReg();
-          if (R == MOS6502::SP || R == MOS6502::SPlo || R == MOS6502::SPhi)
-            UsesSP = true;
-          else if (MOS6502::ZPRegClass.contains(R))
-            HighestZP = std::max(HighestZP, R);
-          else if (MOS6502::ZP_PTRRegClass.contains(R))
-            HighestZPPtr = std::max(HighestZPPtr, R);
-        }
-      }
-    }
-  }
+      LLVM_DEBUG(dbgs() << "ZP Pseudo:\t" << MI);
 
-  const auto ZPIndex = [](MCRegister ZP) -> int {
-    if (!ZP.isValid())
-      return -1;
-    assert(MOS6502::ZPRegClass.contains(ZP));
-    return ZP - MOS6502::ZP_0;
-  };
-  const auto ZPPtrIndex = [](MCRegister ZPPtr) -> int {
-    if (!ZPPtr.isValid())
-      return -1;
-    assert(MOS6502::ZP_PTRRegClass.contains(ZPPtr));
-    return ZPPtr - MOS6502::ZP_PTR_0;
-  };
-
-  if (HighestZP.isValid())
-    LLVM_DEBUG(dbgs() << "Highest ZP register used: " << ZPIndex(HighestZP)
-                      << "\n");
-  else
-    LLVM_DEBUG(dbgs() << "No ZP registers used.\n");
-
-  if (HighestZPPtr.isValid())
-    LLVM_DEBUG(dbgs() << "Highest ZP_PTR register used: "
-                      << ZPPtrIndex(HighestZPPtr) << "\n");
-  else
-    LLVM_DEBUG(dbgs() << "No ZP_PTR registers used.\n");
-
-  if (UsesSP)
-    LLVM_DEBUG(dbgs() << "Uses SP register.\n");
-  else
-    LLVM_DEBUG(dbgs() << "Does not use SP register.\n");
-
-  Type *WordTy = Type::getInt16Ty(M.getContext());
-  Type *ByteTy = Type::getInt8Ty(M.getContext());
-  MCRegister ZP = MOS6502::ZP_0;
-
-  auto ZPAddrs = std::make_unique<GlobalValue *[]>(MRI.getNumRegs() + 1);
-  auto ZPPtrAddrs = std::make_unique<GlobalValue *[]>(MRI.getNumRegs() + 1);
-
-  for (MCRegister ZPPtr = MOS6502::ZP_PTR_0; ZPPtr <= HighestZPPtr;
-       ZPPtr = ZPPtr + 1) {
-    GlobalVariable *Addr = new GlobalVariable(
-        M, WordTy, /*isConstant=*/false, GlobalValue::PrivateLinkage,
-        UndefValue::get(WordTy), GetZPName(ZPPtr, MRI),
-        /*InsertBefore=*/nullptr, GlobalValue::NotThreadLocal,
-        /*AddressSpace=*/1);
-
-    ZPPtrAddrs[ZPPtr] = Addr;
-    LLVM_DEBUG(dbgs() << "Adding ptr:\t" << *Addr << "\n");
-
-    GlobalAlias *Lo;
-    if (ZP <= HighestZP) {
-      Lo = GlobalAlias::create(
-          ByteTy, /*AddressSpace=*/1, GlobalValue::PrivateLinkage,
-          GetZPName(ZP, MRI),
-          ConstantExpr::getBitCast(Addr, ByteTy->getPointerTo(/*AddrSpace=*/1)),
-          &M);
-      ZPAddrs[ZP] = Lo;
-      LLVM_DEBUG(dbgs() << "Adding lo:\t" << *Lo);
-      ZP = ZP + 1;
-    }
-    if (ZP <= HighestZP) {
-      GlobalAlias *Hi =
-          GlobalAlias::create(ByteTy, /*AddressSpace=*/1,
-                              GlobalValue::PrivateLinkage, GetZPName(ZP, MRI),
-                              ConstantExpr::getGetElementPtr(
-                                  ByteTy, Lo, ConstantInt::get(WordTy, 1)),
-                              &M);
-      LLVM_DEBUG(dbgs() << "Adding hi:\t" << *Hi);
-      ZPAddrs[ZP] = Hi;
-      ZP = ZP + 1;
-    }
-  }
-
-  for (; ZP <= HighestZP; ZP = ZP + 1) {
-    GlobalVariable *Addr = new GlobalVariable(
-        M, ByteTy, /*isConstant=*/false, GlobalValue::PrivateLinkage,
-        UndefValue::get(ByteTy), GetZPName(ZP, MRI),
-        /*InsertBefore=*/nullptr, GlobalValue::NotThreadLocal,
-        /*AddressSpace=*/1);
-    ZPAddrs[ZP] = Addr;
-    LLVM_DEBUG(dbgs() << "Adding standalone zp:\t" << *Addr << "\n");
-  }
-
-  if (UsesSP) {
-    // External declaration, not definition.
-    auto *Addr = new GlobalVariable(
-        M, WordTy, /*isConstant=*/false, GlobalValue::ExternalLinkage,
-        /*Initializer=*/nullptr, "_SP",
-        /*InsertBefore=*/nullptr, GlobalValue::NotThreadLocal,
-        /*AddressSpace=*/1);
-    LLVM_DEBUG(dbgs() << "Adding SP:\t" << *Addr << "\n");
-
-    // Aliases to external declarations are not allowed, so SPhi needs
-    // to be special-cased.
-
-    ZPPtrAddrs[MOS6502::SP] = Addr;
-    ZPAddrs[MOS6502::SPlo] = Addr;
-  }
-
-  LLVM_DEBUG(dbgs() << "Replacing ZP pseudoinstructions.\n");
-
-  for (Function &F : M.functions()) {
-    MachineFunction &MF = MMI.getOrCreateMachineFunction(F);
-    const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
-    for (MachineBasicBlock &BB : MF) {
-      for (MachineInstr &MI : BB) {
-        if (!MI.isPseudo() || MI.isInlineAsm())
-          continue;
-
-        LLVM_DEBUG(dbgs() << "ZP Pseudo:\t" << MI);
-
-        const auto LowerOp = [](MachineInstr &MI) {
-          switch (MI.getOpcode()) {
-          default:
-            llvm_unreachable("Unhandled pseudoinstruction.");
-          case MOS6502::ADCzpr:
-            return MOS6502::ADCzp;
-          case MOS6502::ASL:
-            if (MI.getOperand(0).getReg() == MOS6502::A) {
-              MI.RemoveOperand(1);
-              MI.RemoveOperand(0);
-              return MOS6502::ASLA;
-            } else {
-              assert(MOS6502::ZPRegClass.contains(MI.getOperand(0).getReg()));
-              MI.RemoveOperand(0);
-              return MOS6502::ASLzp;
-            }
-          case MOS6502::ROL:
-            if (MI.getOperand(0).getReg() == MOS6502::A) {
-              MI.RemoveOperand(1);
-              MI.RemoveOperand(0);
-              return MOS6502::ROLA;
-            } else {
-              assert(MOS6502::ZPRegClass.contains(MI.getOperand(0).getReg()));
-              MI.RemoveOperand(0);
-              return MOS6502::ROLzp;
-            }
-          case MOS6502::LDzpr:
-            return MOS6502::LDzp;
-          case MOS6502::LDAyindirr:
-            return MOS6502::LDAyindir;
-          case MOS6502::STzpr:
-            return MOS6502::STzp;
-          case MOS6502::STAyindirr:
-            return MOS6502::STAyindir;
+      const auto LowerOp = [](MachineInstr &MI) {
+        switch (MI.getOpcode()) {
+        default:
+          llvm_unreachable("Unhandled pseudoinstruction.");
+        case MOS6502::ADCzpr:
+          return MOS6502::ADCzp;
+        case MOS6502::ASL:
+          if (MI.getOperand(0).getReg() == MOS6502::A) {
+            MI.RemoveOperand(1);
+            MI.RemoveOperand(0);
+            return MOS6502::ASLA;
+          } else {
+            assert(MOS6502::ZPRegClass.contains(MI.getOperand(0).getReg()));
+            MI.RemoveOperand(0);
+            return MOS6502::ASLzp;
           }
-        };
-
-        MI.setDesc(TII.get(LowerOp(MI)));
-
-        for (MachineOperand &MO : MI.operands()) {
-          if (!MO.isReg() || MO.isImplicit())
-            continue;
-          Register Reg = MO.getReg();
-          if (Reg == MOS6502::SPhi)
-            MO.ChangeToGA(ZPAddrs[MOS6502::SPlo], /*Offset=*/1);
-          else if (MOS6502::ZPRegClass.contains(Reg))
-            MO.ChangeToGA(ZPAddrs[MO.getReg()], /*Offset=*/0);
-          else if (MOS6502::ZP_PTRRegClass.contains(Reg))
-            MO.ChangeToGA(ZPPtrAddrs[MO.getReg()], /*Offset=*/0);
+        case MOS6502::ROL:
+          if (MI.getOperand(0).getReg() == MOS6502::A) {
+            MI.RemoveOperand(1);
+            MI.RemoveOperand(0);
+            return MOS6502::ROLA;
+          } else {
+            assert(MOS6502::ZPRegClass.contains(MI.getOperand(0).getReg()));
+            MI.RemoveOperand(0);
+            return MOS6502::ROLzp;
+          }
+        case MOS6502::LDzpr:
+          return MOS6502::LDzp;
+        case MOS6502::LDAyindirr:
+          return MOS6502::LDAyindir;
+        case MOS6502::STzpr:
+          return MOS6502::STzp;
+        case MOS6502::STAyindirr:
+          return MOS6502::STAyindir;
         }
-        LLVM_DEBUG(dbgs() << "Replaced with:\t" << MI);
+      };
+
+      MI.setDesc(TII.get(LowerOp(MI)));
+
+      for (MachineOperand &MO : MI.operands()) {
+        if (!MO.isReg() || MO.isImplicit())
+          continue;
+        Register Reg = MO.getReg();
+        if (MOS6502::ZP_PTRRegClass.contains(Reg))
+          Reg = TRI.getSubReg(Reg, MOS6502::sublo);
+        if (!MOS6502::ZPRegClass.contains(Reg))
+          continue;
+        MO.ChangeToES(TRI.getZPSymbolName(Reg));
       }
+      LLVM_DEBUG(dbgs() << "Replaced with:\t" << MI);
     }
   }
 
   return false;
-}
-
-void MOS6502LowerZPReg::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.addRequired<MachineModuleInfoWrapperPass>();
-  AU.addPreserved<MachineModuleInfoWrapperPass>();
 }
 
 char MOS6502LowerZPReg::ID = 0;
@@ -250,4 +108,4 @@ char MOS6502LowerZPReg::ID = 0;
 INITIALIZE_PASS(MOS6502LowerZPReg, DEBUG_TYPE,
                 "Lower Zero Page 'registers' to memory locations", false, false)
 
-ModulePass *llvm::createMOS6502LowerZPReg() { return new MOS6502LowerZPReg(); }
+MachineFunctionPass *llvm::createMOS6502LowerZPReg() { return new MOS6502LowerZPReg(); }

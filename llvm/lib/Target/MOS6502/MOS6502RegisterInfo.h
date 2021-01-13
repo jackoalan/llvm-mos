@@ -8,7 +8,10 @@
 
 namespace llvm {
 
-struct MOS6502RegisterInfo : public MOS6502GenRegisterInfo {
+class MOS6502RegisterInfo : public MOS6502GenRegisterInfo {
+  std::unique_ptr<std::string[]> ZPSymbolNames;
+
+public:
   MOS6502RegisterInfo();
 
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
@@ -27,6 +30,10 @@ struct MOS6502RegisterInfo : public MOS6502GenRegisterInfo {
                            RegScavenger *RS = nullptr) const override;
 
   Register getFrameRegister(const MachineFunction &MF) const override;
+
+  const char* getZPSymbolName(Register Reg) const {
+    return ZPSymbolNames[Reg].c_str();
+  }
 };
 
 } // namespace llvm

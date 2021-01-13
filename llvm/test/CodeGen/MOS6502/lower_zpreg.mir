@@ -1,13 +1,4 @@
 # RUN: llc -mtriple=mos6502 -run-pass=mos6502-lowerzpreg -verify-machineinstrs -o - %s | FileCheck %s
-# CHECK-LABEL: --- |
-# CHECK: @_ZP_PTR_0 = private addrspace(1) global i16 undef
-# CHECK: @_ZP_2 = private addrspace(1) global i8 undef
-# CHECK: @_SP = external addrspace(1) global i16
---- |
-  define void @test() {
-    entry:
-      ret void
-  }
 ---
 name: test
 body: |
@@ -21,13 +12,13 @@ body: |
     LDAyindirr $sp, implicit-def $a, implicit-def $nz, implicit $y
     $a = ASL $a, implicit-def $c, implicit-def $nz
     $zp_0 = ASL $zp_0, implicit-def $c, implicit-def $nz
-# CHECK: LDAyindir @_ZP_PTR_0, implicit-def $a, implicit-def $nz, implicit $y
-# CHECK: $a = LDzp @_ZP_0, implicit-def $nz
-# CHECK: STzp @_ZP_1, $a
-# CHECK: $a = LDzp @_ZP_2, implicit-def $nz
-# CHECK: $a = LDzp @_SP, implicit-def $nz
-# CHECK: $a = LDzp @_SP + 1, implicit-def $nz
-# CHECK: LDAyindir @_SP, implicit-def $a, implicit-def $nz, implicit $y
+# CHECK: LDAyindir &_ZP_0, implicit-def $a, implicit-def $nz, implicit $y
+# CHECK: $a = LDzp &_ZP_0, implicit-def $nz
+# CHECK: STzp &_ZP_1, $a
+# CHECK: $a = LDzp &_ZP_2, implicit-def $nz
+# CHECK: $a = LDzp &_SPlo, implicit-def $nz
+# CHECK: $a = LDzp &_SPhi, implicit-def $nz
+# CHECK: LDAyindir &_SPlo, implicit-def $a, implicit-def $nz, implicit $y
 # CHECK: ASLA
-# CHECK: ASLzp @_ZP_0
+# CHECK: ASLzp &_ZP_0
 ...

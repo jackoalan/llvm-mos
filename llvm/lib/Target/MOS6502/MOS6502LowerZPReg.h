@@ -1,11 +1,11 @@
 #ifndef LLVM_LIB_TARGET_MOS6502_MOS6502LOWERZPREG_H
 #define LLVM_LIB_TARGET_MOS6502_MOS6502LOWERZPREG_H
 
-#include "llvm/Pass.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 
 namespace llvm {
 
-ModulePass *createMOS6502LowerZPReg();
+MachineFunctionPass *createMOS6502LowerZPReg();
 
 } // end namespace llvm
 
