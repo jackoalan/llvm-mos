@@ -7,7 +7,7 @@ body: |
     $a = AddFiLo 1234, implicit-def $c, implicit-def $nz, implicit $sp
 # CHECK:      $a = LDimm 210
 # CHECK-NEXT: LDCimm 0
-# CHECK-NEXT: $a = ADCzp $a, &_SPlo
+# CHECK-NEXT: $a = ADCzpr $a, $splo
 ...
 ---
 name: addfilo0
@@ -15,7 +15,7 @@ name: addfilo0
 body: |
   bb.0.entry:
     $a = AddFiLo 512, implicit-def $c, implicit-def $nz, implicit $sp
-# CHECK: $a = LDzp &_SPlo
+# CHECK: $a = LDzpr $splo
 ...
 ---
 name: addfilo_copy
@@ -23,8 +23,8 @@ name: addfilo_copy
 body: |
   bb.0.entry:
     $zp_1 = AddFiLo 512, implicit-def $c, implicit-def $nz, implicit $sp
-# CHECK:      $a = LDzp &_SPlo
-# CHECK-NEXT: STzp &_ZP_1, $a
+# CHECK:      $a = LDzpr $splo
+# CHECK-NEXT: $zp_1 = STzpr $a
 ...
 ---
 name: adcfihi
@@ -33,7 +33,7 @@ body: |
   bb.0.entry:
     $a = AdcFiHi 1234, implicit-def $c, implicit-def $nz, implicit $c, implicit $sp
 # CHECK:      $a = LDimm 4
-# CHECK-NEXT: $a = ADCzp $a, &_SPhi
+# CHECK-NEXT: $a = ADCzpr $a, $sphi
 ...
 ---
 name: adcfihi_lo0
@@ -43,7 +43,7 @@ body: |
     $a = AdcFiHi 512, implicit-def $c, implicit-def $nz, implicit $c, implicit $sp
 # CHECK:      $a = LDimm 2
 # CHECK-NEXT: LDCimm 0
-# CHECK-NEXT: $a = ADCzp $a, &_SPhi
+# CHECK-NEXT: $a = ADCzpr $a, $sphi
 ...
 ---
 name: incsp
@@ -55,11 +55,11 @@ body: |
 # CHECK:      PHP
 # CHECK-NEXT: LDCimm 0
 # CHECK-NEXT: $a = LDimm 46
-# CHECK-NEXT: $a = ADCzp $a, &_SPlo
-# CHECK-NEXT: STzp &_SPlo, $a
+# CHECK-NEXT: $a = ADCzpr $a, $splo
+# CHECK-NEXT: $splo = STzpr $a
 # CHECK-NEXT: $a = LDimm 251
-# CHECK-NEXT: $a = ADCzp $a, &_SPhi
-# CHECK-NEXT: STzp &_SPhi, $a
+# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $sphi = STzpr $a
 # CHECK-NEXT: PLP
 ...
 ---
@@ -71,8 +71,8 @@ body: |
     RTS
 # CHECK:      LDCimm 0
 # CHECK-NEXT: $a = LDimm 254
-# CHECK-NEXT: $a = ADCzp $a, &_SPhi
-# CHECK-NEXT: STzp &_SPhi, $a
+# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $sphi = STzpr $a
 ...
 ---
 name: ldaidx
@@ -130,9 +130,9 @@ name: sths
 body: |
   bb.0.entry:
     SThs $x, 2
-# CHECK:      STzp &_ZP_0, $x
+# CHECK:      $zp_0 = STzpr $x
 # CHECK-NEXT: T_A $x
 # CHECK-NEXT: TSX
 # CHECK-NEXT: STAidx 258, $x
-# CHECK-NEXT: $x = LDzp &_ZP_0
+# CHECK-NEXT: $x = LDzpr $zp_0
 ...

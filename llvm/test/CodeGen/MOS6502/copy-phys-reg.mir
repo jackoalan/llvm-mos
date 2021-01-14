@@ -98,7 +98,7 @@ body:             |
   bb.0.entry:
     liveins: $a
     $zp_0 = COPY $a
-# CHECK: STzp &_ZP_0, $a
+# CHECK: $zp_0 = STzpr $a
 ...
 ---
 name:            ldzp
@@ -108,7 +108,7 @@ body:             |
   bb.0.entry:
     liveins: $zp_0
     $a = COPY $zp_0
-# CHECK: $a = LDzp &_ZP_0
+# CHECK: $a = LDzpr $zp_0
 ...
 ---
 name:            zptozp_a
@@ -118,8 +118,8 @@ body:             |
   bb.0.entry:
     liveins: $zp_0
     $zp_1 = COPY $zp_0
-# CHECK:      $a = LDzp &_ZP_0
-# CHECK-NEXT: STzp &_ZP_1, $a
+# CHECK:      $a = LDzpr $zp_0
+# CHECK-NEXT: $zp_1 = STzpr $a
 ...
 ---
 name:            zptozp_x
@@ -130,8 +130,8 @@ body:             |
     liveins: $zp_0, $a
     $zp_1 = COPY $zp_0
     RTS implicit $a
-# CHECK:      $x = LDzp &_ZP_0
-# CHECK-NEXT: STzp &_ZP_1, $x
+# CHECK:      $x = LDzpr $zp_0
+# CHECK-NEXT: $zp_1 = STzpr $x
 # CHECK-NEXT: RTS
 ...
 ---
@@ -143,8 +143,8 @@ body:             |
     liveins: $zp_0, $a, $x
     $zp_1 = COPY $zp_0
     RTS implicit $a, implicit $x
-# CHECK:      $y = LDzp &_ZP_0
-# CHECK-NEXT: STzp &_ZP_1, $y
+# CHECK:      $y = LDzpr $zp_0
+# CHECK-NEXT: $zp_1 = STzpr $y
 # CHECK-NEXT: RTS
 ...
 ---
@@ -157,8 +157,8 @@ body:             |
     $zp_1 = COPY $zp_0
     RTS implicit $a, implicit $x, implicit $y
 # CHECK:      PHA
-# CHECK-NEXT: $a = LDzp &_ZP_0
-# CHECK-NEXT: STzp &_ZP_1, $a
+# CHECK-NEXT: $a = LDzpr $zp_0
+# CHECK-NEXT: $zp_1 = STzpr $a
 # CHECK-NEXT: PLA
 # CHECK-NEXT: RTS
 ...
@@ -170,8 +170,8 @@ body:             |
   bb.0.entry:
     liveins: $zp_ptr_0
     $zp_ptr_1 = COPY $zp_ptr_0
-# CHECK:      $a = LDzp &_ZP_0
-# CHECK-NEXT: STzp &_ZP_2, $a
-# CHECK:      $a = LDzp &_ZP_1
-# CHECK-NEXT: STzp &_ZP_3, $a
+# CHECK:      $a = LDzpr $zp_0
+# CHECK-NEXT: $zp_2 = STzpr $a
+# CHECK:      $a = LDzpr $zp_1
+# CHECK-NEXT: $zp_3 = STzpr $a
 ...
