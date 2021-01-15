@@ -3,6 +3,7 @@
 #include "MOS6502.h"
 #include "MOS6502IndexIVPass.h"
 #include "MOS6502LowerZPReg.h"
+#include "MOS6502MachineScheduler.h"
 #include "MOS6502PreLegalizerCombiner.h"
 #include "MOS6502TargetObjectFile.h"
 #include "MOS6502TargetTransformInfo.h"
@@ -101,6 +102,9 @@ public:
   bool addGlobalInstructionSelect() override;
   void addPreSched2() override;
   void addPreEmitPass() override;
+
+  ScheduleDAGInstrs *
+  createMachineScheduler(MachineSchedContext *C) const override;
 };
 
 } // namespace
@@ -139,4 +143,9 @@ void MOS6502PassConfig::addPreEmitPass() { addPass(&BranchRelaxationPassID); }
 
 void MOS6502PassConfig::addPreGlobalInstructionSelect() {
   addPass(new Localizer);
+}
+
+ScheduleDAGInstrs *
+MOS6502PassConfig::createMachineScheduler(MachineSchedContext *C) const {
+  return new ScheduleDAGMILive(C, std::make_unique<MOS6502SchedStrategy>(C));
 }
