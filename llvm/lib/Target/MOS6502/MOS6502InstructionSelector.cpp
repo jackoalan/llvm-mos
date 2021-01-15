@@ -1,5 +1,7 @@
 #include "MOS6502InstructionSelector.h"
 
+#include <set>
+
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "MOS6502RegisterInfo.h"
 #include "MOS6502Subtarget.h"
@@ -545,6 +547,31 @@ void MOS6502InstructionSelector::composePtr(MachineIRBuilder &Builder,
                     .addUse(Hi)
                     .addImm(MOS6502::subhi);
   constrainGenericOp(*RegSeq);
+
+  // Propagate Lo and Hi to uses, hopefully killing the REG_SEQUENCE and
+  // unconstraining the register classes of Lo and Hi.
+  std::set<Register> WorkList = {Dst};
+  std::vector<MachineOperand*> Uses;
+  while (!WorkList.empty()) {
+    Register Reg = *WorkList.begin();
+    WorkList.erase(Reg);
+    for (MachineOperand &MO : Builder.getMRI()->use_nodbg_operands(Reg)) {
+      if (MO.getSubReg())
+        Uses.push_back(&MO);
+      else if (MO.getParent()->isCopy())
+        WorkList.insert(MO.getParent()->getOperand(0).getReg());
+    }
+  }
+
+  for (MachineOperand *MO : Uses) {
+    if (MO->getSubReg() == MOS6502::sublo) {
+      MO->setReg(Lo);
+    } else {
+      assert(MO->getSubReg() == MOS6502::subhi);
+      MO->setReg(Hi);
+    }
+    MO->setSubReg(0);
+  }
 }
 
 void MOS6502InstructionSelector::constrainGenericOp(MachineInstr &MI) {
