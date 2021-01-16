@@ -17,7 +17,8 @@ using namespace llvm;
 
 MOS6502Subtarget::MOS6502Subtarget(const Triple &TT, StringRef CPU,
                                    StringRef FS, const TargetMachine &TM)
-    : MOS6502GenSubtargetInfo(TT, CPU, /*TuneCPU=*/CPU, FS), TLInfo(TM, *this) {
+    : MOS6502GenSubtargetInfo(TT, CPU, /*TuneCPU=*/CPU, FS),
+      TLInfo(TM, initializeSubtargetDependencies(TT, CPU, CPU, FS)) {
   CallLoweringInfo.reset(new MOS6502CallLowering(getTargetLowering()));
   Legalizer.reset(new MOS6502LegalizerInfo);
 
@@ -26,6 +27,19 @@ MOS6502Subtarget::MOS6502Subtarget(const Triple &TT, StringRef CPU,
   InstSelector.reset(createMOS6502InstructionSelector(
       *static_cast<const MOS6502TargetMachine *>(&TM), *this, *RBI));
   InlineAsmLoweringInfo.reset(new InlineAsmLowering(getTargetLowering()));
+}
+
+MOS6502Subtarget &MOS6502Subtarget::initializeSubtargetDependencies(
+    const Triple &TT, StringRef CPU, StringRef TuneCPU, StringRef FS) {
+  std::string CPUName = std::string(CPU);
+  std::string TuneCPUName = std::string(TuneCPU);
+  if (CPUName.empty())
+    CPUName = "generic";
+  if (TuneCPUName.empty())
+    TuneCPUName = CPUName;
+  InitMCProcessorInfo(CPUName, TuneCPUName, FS);
+
+  return *this;
 }
 
 void MOS6502Subtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,

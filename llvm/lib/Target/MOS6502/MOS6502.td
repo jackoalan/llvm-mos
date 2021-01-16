@@ -8,7 +8,16 @@ include "MOS6502Combine.td"
 include "MOS6502RegisterBanks.td"
 include "MOS6502InstrInfo.td"
 
-def : ProcessorModel<"generic", NoSchedModel, []>;
+def MOS6502SchedModel : SchedMachineModel {
+  // Prevent instructions from being added to the pending queue, since latency
+  // doesn't matter. The remaining latency concerns are disabled in the C++
+  // scheduling strategy.
+  let MicroOpBufferSize = 1;
+
+  let CompleteModel = false;
+}
+
+def : ProcessorModel<"generic", MOS6502SchedModel, []>;
 
 def MOS6502InstrInfo : InstrInfo {
   let guessInstructionProperties = 0;

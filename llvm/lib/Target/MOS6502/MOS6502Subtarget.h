@@ -66,6 +66,12 @@ public:
 
   void overrideSchedPolicy(MachineSchedPolicy &Policy,
                            unsigned NumRegionInstrs) const override;
+
+private:
+  MOS6502Subtarget &initializeSubtargetDependencies(const Triple &TT,
+                                                    StringRef CPU,
+                                                    StringRef TuneCPU,
+                                                    StringRef FS);
 };
 
 } // namespace llvm
