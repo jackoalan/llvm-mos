@@ -40,7 +40,7 @@ bool MOS6502PreRegAlloc::runOnMachineFunction(MachineFunction &MF) {
       case MOS6502::ASL:
       case MOS6502::ROL: {
         Register Dst = MI.getOperand(0).getReg();
-        Register Src = MI.getOperand(1).getReg();
+        Register Src = MI.getOperand(2).getReg();
         if (couldContainA(Dst, MRI) || !couldContainA(Src, MRI))
           continue;
 

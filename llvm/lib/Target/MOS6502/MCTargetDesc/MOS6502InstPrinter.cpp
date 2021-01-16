@@ -43,7 +43,7 @@ void MOS6502InstPrinter::printInst(const MCInst *MI, uint64_t Address,
   }
   case MOS6502::LDCimm: {
     OS << "\t";
-    int64_t Imm = MI->getOperand(0).getImm();
+    int64_t Imm = MI->getOperand(1).getImm();
     switch (Imm) {
     default:
       llvm_unreachable("Invalid LDCimm immediate.");

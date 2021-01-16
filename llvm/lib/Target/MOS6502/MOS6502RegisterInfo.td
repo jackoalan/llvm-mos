@@ -65,7 +65,10 @@ def Flag : MOS6502RegClass<[i1], 8, (add C, N, Z)> {
 
 let isPressureFineGrained = true in {
   def Ac : MOS6502RegClass<[i8], 8, (add A)>;
+  def Yc : MOS6502RegClass<[i8], 8, (add Y)>;
   def XY : MOS6502RegClass<[i8], 8, (add X, Y)>;
+
+  def Cc : MOS6502RegClass<[i1], 8, (add C)>;
 }
 
 def ZP : MOS6502RegClass<[i8], 8, (add SPlo, SPhi, (sequence "ZP_%u", 0, 253))>;
@@ -74,4 +77,4 @@ def ZP_PTR : MOS6502RegClass<[i16], 8, (add SP, (sequence "ZP_PTR_%u", 0, 126))>
 def AZP : MOS6502RegClass<[i8], 8, (add A, ZP)>;
 
 def Anyi8 : MOS6502RegClass<[i8], 8, (add GPR, ZP)>;
-def Anyi1 : MOS6502RegClass<[i1], 8, (add GPR, ZP, C)>;
+def Anyi1 : MOS6502RegClass<[i1], 8, (add GPR, ZP, Cc)>;

@@ -95,10 +95,10 @@ def PushPtrhs : Pseudo {
 // stack pointer. Outputs a sum and carry.
 def AddFiLo : Pseudo {
   dag InOperandList = (ins i16imm:$fi);
-  dag OutOperandList = (outs Anyi8:$dst);
+  dag OutOperandList = (outs Anyi8:$dst, Cc:$carry);
 
   let Uses = [SP];
-  let Defs = [C, NZ];
+  let Defs = [NZ];
 
   let isAdd = true;
   let isReMaterializable = true;
@@ -107,10 +107,10 @@ def AddFiLo : Pseudo {
 // Adds the high byte of the given offset/frame-index to the high byte of the
 // stack pointer, accepting a carry.
 def AdcFiHi : Pseudo {
-  dag InOperandList = (ins i16imm:$fi);
+  dag InOperandList = (ins i16imm:$fi, Cc:$carry);
   dag OutOperandList = (outs Anyi8:$dst);
 
-  let Uses = [SP, C];
+  let Uses = [SP];
   let Defs = [C, NZ];
 
   let isAdd = true;
@@ -132,11 +132,11 @@ def IncSP : Pseudo {
 
 
 def ADCimm : Instr {
-  dag InOperandList = (ins i8imm:$r);
-  dag OutOperandList = (outs);
+  dag InOperandList = (ins Ac:$l, i8imm:$r, Cc:$carryin);
+  dag OutOperandList = (outs Ac:$dst, Cc:$carryout);
+  let Constraints = "$dst = $l, $carryout = $carryin";
 
-  let Uses = [A, C];
-  let Defs = [A, C, NZ];
+  let Defs = [NZ];
 
   let AsmString = "ADC\t#$r";
 
@@ -145,26 +145,27 @@ def ADCimm : Instr {
 }
 
 def ADCzpr : Instr {
-  dag InOperandList = (ins Ac:$l, ZP:$r);
-  dag OutOperandList = (outs Ac:$dst);
+  dag InOperandList = (ins Ac:$l, ZP:$r, Cc:$carryin);
+  dag OutOperandList = (outs Ac:$dst, Cc:$carryout);
+  // Don't give the carries a tied constraint, since having two tied operands
+  // inhibits commutation of $l and $r.
   let Constraints = "$dst = $l";
 
-  let Uses = [C];
-  let Defs = [C, NZ];
+  let Defs = [NZ];
 
   let AsmString = "ADC\tz:$r";
 
   let isAdd = true;
-  let isReMaterializable = true;
   let isCommutable = true;
+  let isReMaterializable = true;
 }
 
 def ASL : Instr {
   dag InOperandList = (ins AZP:$src);
-  dag OutOperandList = (outs AZP:$dst);
+  dag OutOperandList = (outs AZP:$dst, Cc:$carry);
   let Constraints = "$dst = $src";
 
-  let Defs = [C, NZ];
+  let Defs = [NZ];
 
   let AsmString = "ASL\t$dst";
 
@@ -193,9 +194,9 @@ def IN_ : Instr {
 
 def LDCimm : Instr {
   dag InOperandList = (ins i1imm:$val);
-  dag OutOperandList = (outs);
+  dag OutOperandList = (outs Cc:$dst);
 
-  let Defs = [C];
+  let Defs = [];
 
   let isReMaterializable = true;
   let isAsCheapAsAMove = true;
@@ -293,12 +294,11 @@ def LDYidx : Instr {
   let mayLoad = true;
 }
 
-def LDAyindirr : Pseudo {
-  dag InOperandList = (ins ZP_PTR:$addr);
-  dag OutOperandList = (outs);
+def LDyindirr : Pseudo {
+  dag InOperandList = (ins ZP_PTR:$addr, Yc:$offset);
+  dag OutOperandList = (outs Ac:$dst);
 
-  let Uses = [Y];
-  let Defs = [A, NZ];
+  let Defs = [NZ];
 
   let AsmString = "LDA\t($addr),Y";
 
@@ -306,12 +306,11 @@ def LDAyindirr : Pseudo {
 }
 
 def ROL : Instr {
-  dag InOperandList = (ins AZP:$src);
-  dag OutOperandList = (outs AZP:$dst);
-  let Constraints = "$dst = $src";
+  dag InOperandList = (ins AZP:$src, Cc:$carryin);
+  dag OutOperandList = (outs AZP:$dst, Cc:$carryout);
+  let Constraints = "$dst = $src, $carryout = $carryin";
 
-  let Uses = [C];
-  let Defs = [C, NZ];
+  let Defs = [NZ];
 
   let AsmString = "ROL\t$dst";
 
@@ -414,22 +413,19 @@ def STabs : Instr {
   let mayStore = true;
 }
 
-def STAidx : Instr {
-  dag InOperandList = (ins i16imm:$addr, XY:$idx);
+def STidx : Instr {
+  dag InOperandList = (ins Ac:$src, i16imm:$addr, XY:$idx);
   dag OutOperandList = (outs);
-
-  let Uses = [A];
 
   let AsmString = "STA\t$addr,$idx";
 
   let mayStore = true;
 }
 
-def STAyindirr : Pseudo {
-  dag InOperandList = (ins ZP_PTR:$addr);
+def STyindirr : Pseudo {
+  dag InOperandList = (ins Ac:$src, ZP_PTR:$addr, Yc:$offset);
   dag OutOperandList = (outs);
 
-  let Uses = [A, Y];
   let Defs = [];
 
   let AsmString = "STA\t($addr),Y";

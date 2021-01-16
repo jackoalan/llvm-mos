@@ -212,9 +212,11 @@ bool MOS6502InstructionSelector::selectConstant(MachineInstr &MI) {
   // s8 is handled by TableGen LDimm.
   assert(Builder.getMRI()->getType(MI.getOperand(0).getReg()) ==
          LLT::scalar(1));
-  Builder.buildInstr(MOS6502::LDCimm)
-      .addImm(MI.getOperand(1).getCImm()->getZExtValue());
-  buildCopy(Builder, MI.getOperand(0).getReg(), MOS6502::C);
+  auto Ld = Builder.buildInstr(MOS6502::LDCimm)
+                .addDef(MI.getOperand(0).getReg())
+                .addImm(MI.getOperand(1).getCImm()->getZExtValue());
+  if (!constrainSelectedInstRegOperands(*Ld, TII, TRI, RBI))
+    return false;
   MI.eraseFromParent();
   return true;
 }
@@ -228,16 +230,17 @@ bool MOS6502InstructionSelector::selectFrameIndex(MachineInstr &MI) {
   Register Lo = MRI.createGenericVirtualRegister(s8);
   Register Hi = MRI.createGenericVirtualRegister(s8);
   Register Carry = MRI.createGenericVirtualRegister(LLT::scalar(1));
-  auto LoAdd =
-      Builder.buildInstr(MOS6502::AddFiLo).addDef(Lo).add(MI.getOperand(1));
+  auto LoAdd = Builder.buildInstr(MOS6502::AddFiLo)
+                   .addDef(Lo)
+                   .addDef(Carry)
+                   .add(MI.getOperand(1));
   if (!constrainSelectedInstRegOperands(*LoAdd, TII, TRI, RBI))
     return false;
 
-  buildCopy(Builder, Carry, MOS6502::C);
-  buildCopy(Builder, MOS6502::C, Carry);
-
-  auto HiAdc =
-      Builder.buildInstr(MOS6502::AdcFiHi).addDef(Hi).add(MI.getOperand(1));
+  auto HiAdc = Builder.buildInstr(MOS6502::AdcFiHi)
+                   .addDef(Hi)
+                   .add(MI.getOperand(1))
+                   .addUse(Carry);
   if (!constrainSelectedInstRegOperands(*HiAdc, TII, TRI, RBI))
     return false;
 
@@ -364,18 +367,19 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
 
   MatchIndirectIndexed(Addr, Base, Offset, MRI);
 
+  Register OffsetReg = MRI.createGenericVirtualRegister(LLT::scalar(8));
   if (Offset.isImm())
-    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).add(Offset);
+    Builder.buildInstr(MOS6502::LDimm).addDef(OffsetReg).add(Offset);
   else
-    buildCopy(Builder, MOS6502::Y, Offset.getReg());
+    buildCopy(Builder, OffsetReg, Offset.getReg());
 
-  auto Load = Builder.buildInstr(MOS6502::LDAyindirr)
+  auto Load = Builder.buildInstr(MOS6502::LDyindirr)
+                  .addDef(Dst)
                   .addUse(Base.getReg())
+                  .addUse(OffsetReg)
                   .cloneMemRefs(MI);
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
     return false;
-
-  buildCopy(Builder, Dst, MOS6502::A);
 
   MI.removeFromParent();
   return true;
@@ -389,10 +393,10 @@ bool MOS6502InstructionSelector::selectLshO(MachineInstr &MI) {
   Register Src = MI.getOperand(2).getReg();
 
   MachineIRBuilder Builder(MI);
-  auto Asl = Builder.buildInstr(MOS6502::ASL).addDef(Dst).addUse(Src);
+  auto Asl =
+      Builder.buildInstr(MOS6502::ASL).addDef(Dst).addDef(CarryOut).addUse(Src);
   if (!constrainSelectedInstRegOperands(*Asl, TII, TRI, RBI))
     return false;
-  buildCopy(Builder, CarryOut, MOS6502::C);
   MI.removeFromParent();
   return true;
 }
@@ -406,11 +410,13 @@ bool MOS6502InstructionSelector::selectLshE(MachineInstr &MI) {
   Register CarryIn = MI.getOperand(3).getReg();
 
   MachineIRBuilder Builder(MI);
-  buildCopy(Builder, MOS6502::C, CarryIn);
-  auto Rol = Builder.buildInstr(MOS6502::ROL).addDef(Dst).addUse(Src);
+  auto Rol = Builder.buildInstr(MOS6502::ROL)
+                 .addDef(Dst)
+                 .addDef(CarryOut)
+                 .addUse(Src)
+                 .addUse(CarryIn);
   if (!constrainSelectedInstRegOperands(*Rol, TII, TRI, RBI))
     return false;
-  buildCopy(Builder, CarryOut, MOS6502::C);
   MI.removeFromParent();
   return true;
 }
@@ -458,12 +464,11 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
   MachineIRBuilder Builder(MI);
   MachineRegisterInfo &MRI = *Builder.getMRI();
 
-  buildCopy(Builder, MOS6502::A, Src);
-
   MachineOperand Base = MachineOperand::CreateImm(0);
   MachineOperand Offset = MachineOperand::CreateImm(0);
   if (MatchIndexed(Addr, Base, Offset, MRI)) {
-    auto Store = Builder.buildInstr(MOS6502::STAidx)
+    auto Store = Builder.buildInstr(MOS6502::STidx)
+                     .addUse(Src)
                      .add(Base)
                      .add(Offset)
                      .cloneMemRefs(MI);
@@ -475,13 +480,16 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
 
   MatchIndirectIndexed(Addr, Base, Offset, MRI);
 
+  Register OffsetReg = MRI.createGenericVirtualRegister(LLT::scalar(8));
   if (Offset.isImm())
-    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).add(Offset);
+    Builder.buildInstr(MOS6502::LDimm).addDef(OffsetReg).add(Offset);
   else
-    buildCopy(Builder, MOS6502::Y, Offset.getReg());
+    buildCopy(Builder, OffsetReg, Offset.getReg());
 
-  auto Store = Builder.buildInstr(MOS6502::STAyindirr)
+  auto Store = Builder.buildInstr(MOS6502::STyindirr)
+                   .addUse(Src)
                    .addUse(Base.getReg())
+                   .addUse(OffsetReg)
                    .cloneMemRefs(MI);
   if (!constrainSelectedInstRegOperands(*Store, TII, TRI, RBI))
     return false;
@@ -500,22 +508,28 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &MI) {
   Register CarryIn = MI.getOperand(4).getReg();
 
   MachineIRBuilder Builder(MI);
-  buildCopy(Builder, MOS6502::C, CarryIn);
 
   auto RConst = getConstantVRegValWithLookThrough(R, *Builder.getMRI());
+  MachineInstrBuilder Add;
   if (RConst) {
     assert(RConst->Value.getBitWidth() == 8);
-    buildCopy(Builder, MOS6502::A, L);
-    Builder.buildInstr(MOS6502::ADCimm).addImm(RConst->Value.getZExtValue());
-    buildCopy(Builder, Sum, MOS6502::A);
+    Add = Builder.buildInstr(MOS6502::ADCimm)
+              .addDef(Sum)
+              .addDef(CarryOut)
+              .addUse(L)
+              .addImm(RConst->Value.getZExtValue())
+              .addUse(CarryIn);
   } else {
-    auto Add =
-        Builder.buildInstr(MOS6502::ADCzpr).addDef(Sum).addUse(L).addUse(R);
-    if (!constrainSelectedInstRegOperands(*Add, TII, TRI, RBI))
-      return false;
+    Add = Builder.buildInstr(MOS6502::ADCzpr)
+              .addDef(Sum)
+              .addDef(CarryOut)
+              .addUse(L)
+              .addUse(R)
+              .addUse(CarryIn);
   }
+  if (!constrainSelectedInstRegOperands(*Add, TII, TRI, RBI))
+    return false;
 
-  buildCopy(Builder, CarryOut, MOS6502::C);
   MI.removeFromParent();
   return true;
 }
@@ -561,7 +575,7 @@ void MOS6502InstructionSelector::composePtr(MachineIRBuilder &Builder,
   // Propagate Lo and Hi to uses, hopefully killing the REG_SEQUENCE and
   // unconstraining the register classes of Lo and Hi.
   std::set<Register> WorkList = {Dst};
-  std::vector<MachineOperand*> Uses;
+  std::vector<MachineOperand *> Uses;
   while (!WorkList.empty()) {
     Register Reg = *WorkList.begin();
     WorkList.erase(Reg);

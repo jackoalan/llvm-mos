@@ -9,11 +9,13 @@ body: |
     liveins: $c
     %0:ac = IMPLICIT_DEF
     %1:zp = IMPLICIT_DEF
-    %2:ac = ADCzpr %0:ac, killed %1:zp, implicit-def $c, implicit-def $nz, implicit $c
-    RTS implicit %2
+    %2:cc = IMPLICIT_DEF
+    %3:ac, dead %4:cc = ADCzpr %0, killed %1, %2, implicit-def $nz
+    RTS implicit %0, implicit %3
 # CHECK:      %0:zp = IMPLICIT_DEF
 # CHECK-NEXT: %1:ac = IMPLICIT_DEF
-# CHECK-NEXT: %2:ac = COPY %1
-# CHECK-NEXT: %2:ac = ADCzpr %2, %0
-# CHECK-NEXT: RTS implicit %2
+# CHECK-NEXT: %2:cc = IMPLICIT_DEF
+# CHECK-NEXT: %3:ac = COPY %1
+# CHECK-NEXT: %3:ac, dead %4:cc = ADCzpr %3, %0, %2
+# CHECK-NEXT: RTS implicit %0, implicit %3
 ...

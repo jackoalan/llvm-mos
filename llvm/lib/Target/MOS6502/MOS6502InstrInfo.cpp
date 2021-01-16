@@ -11,6 +11,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -134,6 +135,27 @@ unsigned MOS6502InstrInfo::getInstSizeInBytes(const MachineInstr &MI) const {
   // Overestimate the size of each instruction to guarantee that any necessary
   // branches are relaxed.
   return 3;
+}
+
+bool MOS6502InstrInfo::findCommutedOpIndices(const MachineInstr &MI,
+                                             unsigned &SrcOpIdx1,
+                                             unsigned &SrcOpIdx2) const {
+  assert(!MI.isBundle() &&
+         "MOS6502InstrInfo::findCommutedOpIndices() can't handle bundles");
+
+  const MCInstrDesc &MCID = MI.getDesc();
+  if (!MCID.isCommutable())
+    return false;
+
+  assert(MI.getOpcode() == MOS6502::ADCzpr);
+
+  if (!fixCommutedOpIndices(SrcOpIdx1, SrcOpIdx2, 2, 3))
+    return false;
+
+  if (!MI.getOperand(SrcOpIdx1).isReg() || !MI.getOperand(SrcOpIdx2).isReg())
+    // No idea.
+    return false;
+  return true;
 }
 
 bool MOS6502InstrInfo::isBranchOffsetInRange(unsigned BranchOpc,
@@ -428,13 +450,15 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     auto HiBytes = Bytes >> 8;
     assert(LoBytes || HiBytes);
 
-    Builder.buildInstr(MOS6502::LDCimm).addImm(0);
+    Builder.buildInstr(MOS6502::LDCimm).addDef(MOS6502::C).addImm(0);
     if (LoBytes) {
       Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(LoBytes);
       Builder.buildInstr(MOS6502::ADCzpr)
           .addDef(MOS6502::A)
+          .addDef(MOS6502::C)
           .addUse(MOS6502::A)
-          .addUse(MOS6502::SPlo);
+          .addUse(MOS6502::SPlo)
+          .addUse(MOS6502::C);
       Builder.buildInstr(MOS6502::STzpr)
           .addDef(MOS6502::SPlo)
           .addUse(MOS6502::A);
@@ -442,15 +466,18 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(HiBytes);
     Builder.buildInstr(MOS6502::ADCzpr)
         .addDef(MOS6502::A)
+        .addDef(MOS6502::C, RegState::Dead)
         .addUse(MOS6502::A)
-        .addUse(MOS6502::SPhi);
+        .addUse(MOS6502::SPhi)
+        .addUse(MOS6502::C);
     Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::SPhi).addUse(MOS6502::A);
     break;
   }
 
   case MOS6502::AddFiLo:
   case MOS6502::AdcFiHi: {
-    int64_t OffsetImm = MI.getOperand(1).getImm();
+    int OffsetIdx = MI.getOpcode() == MOS6502::AddFiLo ? 2 : 1;
+    int64_t OffsetImm = MI.getOperand(OffsetIdx).getImm();
     assert(0 <= OffsetImm && OffsetImm < 65536);
     auto Offset = static_cast<uint16_t>(OffsetImm);
 
@@ -477,11 +504,13 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
 
     Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(Offset);
     if (ResetCarry)
-      Builder.buildInstr(MOS6502::LDCimm).addImm(0);
+      Builder.buildInstr(MOS6502::LDCimm).addDef(MOS6502::C).addImm(0);
     Builder.buildInstr(MOS6502::ADCzpr)
         .addDef(MOS6502::A)
+        .addDef(MOS6502::C, getDeadRegState(MI.getOpcode() == MOS6502::AdcFiHi))
         .addUse(MOS6502::A)
-        .addUse(SP);
+        .addUse(SP)
+        .addUse(MOS6502::C);
     if (MI.getOperand(0).getReg() != MOS6502::A)
       copyPhysRegNoPreserve(Builder, MI.getOperand(0).getReg(), MOS6502::A);
     break;
@@ -542,7 +571,8 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
       copyPhysRegNoPreserve(Builder, MOS6502::A, Src);
 
     Builder.buildInstr(MOS6502::TSX);
-    Builder.buildInstr(MOS6502::STAidx)
+    Builder.buildInstr(MOS6502::STidx)
+        .addUse(MOS6502::A)
         .addImm(0x100 + MI.getOperand(1).getImm())
         .addReg(MOS6502::X);
     break;
@@ -559,9 +589,11 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     Register Src = MI.getOperand(0).getReg();
     // The high byte is pushed first, since it should have the higher memory
     // location (towards the bottom of the stack).
-    copyPhysRegNoPreserve(Builder, MOS6502::A, TRI.getSubReg(Src, MOS6502::subhi));
+    copyPhysRegNoPreserve(Builder, MOS6502::A,
+                          TRI.getSubReg(Src, MOS6502::subhi));
     Builder.buildInstr(MOS6502::PHA);
-    copyPhysRegNoPreserve(Builder, MOS6502::A, TRI.getSubReg(Src, MOS6502::sublo));
+    copyPhysRegNoPreserve(Builder, MOS6502::A,
+                          TRI.getSubReg(Src, MOS6502::sublo));
     Builder.buildInstr(MOS6502::PHA);
     break;
   }
@@ -577,9 +609,11 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     // The low byte is pulled first, since it has the lower memory location
     // (towards the top of the stack).
     Builder.buildInstr(MOS6502::PLA);
-    copyPhysRegNoPreserve(Builder, TRI.getSubReg(Dest, MOS6502::sublo), MOS6502::A);
+    copyPhysRegNoPreserve(Builder, TRI.getSubReg(Dest, MOS6502::sublo),
+                          MOS6502::A);
     Builder.buildInstr(MOS6502::PLA);
-    copyPhysRegNoPreserve(Builder, TRI.getSubReg(Dest, MOS6502::subhi), MOS6502::A);
+    copyPhysRegNoPreserve(Builder, TRI.getSubReg(Dest, MOS6502::subhi),
+                          MOS6502::A);
     break;
   }
   }
@@ -723,7 +757,8 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Builder.buildInstr(MOS6502::LDabs)
         .addDef(MOS6502::A)
         .addExternalSymbol("_SaveP");
-    Builder.buildInstr(MOS6502::STAidx)
+    Builder.buildInstr(MOS6502::STidx)
+        .addUse(MOS6502::A)
         .addImm(0x103) // Byte pushed by first PHA.
         .addUse(MOS6502::X);
     Builder.buildInstr(MOS6502::PLA);

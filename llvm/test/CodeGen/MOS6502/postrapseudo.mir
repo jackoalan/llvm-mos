@@ -4,17 +4,17 @@ name: addfilo
 # CHECK-LABEL: name: addfilo
 body: |
   bb.0.entry:
-    $a = AddFiLo 1234, implicit-def $c, implicit-def $nz, implicit $sp
+    $a, $c = AddFiLo 1234, implicit-def $nz, implicit $sp
 # CHECK:      $a = LDimm 210
-# CHECK-NEXT: LDCimm 0
-# CHECK-NEXT: $a = ADCzpr $a, $splo
+# CHECK-NEXT: $c = LDCimm 0
+# CHECK-NEXT: $a, $c = ADCzpr $a, $splo, $c
 ...
 ---
 name: addfilo0
 # CHECK-LABEL: name: addfilo0
 body: |
   bb.0.entry:
-    $a = AddFiLo 512, implicit-def $c, implicit-def $nz, implicit $sp
+    $a, $c = AddFiLo 512, implicit-def $nz, implicit $sp
 # CHECK: $a = LDzpr $splo
 ...
 ---
@@ -22,7 +22,7 @@ name: addfilo_copy
 # CHECK-LABEL: name: addfilo_copy
 body: |
   bb.0.entry:
-    $zp_1 = AddFiLo 512, implicit-def $c, implicit-def $nz, implicit $sp
+    $zp_1, $c = AddFiLo 512, implicit-def $nz, implicit $sp
 # CHECK:      $a = LDzpr $splo
 # CHECK-NEXT: $zp_1 = STzpr $a
 ...
@@ -31,19 +31,19 @@ name: adcfihi
 # CHECK-LABEL: name: adcfihi
 body: |
   bb.0.entry:
-    $a = AdcFiHi 1234, implicit-def $c, implicit-def $nz, implicit $c, implicit $sp
+    $a = AdcFiHi 1234, $c, implicit-def $c, implicit-def $nz, implicit $sp
 # CHECK:      $a = LDimm 4
-# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $a, dead $c = ADCzpr $a, $sphi, $c
 ...
 ---
 name: adcfihi_lo0
 # CHECK-LABEL: name: adcfihi
 body: |
   bb.0.entry:
-    $a = AdcFiHi 512, implicit-def $c, implicit-def $nz, implicit $c, implicit $sp
+    $a = AdcFiHi 512, $c, implicit-def $c, implicit-def $nz, implicit $sp
 # CHECK:      $a = LDimm 2
 # CHECK-NEXT: LDCimm 0
-# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $a, dead $c = ADCzpr $a, $sphi, $c
 ...
 ---
 name: incsp
@@ -52,12 +52,12 @@ body: |
   bb.0.entry:
     IncSP -1234, implicit-def $sp, implicit $sp
     RTS
-# CHECK:      LDCimm 0
+# CHECK:      $c = LDCimm 0
 # CHECK-NEXT: $a = LDimm 46
-# CHECK-NEXT: $a = ADCzpr $a, $splo
+# CHECK-NEXT: $a, $c = ADCzpr $a, $splo, $c
 # CHECK-NEXT: $splo = STzpr $a
 # CHECK-NEXT: $a = LDimm 251
-# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $a, dead $c = ADCzpr $a, $sphi, $c
 # CHECK-NEXT: $sphi = STzpr $a
 ...
 ---
@@ -67,9 +67,9 @@ body: |
   bb.0.entry:
     IncSP -512, implicit-def $sp, implicit $sp
     RTS
-# CHECK:      LDCimm 0
+# CHECK:      $c = LDCimm 0
 # CHECK-NEXT: $a = LDimm 254
-# CHECK-NEXT: $a = ADCzpr $a, $sphi
+# CHECK-NEXT: $a, dead $c = ADCzpr $a, $sphi, $c
 # CHECK-NEXT: $sphi = STzpr $a
 ...
 ---
@@ -131,7 +131,7 @@ body: |
   bb.0.entry:
     SThs $a, 2
 # CHECK:      TSX
-# CHECK-NEXT: STAidx 258, $x
+# CHECK-NEXT: STidx $a, 258, $x
 ...
 ---
 name: pushhs_a

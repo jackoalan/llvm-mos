@@ -66,6 +66,14 @@ char__stats:
 	LDA	#0
 	LDX	#0
 	LDY	#2
+	STA	__SaveA
+	LDA	z:__ZP__3
+	PHA
+	LDA	z:__ZP__2
+	PHA
+	PHP
+	LDA	__SaveA
+	PLP
 	JSR	memset
 LBB0__1:
 	JSR	next__char
@@ -77,37 +85,27 @@ LBB0__1:
 	ROL	A
 	STA	z:__ZP__1
 	LDA	z:__SPlo
-	LDY	z:__SPhi
+	LDX	z:__SPhi
 	CLC
 	ADC	z:__ZP__0
-	STA	z:__ZP__2
-	TYA
-	ADC	z:__ZP__1
-	STA	z:__ZP__3
-	LDY	#0
-	LDA	(__ZP__2),Y
-	TAX
-	LDY	#1
-	LDA	(__ZP__2),Y
-	TAY
-	CLC
-	TXA
-	ADC	#1
-	TAX
-	TYA
-	ADC	#0
 	STA	z:__ZP__0
 	TXA
+	ADC	z:__ZP__1
+	STA	z:__ZP__1
 	LDY	#0
-	STA	(__ZP__2),Y
-	LDA	z:__ZP__0
+	LDA	(__ZP__0),Y
+	CLC
+	ADC	#1
+	STA	(__ZP__0),Y
 	LDY	#1
-	STA	(__ZP__2),Y
+	LDA	(__ZP__0),Y
+	ADC	#0
+	STA	(__ZP__0),Y
 	JMP	LBB0__1
 LBB0__3:
-	LDA	z:__SPlo
+	PLA
 	STA	z:__ZP__2
-	LDA	z:__SPhi
+	PLA
 	STA	z:__ZP__3
 	JSR	report__counts
 	CLC
@@ -120,6 +118,7 @@ LBB0__3:
 .global	__SPlo
 .global	__ZP__2
 .global	__ZP__3
+.global	__SaveA
 .global	memset
 .global	__ZP__0
 .global	__ZP__1
@@ -140,21 +139,21 @@ Notes:
   - The rotations are done in A, then transferred to ZP. If the values both in and out
     were in ZP, the rotations would have been done in ZP instead.
   - The offset is added to the array start to form the count address in
-    `__ZP__PTR__2`.
-  - The current two-byte count is loaded into `X` and `Y` from `__ZP__PTR__2`. This
-    isn't special cased; the register allocator decides that these values can be
-    efficiently kept in registers.
-  - Once the count has been incremented, it is stored back into the array.
+    `__ZP__2`/`3`.
+  - The read-modify-write operation to increment the count is threaded one byte
+    at a time through `LDA` `ADC` `STA`, since neither the load nor the store
+    clobber the carry bit. Otherwise, the both the high and low bytes of the
+    load would have scheduled first, then both bytes of the increment, then both
+    bytes of the store.
 
 TODO:
 
-  - `__SPlo/hi` is copied to `__ZP_2/3` before it is added to the offset, but it
-    could instead be used directly. This will require a target pass, since
-    Machine Copy Propagation refuses to propagate copies of reserved variables
-    like the stack pointer, since it cannot generally reason about their value.
-  - The LDA/ADC/STA triples for the low and high byte should be rescheduled
-    together, which saves a pair of LDY and allows the increment to occur in A
-    for both bytes without moving out to X/Y.
+  - Pushing the value in `__ZP_2`/`3` to the stack seems extremely unnecessary,
+    and it is, since the value is exactly equal to the stack pointer. Even if
+    the value were at some nonzero offset from the stack pointer, it would still
+    be more efficient to reconstruct the pointer at time of use. The two byte
+    immediate addition this requires is considerably less expensive than *both*
+    a two-byte pop and a two-byte push.
   - `LDY #1` can be replaced with `INY`, saving a byte.
 
 </details>

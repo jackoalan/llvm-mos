@@ -20,7 +20,7 @@ body:             |
 # CHECK-NEXT: PHA
 # CHECK-NEXT: TSX
 # CHECK-NEXT: $a = LDabs &_SaveP
-# CHECK-NEXT: STAidx 259, $x
+# CHECK-NEXT: STidx $a, 259, $x
 # CHECK-NEXT: PLA
 # CHECK-NEXT: $x = TA_
 # CHECK-NEXT: PLA
@@ -55,7 +55,7 @@ body:             |
     RTS implicit $x
 # CHECK:      STabs $x, &_SaveX
 # CHECK-NEXT: TSX
-# CHECK-NEXT: STAidx 258, $x
+# CHECK-NEXT: STidx $a, 258, $x
 # CHECK-NEXT: PHP
 # CHECK-NEXT: $x = LDabs &_SaveX
 # CHECK-NEXT: PLP

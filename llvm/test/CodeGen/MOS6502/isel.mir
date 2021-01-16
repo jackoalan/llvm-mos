@@ -10,8 +10,7 @@ body: |
     %1:any(s8), %2:any(s1) = G_LSHO %0
     RTS implicit %1, implicit %2
 # CHECK:      %0:azp = IMPLICIT_DEF
-# CHECK-NEXT: %1:azp = ASL %0
-# CHECK-NEXT: %2:anyi1 = COPY $c
+# CHECK-NEXT: %1:azp, %2:cc = ASL %0
 # CHECK-NEXT: RTS
 ...
 ---
@@ -95,8 +94,8 @@ body: |
   bb.0.entry:
     %0:any(s1) = G_CONSTANT i1 true
     RTS implicit %0
-# CHECK:      LDCimm 1
-# CHECK-NEXT: %0:anyi1 = COPY $c
+# CHECK:      %0:cc = LDCimm 1
+# CHECK-NEXT: RTS
 ...
 ---
 name: ldimm
@@ -119,9 +118,9 @@ body: |
     %0:zp_ptr(p0) = G_IMPLICIT_DEF
     %1:any(s8) = G_LOAD %0:zp_ptr(p0) :: (load 1)
     RTS implicit %1
-# CHECK:      $y = LDimm 0
-# CHECK-NEXT: LDAyindirr %0
-# CHECK-NEXT: %1:anyi8 = COPY $a
+# CHECK:      %2:yc = LDimm 0
+# CHECK-NEXT: %1:ac = LDyindirr %0, %2
+# CHECK-NEXT: RTS
 ...
 ---
 name: load_indexed_indir
@@ -135,9 +134,10 @@ body: |
     %2:any(p0) = G_PTR_ADD %0, %1
     %3:any(s8) = G_LOAD %2 :: (load 1)
     RTS implicit %3
-# CHECK:      $y = LDimm 255
-# CHECK-NEXT: LDAyindirr %0
-# CHECK-NEXT: %3:anyi8 = COPY $a
+# CHECK:      %0:zp_ptr = IMPLICIT_DEF
+# CHECK-NEXT: %4:yc = LDimm 255
+# CHECK-NEXT: %3:ac = LDyindirr %0, %4
+# CHECK-NEXT: RTS
 ...
 ---
 name: rol
@@ -151,9 +151,8 @@ body: |
     %2:any(s8), %3:any(s1) = G_LSHE %0, %1
     RTS implicit %2, implicit %3
 # CHECK:      %0:azp = IMPLICIT_DEF
-# CHECK:      $c = COPY %1
-# CHECK-NEXT: %2:azp = ROL %0
-# CHECK-NEXT: %3:anyi1 = COPY $c
+# CHECK-NEXT: %1:cc = IMPLICIT_DEF
+# CHECK-NEXT: %2:azp, %3:cc = ROL %0, %1
 # CHECK-NEXT: RTS
 ...
 ---
@@ -167,9 +166,10 @@ body: |
     %1:any(p0) = G_IMPLICIT_DEF
     G_STORE %0, %1 :: (store 1)
     RTS
-# CHECK:      $a = COPY %0
-# CHECK-NEXT: $y = LDimm 0
-# CHECK-NEXT: STAyindirr %1
+# CHECK:      %0:ac = IMPLICIT_DEF
+# CHECK-NEXT: %1:zp_ptr = IMPLICIT_DEF
+# CHECK-NEXT: %2:yc = LDimm 0
+# CHECK-NEXT: STyindirr %0, %1, %2
 # CHECK-NEXT: RTS
 ...
 ---
@@ -184,11 +184,10 @@ body: |
     %2:any(s1) = G_IMPLICIT_DEF
     %3:any(s8), %4:any(s1) = G_UADDE %0:any(s8), %1:any(s8), %2:any(s1)
     RTS implicit %3, implicit %4
-# CHECK:      $c = COPY %2
-# CHECK-NEXT: $a = COPY %0
-# CHECK-NEXT: ADCimm 42
-# CHECK-NEXT: %3:anyi8 = COPY $a
-# CHECK-NEXT: %4:anyi1 = COPY $c
+# CHECK:      %0:ac = IMPLICIT_DEF
+# CHECK-NEXT: %2:cc = IMPLICIT_DEF
+# CHECK-NEXT: %3:ac, %4:cc = ADCimm %0, 42, %2
+# CHECK-NEXT: RTS
 ...
 ---
 name: uadde
@@ -204,10 +203,9 @@ body: |
     RTS implicit %3, implicit %4
 # CHECK:      %0:ac = IMPLICIT_DEF
 # CHECK-NEXT: %1:zp = IMPLICIT_DEF
-# CHECK-NEXT: %2:anyi1 = IMPLICIT_DEF
-# CHECK-NEXT: $c = COPY %2
-# CHECK-NEXT: %3:ac = ADCzpr %0, %1
-# CHECK-NEXT: %4:anyi1 = COPY $c
+# CHECK-NEXT: %2:cc = IMPLICIT_DEF
+# CHECK-NEXT: %3:ac, %4:cc = ADCzpr %0, %1, %2
+# CHECK-NEXT: RTS
 ...
 ---
 name: unmerge

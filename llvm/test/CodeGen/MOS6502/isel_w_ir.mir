@@ -55,9 +55,8 @@ body: |
     %3:any(p0) = G_PTR_ADD %1, %2
     G_STORE %0, %3 :: (store 1)
     RTS
-# CHECK:      %0:anyi8 = IMPLICIT_DEF
+# CHECK:      %0:ac = IMPLICIT_DEF
 # CHECK-NEXT: %2:xy = IMPLICIT_DEF
-# CHECK-NEXT: $a = COPY %0
-# CHECK-NEXT: STAidx @.str, %2
+# CHECK-NEXT: STidx %0, @.str, %2
 # CHECK-NEXT: RTS
 ...

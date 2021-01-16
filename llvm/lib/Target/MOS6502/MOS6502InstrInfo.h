@@ -25,6 +25,9 @@ public:
 
   unsigned getInstSizeInBytes(const MachineInstr &MI) const override;
 
+  bool findCommutedOpIndices(const MachineInstr &MI, unsigned &SrcOpIdx1,
+                             unsigned &SrcOpIdx2) const override;
+
   bool isBranchOffsetInRange(unsigned BranchOpc,
                              int64_t BrOffset) const override;
 
