@@ -28,6 +28,7 @@ add_llvm_target(MOS6502CodeGen
   MOS6502MachineScheduler.cpp
   MOS6502MCInstLower.cpp
   MOS6502PreLegalizerCombiner.cpp
+  MOS6502PreRegAlloc.cpp
   MOS6502RegisterBankInfo.cpp
   MOS6502RegisterInfo.cpp
   MOS6502Subtarget.cpp

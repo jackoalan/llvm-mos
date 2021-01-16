@@ -5,6 +5,7 @@
 #include "MOS6502LowerZPReg.h"
 #include "MOS6502MachineScheduler.h"
 #include "MOS6502PreLegalizerCombiner.h"
+#include "MOS6502PreRegAlloc.h"
 #include "MOS6502TargetObjectFile.h"
 #include "MOS6502TargetTransformInfo.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
@@ -100,6 +101,7 @@ public:
   bool addRegBankSelect() override;
   void addPreGlobalInstructionSelect() override;
   bool addGlobalInstructionSelect() override;
+  void addPreRegAlloc() override;
   void addPreSched2() override;
   void addPreEmitPass() override;
 
@@ -135,6 +137,10 @@ bool MOS6502PassConfig::addRegBankSelect() {
 bool MOS6502PassConfig::addGlobalInstructionSelect() {
   addPass(new InstructionSelect());
   return false;
+}
+
+void MOS6502PassConfig::addPreRegAlloc() {
+  addPass(createMOS6502PreRegAlloc());
 }
 
 void MOS6502PassConfig::addPreSched2() { addPass(createMOS6502LowerZPReg()); }

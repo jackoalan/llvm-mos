@@ -31,7 +31,12 @@ public:
 
   Register getFrameRegister(const MachineFunction &MF) const override;
 
-  const char* getZPSymbolName(Register Reg) const {
+  bool shouldCoalesce(MachineInstr *MI, const TargetRegisterClass *SrcRC,
+                      unsigned SubReg, const TargetRegisterClass *DstRC,
+                      unsigned DstSubReg, const TargetRegisterClass *NewRC,
+                      LiveIntervals &LIS) const override;
+
+  const char *getZPSymbolName(Register Reg) const {
     return ZPSymbolNames[Reg].c_str();
   }
 };

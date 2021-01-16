@@ -98,3 +98,13 @@ Register
 MOS6502RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return MOS6502::S;
 }
+
+bool MOS6502RegisterInfo::shouldCoalesce(
+    MachineInstr *MI, const TargetRegisterClass *SrcRC, unsigned SubReg,
+    const TargetRegisterClass *DstRC, unsigned DstSubReg,
+    const TargetRegisterClass *NewRC, LiveIntervals &LIS) const {
+  if (NewRC == &MOS6502::ZPRegClass &&
+      (SrcRC == &MOS6502::AZPRegClass || DstRC == &MOS6502::AZPRegClass))
+    return false;
+  return true;
+}

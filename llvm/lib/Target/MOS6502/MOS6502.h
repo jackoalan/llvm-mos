@@ -7,6 +7,7 @@ namespace llvm {
 
 void initializeMOS6502IndexIVPass(PassRegistry &);
 void initializeMOS6502LowerZPRegPass(PassRegistry &);
+void initializeMOS6502PreRegAllocPass(PassRegistry &);
 void initializeMOS6502PreLegalizerCombinerPass(PassRegistry &);
 
 } // namespace llvm
