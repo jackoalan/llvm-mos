@@ -192,6 +192,7 @@ def LDCimm : Instr {
   let Defs = [C];
 
   let isReMaterializable = true;
+  let isAsCheapAsAMove = true;
 }
 
 // Version of LDimm that promises not to overwrite NZ. This allows

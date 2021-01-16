@@ -351,8 +351,11 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
   MachineOperand Base = MachineOperand::CreateImm(0);
   MachineOperand Offset = MachineOperand::CreateImm(0);
   if (MatchIndexed(Addr, Base, Offset, MRI)) {
-    auto Load =
-        Builder.buildInstr(MOS6502::LDidx).addDef(Dst).add(Base).add(Offset);
+    auto Load = Builder.buildInstr(MOS6502::LDidx)
+                    .addDef(Dst)
+                    .add(Base)
+                    .add(Offset)
+                    .cloneMemRefs(MI);
     if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
       return false;
     MI.removeFromParent();
@@ -366,7 +369,9 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
   else
     buildCopy(Builder, MOS6502::Y, Offset.getReg());
 
-  auto Load = Builder.buildInstr(MOS6502::LDAyindirr).addUse(Base.getReg());
+  auto Load = Builder.buildInstr(MOS6502::LDAyindirr)
+                  .addUse(Base.getReg())
+                  .cloneMemRefs(MI);
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
     return false;
 
@@ -458,7 +463,10 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
   MachineOperand Base = MachineOperand::CreateImm(0);
   MachineOperand Offset = MachineOperand::CreateImm(0);
   if (MatchIndexed(Addr, Base, Offset, MRI)) {
-    auto Store = Builder.buildInstr(MOS6502::STAidx).add(Base).add(Offset);
+    auto Store = Builder.buildInstr(MOS6502::STAidx)
+                     .add(Base)
+                     .add(Offset)
+                     .cloneMemRefs(MI);
     if (!constrainSelectedInstRegOperands(*Store, TII, TRI, RBI))
       return false;
     MI.removeFromParent();
@@ -472,7 +480,9 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
   else
     buildCopy(Builder, MOS6502::Y, Offset.getReg());
 
-  auto Store = Builder.buildInstr(MOS6502::STAyindirr).addUse(Base.getReg());
+  auto Store = Builder.buildInstr(MOS6502::STAyindirr)
+                   .addUse(Base.getReg())
+                   .cloneMemRefs(MI);
   if (!constrainSelectedInstRegOperands(*Store, TII, TRI, RBI))
     return false;
 
