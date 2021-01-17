@@ -347,14 +347,20 @@ void MOS6502InstrInfo::storeRegToStackSlot(
       MFI.getObjectAlign(FrameIndex));
 
   MachineIRBuilder Builder(MBB, MI);
-  if (SrcReg.isVirtual()) {
-    if (!MRI.getRegClass(SrcReg)->hasSuperClassEq(&MOS6502::Anyi8RegClass))
-      report_fatal_error("Not yet implemented.");
+  unsigned Opcode;
+  if ((SrcReg.isVirtual() &&
+       MRI.getRegClass(SrcReg)->hasSuperClassEq(&MOS6502::Anyi8RegClass)) ||
+      (SrcReg.isPhysical() && MOS6502::Anyi8RegClass.contains(SrcReg))) {
+    Opcode = MOS6502::SThs;
+  } else if ((SrcReg.isVirtual() && MRI.getRegClass(SrcReg)->hasSuperClassEq(
+                                        &MOS6502::ZP_PTRRegClass)) ||
+             (SrcReg.isPhysical() &&
+              MOS6502::ZP_PTRRegClass.contains(SrcReg))) {
+    Opcode = MOS6502::STPtrhs;
   } else {
-    if (!MOS6502::Anyi8RegClass.contains(SrcReg))
-      report_fatal_error("Not yet implemented.");
+    report_fatal_error("Not yet implemented.");
   }
-  Builder.buildInstr(MOS6502::SThs)
+  Builder.buildInstr(Opcode)
       .addReg(SrcReg, getKillRegState(isKill))
       .addFrameIndex(FrameIndex)
       .addMemOperand(MMO);
@@ -375,14 +381,20 @@ void MOS6502InstrInfo::loadRegFromStackSlot(
       MFI.getObjectAlign(FrameIndex));
 
   MachineIRBuilder Builder(MBB, MI);
-  if (DestReg.isVirtual()) {
-    if (!MRI.getRegClass(DestReg)->hasSuperClassEq(&MOS6502::Anyi8RegClass))
-      report_fatal_error("Not yet implemented.");
+  unsigned Opcode;
+  if ((DestReg.isVirtual() &&
+       MRI.getRegClass(DestReg)->hasSuperClassEq(&MOS6502::Anyi8RegClass)) ||
+      (DestReg.isPhysical() && MOS6502::Anyi8RegClass.contains(DestReg))) {
+    Opcode = MOS6502::LDhs;
+  } else if ((DestReg.isVirtual() && MRI.getRegClass(DestReg)->hasSuperClassEq(
+                                         &MOS6502::ZP_PTRRegClass)) ||
+             (DestReg.isPhysical() &&
+              MOS6502::ZP_PTRRegClass.contains(DestReg))) {
+    Opcode = MOS6502::LDPtrhs;
   } else {
-    if (!MOS6502::Anyi8RegClass.contains(DestReg))
-      report_fatal_error("Not yet implemented.");
+    report_fatal_error("Not yet implemented.");
   }
-  Builder.buildInstr(MOS6502::LDhs)
+  Builder.buildInstr(Opcode)
       .addDef(DestReg)
       .addFrameIndex(FrameIndex)
       .addMemOperand(MMO);
@@ -398,9 +410,15 @@ bool MOS6502InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
 
 bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     MachineIRBuilder &Builder) const {
+  const TargetRegisterInfo &TRI =
+      *Builder.getMF().getSubtarget().getRegisterInfo();
+
   auto &MI = *Builder.getInsertPt();
-  bool Changed = false;
+  bool Changed = true;
   switch (MI.getOpcode()) {
+  default:
+    Changed = false;
+    break;
   case MOS6502::IncSP: {
     int64_t BytesImm = MI.getOperand(0).getImm();
     assert(BytesImm);
@@ -427,7 +445,6 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
         .addUse(MOS6502::A)
         .addUse(MOS6502::SPhi);
     Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::SPhi).addUse(MOS6502::A);
-    Changed = true;
     break;
   }
 
@@ -436,8 +453,6 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     int64_t OffsetImm = MI.getOperand(1).getImm();
     assert(0 <= OffsetImm && OffsetImm < 65536);
     auto Offset = static_cast<uint16_t>(OffsetImm);
-
-    Changed = true;
 
     Register SP;
     bool ResetCarry = false;
@@ -481,7 +496,6 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
           .add(MI.getOperand(1))
           .add(MI.getOperand(2));
       Builder.buildInstr(MOS6502::TA_).add(MI.getOperand(0));
-      Changed = true;
       break;
     }
 
@@ -500,14 +514,12 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
       Builder.buildInstr(MOS6502::LDYidx).add(MI.getOperand(1));
       break;
     }
-    Changed = true;
     break;
 
   case MOS6502::LDimm_preserve:
     Builder.buildInstr(MOS6502::LDimm)
         .add(MI.getOperand(0))
         .add(MI.getOperand(1));
-    Changed = true;
     break;
 
   case MOS6502::LDhs: {
@@ -521,7 +533,6 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
                   .addReg(MOS6502::X);
     Builder.setInsertPt(*Ld->getParent(), Ld);
     expandPostRAPseudoNoPreserve(Builder);
-    Changed = true;
     break;
   }
 
@@ -534,7 +545,41 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     Builder.buildInstr(MOS6502::STAidx)
         .addImm(0x100 + MI.getOperand(1).getImm())
         .addReg(MOS6502::X);
-    Changed = true;
+    break;
+  }
+
+  case MOS6502::Pushhs: {
+    Register Src = MI.getOperand(0).getReg();
+    if (Src != MOS6502::A)
+      copyPhysRegNoPreserve(Builder, MOS6502::A, Src);
+    Builder.buildInstr(MOS6502::PHA);
+    break;
+  }
+  case MOS6502::PushPtrhs: {
+    Register Src = MI.getOperand(0).getReg();
+    // The high byte is pushed first, since it should have the higher memory
+    // location (towards the bottom of the stack).
+    copyPhysRegNoPreserve(Builder, MOS6502::A, TRI.getSubReg(Src, MOS6502::subhi));
+    Builder.buildInstr(MOS6502::PHA);
+    copyPhysRegNoPreserve(Builder, MOS6502::A, TRI.getSubReg(Src, MOS6502::sublo));
+    Builder.buildInstr(MOS6502::PHA);
+    break;
+  }
+  case MOS6502::Pullhs: {
+    Register Dest = MI.getOperand(0).getReg();
+    Builder.buildInstr(MOS6502::PLA);
+    if (Dest != MOS6502::A)
+      copyPhysRegNoPreserve(Builder, Dest, MOS6502::A);
+    break;
+  }
+  case MOS6502::PullPtrhs: {
+    Register Dest = MI.getOperand(0).getReg();
+    // The low byte is pulled first, since it has the lower memory location
+    // (towards the top of the stack).
+    Builder.buildInstr(MOS6502::PLA);
+    copyPhysRegNoPreserve(Builder, TRI.getSubReg(Dest, MOS6502::sublo), MOS6502::A);
+    Builder.buildInstr(MOS6502::PLA);
+    copyPhysRegNoPreserve(Builder, TRI.getSubReg(Dest, MOS6502::subhi), MOS6502::A);
     break;
   }
   }
@@ -676,11 +721,11 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Builder.buildInstr(MOS6502::PHA);
     Builder.buildInstr(MOS6502::TSX);
     Builder.buildInstr(MOS6502::LDabs)
-      .addDef(MOS6502::A)
-      .addExternalSymbol("_SaveP");
+        .addDef(MOS6502::A)
+        .addExternalSymbol("_SaveP");
     Builder.buildInstr(MOS6502::STAidx)
-      .addImm(0x103)  // Byte pushed by first PHA.
-      .addUse(MOS6502::X);
+        .addImm(0x103) // Byte pushed by first PHA.
+        .addUse(MOS6502::X);
     Builder.buildInstr(MOS6502::PLA);
     Builder.buildInstr(MOS6502::TA_).addDef(MOS6502::X);
     Builder.buildInstr(MOS6502::PLA);
@@ -690,16 +735,16 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   if (Save.test(MOS6502::A)) {
     Builder.buildInstr(MOS6502::PHP);
     Builder.buildInstr(MOS6502::LDabs)
-      .addDef(MOS6502::A)
-      .addExternalSymbol("_SaveA");
+        .addDef(MOS6502::A)
+        .addExternalSymbol("_SaveA");
     Builder.buildInstr(MOS6502::PLP);
     RecordSaved(MOS6502::A);
   }
   if (Save.test(MOS6502::X)) {
     Builder.buildInstr(MOS6502::PHP);
     Builder.buildInstr(MOS6502::LDabs)
-      .addDef(MOS6502::X)
-      .addExternalSymbol("_SaveX");
+        .addDef(MOS6502::X)
+        .addExternalSymbol("_SaveX");
     Builder.buildInstr(MOS6502::PLP);
     RecordSaved(MOS6502::X);
   }

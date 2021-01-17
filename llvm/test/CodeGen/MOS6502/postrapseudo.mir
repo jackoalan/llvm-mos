@@ -133,3 +133,74 @@ body: |
 # CHECK:      TSX
 # CHECK-NEXT: STAidx 258, $x
 ...
+---
+name: pushhs_a
+# CHECK-LABEL: name: pushhs_a
+body: |
+  bb.0.entry:
+    liveins: $a
+    Pushhs $a
+    RTS
+# CHECK:      PHA
+# CHECK-NEXT: RTS
+...
+---
+name: pushhs_x
+# CHECK-LABEL: name: pushhs_x
+body: |
+  bb.0.entry:
+    liveins: $x
+    Pushhs $x
+    RTS
+# CHECK:      T_A $x
+# CHECK-NEXT: PHA
+# CHECK-NEXT: RTS
+...
+---
+name: pushptrhs
+# CHECK-LABEL: name: pushptrhs
+body: |
+  bb.0.entry:
+    liveins: $zp_ptr_0
+    PushPtrhs $zp_ptr_0
+    RTS
+# CHECK:      $a = LDzpr $zp_1
+# CHECK-NEXT: PHA
+# CHECK-NEXT: $a = LDzpr $zp_0
+# CHECK-NEXT: PHA
+# CHECK-NEXT: RTS
+...
+---
+name: pullhs_a
+# CHECK-LABEL: name: pullhs_a
+body: |
+  bb.0.entry:
+    $a = Pullhs
+    RTS implicit $a
+# CHECK:      PLA
+# CHECK-NEXT: RTS
+...
+---
+name: pullhs_x
+# CHECK-LABEL: name: pullhs_x
+body: |
+  bb.0.entry:
+    $x = Pullhs
+    RTS implicit $x
+# CHECK:      PLA
+# CHECK-NEXT: $x = TA_
+# CHECK-NEXT: RTS
+...
+---
+name: pullptrhs
+# CHECK-LABEL: name: pullptrhs
+body: |
+  bb.0.entry:
+    $zp_ptr_0 = PullPtrhs
+    RTS implicit $zp_ptr_0
+# CHECK:      PLA
+# CHECK-NEXT: $zp_0 = STzpr $a
+# CHECK-NEXT: PLA
+# CHECK-NEXT: $zp_1 = STzpr $a
+# CHECK-NEXT: RTS
+...

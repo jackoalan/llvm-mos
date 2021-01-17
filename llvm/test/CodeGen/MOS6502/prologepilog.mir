@@ -22,36 +22,19 @@ body:             |
     RTS
 # CHECK-LABEL: bb.0.entry:
 # CHECK-NEXT:  IncSP -64
-# CHECK-NEXT:  PHA implicit $a
+# CHECK-NEXT:  Pushhs $a
 # CHECK-NEXT:  $a = AddFiLo 32
 # CHECK-NEXT:  $a = AdcFiHi 0
-# CHECK-NEXT:  PHA implicit undef $a
-# CHECK-NEXT:  PHA implicit $a
-# CHECK-NEXT:  PHA implicit undef $a
+# CHECK-NEXT:  Pushhs undef $a
+# CHECK-NEXT:  Pushhs $a
+# CHECK-NEXT:  Pushhs undef $a
 # CHECK-NEXT:  SThs $a, 3
 # CHECK-NEXT:  $a = LDhs 3
-# CHECK-NEXT:  PLA implicit-def dead $a
-# CHECK-NEXT:  PLA implicit-def $a
-# CHECK-NEXT:  PLA implicit-def dead $a
-# CHECK-NEXT:  PLA implicit-def $a
+# CHECK-NEXT:  dead $a = Pullhs
+# CHECK-NEXT:  $a = Pullhs
+# CHECK-NEXT:  dead $a = Pullhs
+# CHECK-NEXT:  $a = Pullhs
 # CHECK-NEXT:  IncSP 64
-# CHECK-NEXT:  RTS
-...
----
-name: epilogue_save_a
-# CHECK-LABEL: name: epilogue_save_a
-stack:
-  - { id: 0, size: 1}
-body:             |
-  bb.0.entry:
-    $a = IMPLICIT_DEF
-    RTS implicit $a
-# CHECK-LABEL: bb.0.entry:
-# CHECK-NEXT:  $a = IMPLICIT_DEF
-# CHECK-NEXT:  PHA
-# CHECK-NEXT:  STabs $a, &_SaveA
-# CHECK-NEXT:  PLA
-# CHECK-NEXT:  $a = LDabs &_SaveA
 # CHECK-NEXT:  RTS
 ...
 ---
@@ -71,6 +54,6 @@ body:             |
     RTS
 # CHECK-LABEL: bb.0.entry:
 # CHECK:       $a = IMPLICIT_DEF
-# CHECK-NEXT:  PHA
-# CHECK-NEXT:  PLA
+# CHECK-NEXT:  Pushhs undef $a
+# CHECK-NEXT:  dead $a = Pullhs
 ...

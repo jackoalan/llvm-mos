@@ -80,7 +80,9 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
     break;
   }
   case MOS6502::LDhs:
-  case MOS6502::SThs: {
+  case MOS6502::LDPtrhs:
+  case MOS6502::SThs:
+  case MOS6502::STPtrhs: {
     if (MFI.getStackID(Op.getIndex()) != TargetStackID::Hard)
       report_fatal_error("Soft stack LD/ST not yet supported.");
     StackSize = TFL.hsSize(MFI);
@@ -93,7 +95,7 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
 
 Register
 MOS6502RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  return MOS6502::S;
+  report_fatal_error("Not yet implemented.");
 }
 
 bool MOS6502RegisterInfo::shouldCoalesce(

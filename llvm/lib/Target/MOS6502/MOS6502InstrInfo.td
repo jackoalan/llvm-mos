@@ -19,11 +19,6 @@ class Pseudo : Instr {
 // Frame Pseudoinstructions
 
 
-// Load a value from the given hard stack offset. This instruction is used by the
-// register allocator to emit spills, and such operations do not recompute
-// liveness information for phsyical registers. Accordingly, this instruction
-// must be considered to preserve all physical registers. The details of arranging
-// this are deferred to pseudo expansion time.
 def LDhs : Pseudo {
   dag InOperandList = (ins i8imm:$fi);
   dag OutOperandList = (outs Anyi8:$dst);
@@ -33,13 +28,62 @@ def LDhs : Pseudo {
   let mayLoad = true;
 }
 
-// Store a value to the given hard stack offset. This instruction is used by the
-// register allocator to emit spills, and such operations do not recompute
-// liveness information for phsyical registers. Accordingly, this instruction
-// must be considered to preserve all physical registers. The details of arranging
-// this are deferred to pseudo expansion time.
+def LDPtrhs : Pseudo {
+  dag InOperandList = (ins i8imm:$fi);
+  dag OutOperandList = (outs ZP_PTR:$dst);
+
+  let Defs = [];
+
+  let mayLoad = true;
+}
+
+def Pullhs : Pseudo {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs Anyi8:$dst);
+
+  let Defs = [];
+
+  let mayLoad = true;
+}
+
+def PullPtrhs : Pseudo {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs ZP_PTR:$dst);
+
+  let Defs = [];
+
+  let mayLoad = true;
+}
+
 def SThs : Pseudo {
   dag InOperandList = (ins Anyi8:$src, i8imm:$fi);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let mayStore = true;
+}
+
+def STPtrhs : Pseudo {
+  dag InOperandList = (ins ZP_PTR:$src, i8imm:$fi);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let mayStore = true;
+}
+
+def Pushhs : Pseudo {
+  dag InOperandList = (ins Anyi8:$src);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let mayStore = true;
+}
+
+def PushPtrhs : Pseudo {
+  dag InOperandList = (ins ZP_PTR:$src);
   dag OutOperandList = (outs);
 
   let Defs = [];

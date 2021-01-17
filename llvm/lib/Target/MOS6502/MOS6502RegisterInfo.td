@@ -17,8 +17,6 @@ def A : MOS6502Reg<"A">;
 def X : MOS6502Reg<"X">;
 def Y : MOS6502Reg<"Y">;
 
-def S : MOS6502Reg<"S">;
-
 def C : MOS6502Reg<"C">;
 def N : MOS6502Reg<"N">;
 def Z : MOS6502Reg<"Z">;
