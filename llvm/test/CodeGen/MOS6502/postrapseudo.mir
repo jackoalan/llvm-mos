@@ -51,16 +51,14 @@ name: incsp
 body: |
   bb.0.entry:
     IncSP -1234, implicit-def $sp, implicit $sp
-    RTS implicit $c
-# CHECK:      PHP
-# CHECK-NEXT: LDCimm 0
+    RTS
+# CHECK:      LDCimm 0
 # CHECK-NEXT: $a = LDimm 46
 # CHECK-NEXT: $a = ADCzpr $a, $splo
 # CHECK-NEXT: $splo = STzpr $a
 # CHECK-NEXT: $a = LDimm 251
 # CHECK-NEXT: $a = ADCzpr $a, $sphi
 # CHECK-NEXT: $sphi = STzpr $a
-# CHECK-NEXT: PLP
 ...
 ---
 name: incsp_hi_only
@@ -100,10 +98,12 @@ body: |
     liveins: $x
     $x = LDidx 1234, $x, implicit-def $nz
     CMPimm $a, 0, implicit-def $nz
-# CHECK:      PHA
+# CHECK:      STabs $a, &_SaveA
 # CHECK-NEXT: LDAidx 1234, $x
 # CHECK-NEXT: $x = TA_
-# CHECK-NEXT: PLA
+# CHECK-NEXT: PHP
+# CHECK-NEXT: $a = LDabs &_SaveA
+# CHECK-NEXT: PLP
 ...
 ---
 name: ldyidx_x
@@ -129,10 +129,7 @@ name: sths
 # CHECK-LABEL: name: sths
 body: |
   bb.0.entry:
-    SThs $x, 2
-# CHECK:      $zp_0 = STzpr $x
-# CHECK-NEXT: T_A $x
-# CHECK-NEXT: TSX
+    SThs $a, 2
+# CHECK:      TSX
 # CHECK-NEXT: STAidx 258, $x
-# CHECK-NEXT: $x = LDzpr $zp_0
 ...

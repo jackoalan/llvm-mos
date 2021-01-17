@@ -452,7 +452,7 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
       // AddFiLo won't reset the carry if it has a zero offset.
       ResetCarry = !(Offset & 0xFF);
       Copy = !OffsetImm;
-      Offset= Offset >> 8;
+      Offset = Offset >> 8;
     }
 
     if (Copy) {
@@ -620,27 +620,6 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   SparseBitVector<> Save = MaybeLive;
   Save &= Writes;
   Save.intersectWithComplement(ExpectedWrites);
-  // Restoring A, X, or Y writes NZ.
-  if (Save.test(MOS6502::A) || Save.test(MOS6502::X) || Save.test(MOS6502::Y)) {
-    Writes.set(MOS6502::NZ);
-    Save = MaybeLive;
-    Save &= Writes;
-    Save.intersectWithComplement(ExpectedWrites);
-  }
-
-  if (Save.test(MOS6502::X) && Save.test(MOS6502::Z))
-    report_fatal_error("Not yet implemented.");
-
-  // Note that X/Y are saved using a reserved ZP register. This seems like a
-  // high cost to pay, but consider the case where X needs to be saved, but the
-  // value written to A needs to be live out of the pseudo. A standard TXA, PHA
-  // pushes X to the stack just fine, but once the correct output value has been
-  // written to A, there's no way to PLA, TAX without clobbering it. We could
-  // try pushing it to the stack with PHA, but it's now on top of the stack, and
-  // it would require an indexed load to retrieve it. This is all considerably
-  // worse than just saving X/Y to a ZP reg. We'll likely be able to use the
-  // reserved reg for other purposes as well, so it shouldn't be too much of a
-  // burden on register allocation.
 
   const auto RecordSaved = [&](Register Reg) {
     for (MCSubRegIterator SubReg(Reg, &TRI, /*IncludeSelf=*/true);
@@ -649,31 +628,80 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     }
   };
 
+  // This code is intentionally very simplistic: that way it's easy to verify
+  // that it's complete. Eventually, more efficient PHA/PLA can be emitted in
+  // situations that can be proven safe. Ideally, saving/restoring here should
+  // be rare; especially if save/restores are elided as a post-processing step.
+  // Thus, having a simple working version of this forms a good baseline that
+  // the rest of the compiler can rely on.
+
+  // After the save sequence, issued, all registers and flags are in the same
+  // state as before the sequence. After the restore sequence, all registers
+  // and flags are in the same state as before the sequence, except those that
+  // were saved, which have their value at time of save. The only memory
+  // locations affected by either are _Save<Reg>, for Reg={P,A,X}.
+
+  // No pseudo currently expands to a hidden use of Y, so it isn't handled here
+  // yet.
+
   Builder.setInsertPt(MBB, Begin);
-  if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C))
-    Builder.buildInstr(MOS6502::PHP);
-  if (Save.test(MOS6502::A))
+  if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C)) {
     Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::STabs)
+        .addUse(MOS6502::A)
+        .addExternalSymbol("_SaveP");
+    Builder.buildInstr(MOS6502::PLA);
+  }
+  if (Save.test(MOS6502::A))
+    Builder.buildInstr(MOS6502::STabs)
+        .addUse(MOS6502::A)
+        .addExternalSymbol("_SaveA");
   if (Save.test(MOS6502::X))
-    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_0).addUse(MOS6502::X);
-  else if (Save.test(MOS6502::Y))
-    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_0).addUse(MOS6502::Y);
+    Builder.buildInstr(MOS6502::STabs)
+        .addUse(MOS6502::X)
+        .addExternalSymbol("_SaveX");
 
   Builder.setInsertPt(MBB, End);
-  if (Save.test(MOS6502::A)) {
+  if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C)) {
+    // Note: This is particularly awful due to the requirement that the last
+    // operation be a PLP. This means we have to get P onto the stack behind the
+    // values of any registers that need to be saved to do so; hence the indexed
+    // store behind the saves of X and A. That way, we can restore X and A
+    // *before* P, preventing those restores from clobbering NZ.
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::T_A).addUse(MOS6502::X);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::TSX);
+    Builder.buildInstr(MOS6502::LDabs)
+      .addDef(MOS6502::A)
+      .addExternalSymbol("_SaveP");
+    Builder.buildInstr(MOS6502::STAidx)
+      .addImm(0x103)  // Byte pushed by first PHA.
+      .addUse(MOS6502::X);
     Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::TA_).addDef(MOS6502::X);
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::PLP);
+    RecordSaved(MOS6502::P);
+  }
+  if (Save.test(MOS6502::A)) {
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::LDabs)
+      .addDef(MOS6502::A)
+      .addExternalSymbol("_SaveA");
+    Builder.buildInstr(MOS6502::PLP);
     RecordSaved(MOS6502::A);
   }
   if (Save.test(MOS6502::X)) {
-    Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::X).addUse(MOS6502::ZP_0);
-    RecordSaved(MOS6502::X);
-  } else if (Save.test(MOS6502::Y)) {
-    Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::Y).addUse(MOS6502::ZP_0);
-    RecordSaved(MOS6502::Y);
-  }
-  if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C)) {
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::LDabs)
+      .addDef(MOS6502::X)
+      .addExternalSymbol("_SaveX");
     Builder.buildInstr(MOS6502::PLP);
-    RecordSaved(MOS6502::P);
+    RecordSaved(MOS6502::X);
   }
 
   if (Save.count()) {

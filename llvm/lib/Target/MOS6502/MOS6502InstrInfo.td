@@ -237,6 +237,16 @@ def LDzp : Instr {
   let mayLoad = true;
 }
 
+def LDabs : Instr {
+  dag InOperandList = (ins i16imm:$src);
+  dag OutOperandList = (outs GPR:$dst);
+
+  let AsmString = "LD$dst\t$src";
+
+  let isReMaterializable = true;
+  let mayLoad = true;
+}
+
 // $dst = *(addr + (unsigned char)idx);
 // Sets NZ to undefined value, since expansion may clobber.
 def LDidx : Pseudo {
@@ -433,6 +443,17 @@ def STzp : Instr {
   let Defs = [];
 
   let AsmString = "ST$src\tz:$dst";
+
+  let mayStore = true;
+}
+
+def STabs : Instr {
+  dag InOperandList = (ins GPR:$src, i16imm:$dst);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let AsmString = "ST$src\t$dst";
 
   let mayStore = true;
 }

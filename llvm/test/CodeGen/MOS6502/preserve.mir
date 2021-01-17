@@ -1,0 +1,63 @@
+# RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
+---
+name:            preserve_p
+tracksRegLiveness: true
+# CHECK-LABEL: name: preserve_p
+body:             |
+  bb.0.entry:
+    liveins: $a, $n
+    $x = COPY $a
+    RTS implicit $n
+# CHECK:      PHA
+# CHECK-NEXT: PHP
+# CHECK-NEXT: PLA
+# CHECK-NEXT: STabs $a, &_SaveP
+# CHECK-NEXT: PLA
+# CHECK-NEXT: $x = TA_
+# CHECK-NEXT: PHA
+# CHECK-NEXT: PHA
+# CHECK-NEXT: T_A $x
+# CHECK-NEXT: PHA
+# CHECK-NEXT: TSX
+# CHECK-NEXT: $a = LDabs &_SaveP
+# CHECK-NEXT: STAidx 259, $x
+# CHECK-NEXT: PLA
+# CHECK-NEXT: $x = TA_
+# CHECK-NEXT: PLA
+# CHECK-NEXT: PLP
+# CHECK-NEXT: RTS
+...
+---
+name:            preserve_a
+tracksRegLiveness: true
+# CHECK-LABEL: name: preserve_a
+body:             |
+  bb.0.entry:
+    liveins: $a, $y
+    $x = COPY $y
+    RTS implicit $a
+# CHECK:      STabs $a, &_SaveA
+# CHECK-NEXT: T_A $y
+# CHECK-NEXT: $x = TA_
+# CHECK-NEXT: PHP
+# CHECK-NEXT: $a = LDabs &_SaveA
+# CHECK-NEXT: PLP
+# CHECK-NEXT: RTS
+...
+---
+name:            preserve_x
+tracksRegLiveness: true
+# CHECK-LABEL: name: preserve_x
+body:             |
+  bb.0.entry:
+    liveins: $x, $a
+    SThs $a, 2
+    RTS implicit $x
+# CHECK:      STabs $x, &_SaveX
+# CHECK-NEXT: TSX
+# CHECK-NEXT: STAidx 258, $x
+# CHECK-NEXT: PHP
+# CHECK-NEXT: $x = LDabs &_SaveX
+# CHECK-NEXT: PLP
+# CHECK-NEXT: RTS
+...

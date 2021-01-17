@@ -49,9 +49,9 @@ body:             |
 # CHECK-LABEL: bb.0.entry:
 # CHECK-NEXT:  $a = IMPLICIT_DEF
 # CHECK-NEXT:  PHA
-# CHECK-NEXT:  $zp_0 = STzpr $a
+# CHECK-NEXT:  STabs $a, &_SaveA
 # CHECK-NEXT:  PLA
-# CHECK-NEXT:  $a = LDzpr $zp_0
+# CHECK-NEXT:  $a = LDabs &_SaveA
 # CHECK-NEXT:  RTS
 ...
 ---

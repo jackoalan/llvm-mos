@@ -61,10 +61,10 @@ char__stats:
 	STA	z:__SPhi
 	LDA	z:__SPlo
 	STA	z:__ZP__2
+	LDA	z:__SPhi
+	STA	z:__ZP__3
 	LDA	#0
 	LDX	#0
-	LDY	z:__SPhi
-	STY	z:__ZP__3
 	LDY	#2
 	JSR	memset
 LBB0__1:
@@ -72,17 +72,16 @@ LBB0__1:
 	CMP	#0
 	BEQ	LBB0__3
 	ASL	A
-	LDX	#0
-	STX	z:__ZP__1
-	ROL	z:__ZP__1
-	LDY	z:__SPlo
-	STY	z:__ZP__2
-	LDX	z:__SPhi
-	STX	z:__ZP__3
+	STA	z:__ZP__0
+	LDA	#0
+	ROL	A
+	STA	z:__ZP__1
+	LDA	z:__SPlo
+	LDY	z:__SPhi
 	CLC
-	ADC	z:__ZP__2
+	ADC	z:__ZP__0
 	STA	z:__ZP__2
-	LDA	z:__ZP__3
+	TYA
 	ADC	z:__ZP__1
 	STA	z:__ZP__3
 	LDY	#0
@@ -97,12 +96,12 @@ LBB0__1:
 	TAX
 	TYA
 	ADC	#0
-	STA	z:__ZP__1
-	LDY	#0
+	STA	z:__ZP__0
 	TXA
+	LDY	#0
 	STA	(__ZP__2),Y
+	LDA	z:__ZP__0
 	LDY	#1
-	LDA	z:__ZP__1
 	STA	(__ZP__2),Y
 	JMP	LBB0__1
 LBB0__3:
@@ -122,6 +121,7 @@ LBB0__3:
 .global	__ZP__2
 .global	__ZP__3
 .global	memset
+.global	__ZP__0
 .global	__ZP__1
 .global	next__char
 .global	report__counts
@@ -136,7 +136,9 @@ Notes:
     certain that they do not call char_stats recursively, forcing the use of the
     C stack instead of static memory.
   - The character retrieved from next_char is shifted left to form the array
-    offset, with the low byte in `A` and the high byte in `__ZP__1`.
+    offset, with the low byte in `__ZP__0` and the high byte in `__ZP__1`.
+  - The rotations are done in A, then transferred to ZP. If the values both in and out
+    were in ZP, the rotations would have been done in ZP instead.
   - The offset is added to the array start to form the count address in
     `__ZP__PTR__2`.
   - The current two-byte count is loaded into `X` and `Y` from `__ZP__PTR__2`. This
@@ -150,8 +152,9 @@ TODO:
     could instead be used directly. This will require a target pass, since
     Machine Copy Propagation refuses to propagate copies of reserved variables
     like the stack pointer, since it cannot generally reason about their value.
-  - The current count in `X` and `Y` should be incremented directly using `INX` and
-    `INY` without moving them to `A`.
+  - The LDA/ADC/STA triples for the low and high byte should be rescheduled
+    together, which saves a pair of LDY and allows the increment to occur in A
+    for both bytes without moving out to X/Y.
   - `LDY #1` can be replaced with `INY`, saving a byte.
 
 </details>
@@ -195,12 +198,16 @@ The C stack is coming along:
 - LLVM's stack slot coloring places the most important values in hard stack.
 - Variable sized stack frames (`alloca`) are not yet supported.
 
-Very eventually, a whole-program IPO pass will detect when stack frames are used
-in procedures that are never recursive (directly or indirectly). Any stack
-references in such locations will be lowered to globally static memory
-locations. Such locations will be globally colored: any two "static stack
-frames" that cannot be simultaneously active can share the same color, that is,
-they may overlap in memory.
+Very eventually, a whole-program IPO pass will detect which stack indices are
+live across any calls that might be recursive (either directly or indirectly).
+Only these stack indices need to be stored on an actual stack; all others will
+be lowered to globally static memory locations. Such locations will be globally
+colored: any two "static stack frames" that cannot be simultaneously active can
+share the same color, that is, they may overlap in memory. This combines the
+best qualities of static and stack allocation: a pre-allocated block will be
+presented to the linker, and that block will be no larger than the largest
+possible non-recursive call stack that the program could ever achieve at
+runtime.
 
 ### Zero page usage
 
@@ -211,17 +218,27 @@ at the end of code generation, references to the zero page registers are lowered
 to abstract symbols placed in the zero page by the linker. Only registers
 actually accessed are emitted.
 
-One 2-byte pointer register and one zero-page location are presently reserved by
-the compiler. The pointer is used for the soft stack pointer; the other is used
-for last-chance saving/restoring of values after register allocation. The
-standalone register is considered `ZP_0`, which means it's the low byte of an
-unusable pointer register, `ZP_0/ZP_1`. `ZP_1` is otherwise freely usable for
-register.
+One 2-byte pointer register is presently reserved by the compiler as a soft
+stack; it's low and high bytes are the external symbols `__SPlo` and `__SPhi`,
+respectively.
 
 Eventually, a compiler flag should allow the user to specify how many zero page
 locations are available for use by the compiler. This will limit the register
 allocator and potentially increase the amount of stack used by the generated
 code.
+
+### Memory usage
+
+The compiler currently allocates 3 absolute memory locations for emergency
+saving and restoring: `__SaveA`, `__SaveX`, and `__SaveP`. These are rarely
+used, but all three need to be visible to the linker for program correctness.
+
+Eventually, these locations can be handled like any other de-stackified memory
+locations, as they're guaranteed not to be live across calls. Accordingly, they
+can be lowered to stack indices, which can in turn be lowered to global memory
+locations, with global coloring to reuse those locations where live ranges don't
+interfere. This would remove the requirement for linker scripts and the C
+runtime to be aware of these locations at all.
 
 ## Further Examples
 
@@ -454,4 +471,4 @@ TODO:
 
 </details>
 
-Updated January 12, 2021.
+Updated January 17, 2021.

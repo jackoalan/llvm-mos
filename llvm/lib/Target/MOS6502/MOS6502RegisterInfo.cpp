@@ -46,9 +46,6 @@ MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   Reserved.set(MOS6502::SPlo);
   Reserved.set(MOS6502::SPhi);
 
-  // Reserved for temporarily saving X/Y without clobbering A.
-  Reserved.set(MOS6502::ZP_0);
-  markSuperRegs(Reserved, MOS6502::ZP_0);
   return Reserved;
 }
 

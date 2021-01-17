@@ -160,9 +160,9 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
     LLVM_DEBUG(dbgs() << "Pulling until S=" << NewS << "\n");
 
     if (AMaybeLive)
-      Builder.buildInstr(MOS6502::STzpr)
-          .addDef(MOS6502::ZP_0)
-          .addUse(MOS6502::A);
+      Builder.buildInstr(MOS6502::STabs)
+          .addUse(MOS6502::A)
+          .addExternalSymbol("_SaveA");
 
     for (; S > NewS; --S) {
       auto Pull = Builder.buildInstr(MOS6502::PLA);
@@ -170,9 +170,9 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
     }
 
     if (AMaybeLive)
-      Builder.buildInstr(MOS6502::LDzpr)
+      Builder.buildInstr(MOS6502::LDabs)
           .addDef(MOS6502::A)
-          .addUse(MOS6502::ZP_0);
+          .addExternalSymbol("_SaveA");
   };
 
   // Defer pulling from the stack to as early as possible. Hopefully, this will
