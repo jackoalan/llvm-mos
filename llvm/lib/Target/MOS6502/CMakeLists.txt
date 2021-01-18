@@ -24,7 +24,6 @@ add_llvm_target(MOS6502CodeGen
   MOS6502IndexIVPass.cpp
   MOS6502ISelLowering.cpp
   MOS6502LegalizerInfo.cpp
-  MOS6502LowerZPReg.cpp
   MOS6502MachineScheduler.cpp
   MOS6502MCInstLower.cpp
   MOS6502PreLegalizerCombiner.cpp

@@ -2,7 +2,6 @@
 
 #include "MOS6502.h"
 #include "MOS6502IndexIVPass.h"
-#include "MOS6502LowerZPReg.h"
 #include "MOS6502MachineScheduler.h"
 #include "MOS6502PreLegalizerCombiner.h"
 #include "MOS6502PreRegAlloc.h"
@@ -30,7 +29,6 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502Target() {
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializeGlobalISel(PR);
   initializeMOS6502IndexIVPass(PR);
-  initializeMOS6502LowerZPRegPass(PR);
   initializeMOS6502PreLegalizerCombinerPass(PR);
 }
 
@@ -102,7 +100,6 @@ public:
   void addPreGlobalInstructionSelect() override;
   bool addGlobalInstructionSelect() override;
   void addPreRegAlloc() override;
-  void addPreSched2() override;
   void addPreEmitPass() override;
 
   ScheduleDAGInstrs *
@@ -142,8 +139,6 @@ bool MOS6502PassConfig::addGlobalInstructionSelect() {
 void MOS6502PassConfig::addPreRegAlloc() {
   addPass(createMOS6502PreRegAlloc());
 }
-
-void MOS6502PassConfig::addPreSched2() { addPass(createMOS6502LowerZPReg()); }
 
 void MOS6502PassConfig::addPreEmitPass() { addPass(&BranchRelaxationPassID); }
 

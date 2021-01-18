@@ -1,6 +1,8 @@
 #include "MOS6502MCInstLower.h"
 #include "MCTargetDesc/MOS6502MCExpr.h"
 #include "MOS6502InstrInfo.h"
+#include "MOS6502RegisterInfo.h"
+#include "MOS6502Subtarget.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -20,6 +22,11 @@ void MOS6502MCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
 
 bool MOS6502MCInstLower::lowerOperand(const MachineOperand &MO,
                                       MCOperand &MCOp) {
+  const MOS6502RegisterInfo &TRI = *MO.getParent()
+                                        ->getMF()
+                                        ->getSubtarget<MOS6502Subtarget>()
+                                        .getRegisterInfo();
+
   switch (MO.getType()) {
   default:
     LLVM_DEBUG(dbgs() << "Operand: " << MO << "\n");
@@ -51,7 +58,13 @@ bool MOS6502MCInstLower::lowerOperand(const MachineOperand &MO,
     // Ignore all implicit register operands.
     if (MO.isImplicit())
       return false;
-    MCOp = MCOperand::createReg(MO.getReg());
+    Register Reg = MO.getReg();
+    if (MOS6502::ZP_PTRRegClass.contains(Reg) ||
+        MOS6502::ZPRegClass.contains(Reg))
+      MCOp = MCOperand::createExpr(MCSymbolRefExpr::create(
+          Ctx.getOrCreateSymbol(TRI.getZPSymbolName(Reg)), Ctx));
+    else
+      MCOp = MCOperand::createReg(MO.getReg());
     break;
   }
   return true;

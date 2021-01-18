@@ -19,10 +19,15 @@ MOS6502RegisterInfo::MOS6502RegisterInfo()
                              /*PC=*/0, /*HwMode=*/0),
       ZPSymbolNames(new std::string[getNumRegs()]) {
   for (unsigned Reg = 0; Reg < getNumRegs(); ++Reg) {
-    if (!MOS6502::ZPRegClass.contains(Reg))
+    // Pointers are referred to by their low byte in the addressing modes that
+    // use them.
+    unsigned R = Reg;
+    if (MOS6502::ZP_PTRRegClass.contains(R))
+      R = getSubReg(R, MOS6502::sublo);
+    if (!MOS6502::ZPRegClass.contains(R))
       continue;
     ZPSymbolNames[Reg] = "_";
-    ZPSymbolNames[Reg] += getName(Reg);
+    ZPSymbolNames[Reg] += getName(R);
   }
 }
 

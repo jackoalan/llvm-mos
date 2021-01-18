@@ -1,7 +1,10 @@
 #include "MOS6502MCInstLower.h"
+#include "MOS6502RegisterInfo.h"
+#include "MOS6502Subtarget.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -28,11 +31,22 @@ public:
 };
 
 void MOS6502AsmPrinter::emitInstruction(const MachineInstr *MI) {
+  const MOS6502RegisterInfo &TRI =
+      *MI->getMF()->getSubtarget<MOS6502Subtarget>().getRegisterInfo();
+
   for (const MachineOperand &MO : MI->operands())
     if (MO.isSymbol())
       ExternalSymbols.insert(OutContext.getOrCreateSymbol(MO.getSymbolName()));
     else if (MO.isGlobal())
       GlobalSymbols.insert(getSymbol(MO.getGlobal()));
+    else if (MO.isReg()) {
+      Register Reg = MO.getReg();
+      if (MOS6502::ZPRegClass.contains(Reg) ||
+          MOS6502::ZP_PTRRegClass.contains(Reg)) {
+        ExternalSymbols.insert(
+            OutContext.getOrCreateSymbol(TRI.getZPSymbolName(Reg)));
+      }
+    }
 
   MCInst Inst;
   InstLowering.lower(MI, Inst);

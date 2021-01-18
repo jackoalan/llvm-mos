@@ -144,21 +144,8 @@ def ADCimm : Instr {
   let isReMaterializable = true;
 }
 
-def ADCzpr : Pseudo {
+def ADCzpr : Instr {
   dag InOperandList = (ins Ac:$l, ZP:$r);
-  dag OutOperandList = (outs Ac:$dst);
-  let Constraints = "$dst = $l";
-
-  let Uses = [C];
-  let Defs = [C, NZ];
-
-  let isAdd = true;
-  let isReMaterializable = true;
-  let isCommutable = true;
-}
-
-def ADCzp : Instr {
-  dag InOperandList = (ins Ac:$l, i8imm:$r);
   dag OutOperandList = (outs Ac:$dst);
   let Constraints = "$dst = $l";
 
@@ -172,7 +159,7 @@ def ADCzp : Instr {
   let isCommutable = true;
 }
 
-def ASL : Pseudo {
+def ASL : Instr {
   dag InOperandList = (ins AZP:$src);
   dag OutOperandList = (outs AZP:$dst);
   let Constraints = "$dst = $src";
@@ -182,31 +169,6 @@ def ASL : Pseudo {
   let AsmString = "ASL\t$dst";
 
   let isReMaterializable = true;
-}
-
-def ASLA : Instr {
-  dag InOperandList = (ins);
-  dag OutOperandList = (outs);
-
-  let Uses = [A];
-  let Defs = [A, C, NZ];
-
-  let AsmString = "ASL\tA";
-
-  let isReMaterializable = true;
-}
-
-def ASLzp : Instr {
-  dag InOperandList = (ins i8imm:$zp);
-  dag OutOperandList = (outs);
-
-  let Defs = [C, NZ];
-
-  let AsmString = "ASL\tz:$zp";
-
-  let isReMaterializable = true;
-  let mayLoad = true;
-  let mayStore = true;
 }
 
 def CMPimm : Instr {
@@ -264,21 +226,13 @@ def LDimm : Instr {
   let isReMaterializable = true;
 }
 
-def LDzpr : Pseudo {
+def LDzpr : Instr {
   dag InOperandList = (ins ZP:$src);
-  dag OutOperandList = (outs GPR:$dst);
-
-  let isReMaterializable = true;
-}
-
-def LDzp : Instr {
-  dag InOperandList = (ins i8imm:$src);
   dag OutOperandList = (outs GPR:$dst);
 
   let AsmString = "LD$dst\tz:$src";
 
   let isReMaterializable = true;
-  let mayLoad = true;
 }
 
 def LDabs : Instr {
@@ -346,22 +300,12 @@ def LDAyindirr : Pseudo {
   let Uses = [Y];
   let Defs = [A, NZ];
 
-  let mayLoad = true;
-}
-
-def LDAyindir : Instr {
-  dag InOperandList = (ins i8imm:$addr);
-  dag OutOperandList = (outs);
-
-  let Uses = [Y];
-  let Defs = [A, NZ];
-
   let AsmString = "LDA\t($addr),Y";
 
   let mayLoad = true;
 }
 
-def ROL : Pseudo {
+def ROL : Instr {
   dag InOperandList = (ins AZP:$src);
   dag OutOperandList = (outs AZP:$dst);
   let Constraints = "$dst = $src";
@@ -369,32 +313,9 @@ def ROL : Pseudo {
   let Uses = [C];
   let Defs = [C, NZ];
 
-  let isReMaterializable = true;
-}
-
-def ROLA : Instr {
-  dag InOperandList = (ins);
-  dag OutOperandList = (outs);
-
-  let Uses = [A];
-  let Defs = [A, C, NZ];
-
-  let AsmString = "ROL\tA";
+  let AsmString = "ROL\t$dst";
 
   let isReMaterializable = true;
-}
-
-def ROLzp : Instr {
-  dag InOperandList = (ins i8imm:$zp);
-  dag OutOperandList = (outs);
-
-  let Defs = [C, NZ];
-
-  let AsmString = "ROL\tz:$zp";
-
-  let isReMaterializable = true;
-  let mayLoad = true;
-  let mayStore = true;
 }
 
 def TA_ : Instr {
@@ -473,22 +394,13 @@ def PLP : Instr {
   let mayLoad = true;
 }
 
-def STzpr : Pseudo {
+def STzpr : Instr {
   dag InOperandList = (ins GPR:$src);
   dag OutOperandList = (outs ZP:$dst);
 
-  let Defs = [];
-}
-
-def STzp : Instr {
-  dag InOperandList = (ins i8imm:$dst, GPR:$src);
-  dag OutOperandList = (outs);
-
-  let Defs = [];
-
   let AsmString = "ST$src\tz:$dst";
 
-  let mayStore = true;
+  let Defs = [];
 }
 
 def STabs : Instr {
@@ -515,16 +427,6 @@ def STAidx : Instr {
 
 def STAyindirr : Pseudo {
   dag InOperandList = (ins ZP_PTR:$addr);
-  dag OutOperandList = (outs);
-
-  let Uses = [A, Y];
-  let Defs = [];
-
-  let mayStore = true;
-}
-
-def STAyindir : Instr {
-  dag InOperandList = (ins i16imm:$addr);
   dag OutOperandList = (outs);
 
   let Uses = [A, Y];
