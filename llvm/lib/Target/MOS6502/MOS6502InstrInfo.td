@@ -100,7 +100,6 @@ def AddFiLo : Pseudo {
   let Uses = [SP];
   let Defs = [NZ];
 
-  let isAdd = true;
   let isReMaterializable = true;
 }
 
@@ -113,7 +112,20 @@ def AdcFiHi : Pseudo {
   let Uses = [SP];
   let Defs = [C, NZ];
 
-  let isAdd = true;
+  let isReMaterializable = true;
+}
+
+// Perform an AddFiLo and AdcFiHi together as a single unit. Doesn't allow
+// instructions to be inserted between calculation of the low and high byte, but
+// in exchange, the instruction can be moved around and rematerialized as a
+// whole.
+def AddFi : Pseudo {
+  dag InOperandList = (ins i16imm:$fi);
+  dag OutOperandList = (outs ZP_PTR:$dst);
+
+  let Uses = [SP];
+  let Defs = [NZ];
+
   let isReMaterializable = true;
 }
 

@@ -226,25 +226,57 @@ bool MOS6502InstructionSelector::selectFrameIndex(MachineInstr &MI) {
 
   MachineIRBuilder Builder(MI);
   MachineRegisterInfo &MRI = *Builder.getMRI();
-  LLT s8 = LLT::scalar(8);
-  Register Lo = MRI.createGenericVirtualRegister(s8);
-  Register Hi = MRI.createGenericVirtualRegister(s8);
-  Register Carry = MRI.createGenericVirtualRegister(LLT::scalar(1));
-  auto LoAdd = Builder.buildInstr(MOS6502::AddFiLo)
-                   .addDef(Lo)
-                   .addDef(Carry)
-                   .add(MI.getOperand(1));
-  if (!constrainSelectedInstRegOperands(*LoAdd, TII, TRI, RBI))
-    return false;
 
-  auto HiAdc = Builder.buildInstr(MOS6502::AdcFiHi)
-                   .addDef(Hi)
-                   .add(MI.getOperand(1))
-                   .addUse(Carry);
-  if (!constrainSelectedInstRegOperands(*HiAdc, TII, TRI, RBI))
-    return false;
+  Register Dst = MI.getOperand(0).getReg();
 
-  composePtr(Builder, MI.getOperand(0).getReg(), Lo, Hi);
+  const auto AllUsesAreSubregs = [&]() {
+    std::set<Register> WorkList = {Dst};
+    std::vector<MachineOperand *> Uses;
+    while (!WorkList.empty()) {
+      Register Reg = *WorkList.begin();
+      WorkList.erase(Reg);
+      for (MachineOperand &MO : Builder.getMRI()->use_nodbg_operands(Reg)) {
+        if (MO.getSubReg())
+          continue;
+        if (MO.getParent()->isCopy())
+          WorkList.insert(MO.getParent()->getOperand(0).getReg());
+        else
+          return false;
+      }
+    }
+    return true;
+  };
+
+  // Split the address into high and low halves to allow them to potentially be
+  // allocated to GPR, maybe even to the same GPR at different times.
+  if (AllUsesAreSubregs()) {
+    LLT s8 = LLT::scalar(8);
+    Register Lo = MRI.createGenericVirtualRegister(s8);
+    Register Hi = MRI.createGenericVirtualRegister(s8);
+    Register Carry = MRI.createGenericVirtualRegister(LLT::scalar(1));
+
+    auto LoAdd = Builder.buildInstr(MOS6502::AddFiLo)
+      .addDef(Lo)
+      .addDef(Carry)
+      .add(MI.getOperand(1));
+    if (!constrainSelectedInstRegOperands(*LoAdd, TII, TRI, RBI))
+      return false;
+
+    auto HiAdc = Builder.buildInstr(MOS6502::AdcFiHi)
+      .addDef(Hi)
+      .add(MI.getOperand(1))
+      .addUse(Carry);
+    if (!constrainSelectedInstRegOperands(*HiAdc, TII, TRI, RBI))
+      return false;
+
+    composePtr(Builder, Dst, Lo, Hi);
+  } else {
+    // At least one use is in a ZP_PTR, so don't break up the address. This
+    // makes the operation easier to analyze and rematerialize.
+    auto Add = Builder.buildInstr(MOS6502::AddFi).addDef(Dst).add(MI.getOperand(1));
+    if (!constrainSelectedInstRegOperands(*Add, TII, TRI, RBI))
+      return false;
+  }
   MI.eraseFromParent();
   return true;
 }

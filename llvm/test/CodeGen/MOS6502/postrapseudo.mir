@@ -46,6 +46,22 @@ body: |
 # CHECK-NEXT: $a, dead $c = ADCzpr $a, $sphi, $c
 ...
 ---
+name: addfi
+# CHECK-LABEL: name: addfi
+body: |
+  bb.0.entry:
+    $zp_ptr_0 = AddFi 1234, implicit-def $c, implicit-def $nz, implicit $sp
+    RTS
+# CHECK:      $a = LDimm 210
+# CHECK-NEXT: $c = LDCimm 0
+# CHECK-NEXT: $a, $c = ADCzpr $a, $splo, $c
+# CHECK-NEXT: $zp_0 = STzpr $a
+# CHECK-NEXT: $a = LDimm 4
+# CHECK-NEXT: $a, dead $c = ADCzpr $a, $sphi, $c
+# CHECK-NEXT: $zp_1 = STzpr $a
+# CHECK-NEXT: RTS
+...
+---
 name: incsp
 # CHECK-LABEL: name: incsp
 body: |

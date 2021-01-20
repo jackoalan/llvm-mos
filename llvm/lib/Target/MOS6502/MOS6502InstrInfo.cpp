@@ -516,6 +516,26 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     break;
   }
 
+  case MOS6502::AddFi: {
+    Register Dst = MI.getOperand(0).getReg();
+    const MachineOperand &Offset = MI.getOperand(1);
+    auto End = Builder.getInsertPt();
+    auto Lo = Builder.buildInstr(MOS6502::AddFiLo)
+                  .addDef(MOS6502::A)
+                  .addDef(MOS6502::C)
+                  .add(Offset);
+    copyPhysRegNoPreserve(Builder, TRI.getSubReg(Dst, MOS6502::sublo), MOS6502::A);
+    auto Hi =
+        Builder.buildInstr(MOS6502::AdcFiHi).addDef(MOS6502::A).add(Offset);
+    copyPhysRegNoPreserve(Builder, TRI.getSubReg(Dst, MOS6502::subhi), MOS6502::A);
+    Builder.setInsertPt(Builder.getMBB(), Lo);
+    expandPostRAPseudoNoPreserve(Builder);
+    Builder.setInsertPt(Builder.getMBB(), Hi);
+    expandPostRAPseudoNoPreserve(Builder);
+    Builder.setInsertPt(Builder.getMBB(), End);
+    break;
+  }
+
   case MOS6502::LDidx:
     // This occur when X or Y is both the destination and index register.
     // Since the 6502 has no instruction for this, use A as the destination

@@ -66,14 +66,6 @@ char__stats:
 	LDA	#0
 	LDX	#0
 	LDY	#2
-	STA	__SaveA
-	LDA	z:__ZP__3
-	PHA
-	LDA	z:__ZP__2
-	PHA
-	PHP
-	LDA	__SaveA
-	PLP
 	JSR	memset
 LBB0__1:
 	JSR	next__char
@@ -103,9 +95,9 @@ LBB0__1:
 	STA	(__ZP__0),Y
 	JMP	LBB0__1
 LBB0__3:
-	PLA
+	LDA	z:__SPlo
 	STA	z:__ZP__2
-	PLA
+	LDA	z:__SPhi
 	STA	z:__ZP__3
 	JSR	report__counts
 	CLC
@@ -118,7 +110,6 @@ LBB0__3:
 .global	__SPlo
 .global	__ZP__2
 .global	__ZP__3
-.global	__SaveA
 .global	memset
 .global	__ZP__0
 .global	__ZP__1
@@ -138,22 +129,34 @@ Notes:
     offset, with the low byte in `__ZP__0` and the high byte in `__ZP__1`.
   - The rotations are done in A, then transferred to ZP. If the values both in and out
     were in ZP, the rotations would have been done in ZP instead.
-  - The offset is added to the array start to form the count address in
-    `__ZP__2`/`3`.
+  - The offset is added to the array start to form the count address.
   - The read-modify-write operation to increment the count is threaded one byte
     at a time through `LDA` `ADC` `STA`, since neither the load nor the store
     clobber the carry bit. Otherwise, the both the high and low bytes of the
     load would have scheduled first, then both bytes of the increment, then both
-    bytes of the store.
+    bytes of the store. This bit of magic is brought to you by LLVM's machine
+    scheduler, which endeavors to keep the register pressure as low as possible
+    by reordering instructions prior to register allocation.
+  - Direct stack pointer access optimization:
+    - Instead of reading `__SPlo` and `__SPhi` into `A` and `X`, they could be
+    left where they are, and the low and high bytes of the offset could then be
+    placed there instead. This would allow adding them to the stack pointer
+    directly, saving a pair of stores.
+    - Unfortunately, it's unlikely I'll be able to get LLVM to do this. The fact
+    that the array offset is exactly equal to the stack pointer is only known
+    once the stack layout has been finalized, which in turn can only be done
+    after register allocation, since the register allocator may spill values to
+    the stack. But after register allocation the offset is already assigned to
+    `A` and `X`, and the allocation would essentially need to be re-done at this
+    point, which could itself spill, leading to an infinite regress. This is a
+    classic sort of "phase ordering" problem endemic to the heuristic approach
+    used by compilers that separate instruction selection, frame lowering, and
+    register allocation, as does LLVM. The tradeoff is that solving the combined
+    problem efficiently is tremendously harder, and the available heuristics for
+    the combined problem tend to work much worse than the heuristics for the
+    each of the separated problems.
 
 TODO:
-
-  - Pushing the value in `__ZP_2`/`3` to the stack seems extremely unnecessary,
-    and it is, since the value is exactly equal to the stack pointer. Even if
-    the value were at some nonzero offset from the stack pointer, it would still
-    be more efficient to reconstruct the pointer at time of use. The two byte
-    immediate addition this requires is considerably less expensive than *both*
-    a two-byte pop and a two-byte push.
   - `LDY #1` can be replaced with `INY`, saving a byte.
 
 </details>
