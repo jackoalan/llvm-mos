@@ -158,6 +158,10 @@ Notes:
 
 TODO:
   - `LDY #1` can be replaced with `INY`, saving a byte.
+  - For some reason block placement makes the loop edge a `JMP` to a basic block
+    containing a `BR`, requiring two branches per iteration of the loop, when
+    only one is required if the branch is instead placed at the end of the loop.
+
 
 </details>
 
