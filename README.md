@@ -67,10 +67,8 @@ char__stats:
 	LDX	#0
 	LDY	#2
 	JSR	memset
+	JMP	LBB0__2
 LBB0__1:
-	JSR	next__char
-	CMP	#0
-	BEQ	LBB0__3
 	ASL	A
 	STA	z:__ZP__0
 	LDA	#0
@@ -93,8 +91,10 @@ LBB0__1:
 	LDA	(__ZP__0),Y
 	ADC	#0
 	STA	(__ZP__0),Y
-	JMP	LBB0__1
-LBB0__3:
+LBB0__2:
+	JSR	next__char
+	CMP	#0
+	BNE	LBB0__1
 	LDA	z:__SPlo
 	STA	z:__ZP__0
 	LDA	z:__SPhi
@@ -155,11 +155,8 @@ Notes:
     each of the separated problems.
 
 TODO:
-  - `LDY #1` can be replaced with `INY`, saving a byte.
-  - For some reason block placement makes the loop edge a `JMP` to a basic block
-    containing a `BR`, requiring two branches per iteration of the loop, when
-    only one is required if the branch is instead placed at the end of the loop.
 
+  - `LDY #1` can be replaced with `INY`, saving a byte.
 
 </details>
 

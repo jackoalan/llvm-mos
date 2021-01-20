@@ -91,10 +91,10 @@
   ; CHECK-LABEL: name: ptr
   entry:
   ; CHECK-LABEL: entry:
-    ; CHECK-NEXT: liveins: $zp_ptr_1, $zp_ptr_2
+    ; CHECK-NEXT: liveins: $zp_ptr_0, $zp_ptr_1
     ret void
-    ; CHECK:      %0:_(p0) = COPY $zp_ptr_1
-    ; CHECK-NEXT: %1:_(p0) = COPY $zp_ptr_2
+    ; CHECK:      %0:_(p0) = COPY $zp_ptr_0
+    ; CHECK-NEXT: %1:_(p0) = COPY $zp_ptr_1
   }
   define i8 @struct(i8 %first, %twobyte %second) {
   ; CHECK-LABEL: name: struct

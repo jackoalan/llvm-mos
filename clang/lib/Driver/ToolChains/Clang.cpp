@@ -1621,6 +1621,10 @@ void Clang::RenderTargetOptions(const llvm::Triple &EffectiveTriple,
     AddMIPSTargetArgs(Args, CmdArgs);
     break;
 
+  case llvm::Triple::mos6502:
+    AddMOS6502TargetArgs(Args, CmdArgs);
+    break;
+
   case llvm::Triple::ppc:
   case llvm::Triple::ppcle:
   case llvm::Triple::ppc64:
@@ -1914,6 +1918,17 @@ void Clang::AddMIPSTargetArgs(const ArgList &Args,
       CmdArgs.push_back("-mips-jalr-reloc=0");
     }
   }
+}
+
+void Clang::AddMOS6502TargetArgs(const ArgList &Args,
+                                 ArgStringList &CmdArgs) const {
+  // Give machine block placement an accurate cost assessment of branches and
+  // fallthroughs. (By default, it considers unconditional branches cheaper than
+  // taken conditional branches.)
+  CmdArgs.push_back("-mllvm");
+  CmdArgs.push_back("-force-precise-rotation-cost");
+  CmdArgs.push_back("-mllvm");
+  CmdArgs.push_back("-jump-inst-cost=6");
 }
 
 void Clang::AddPPCTargetArgs(const ArgList &Args,
