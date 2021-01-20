@@ -60,9 +60,9 @@ char__stats:
 	ADC	z:__SPhi
 	STA	z:__SPhi
 	LDA	z:__SPlo
-	STA	z:__ZP__2
+	STA	z:__ZP__0
 	LDA	z:__SPhi
-	STA	z:__ZP__3
+	STA	z:__ZP__1
 	LDA	#0
 	LDX	#0
 	LDY	#2
@@ -96,9 +96,9 @@ LBB0__1:
 	JMP	LBB0__1
 LBB0__3:
 	LDA	z:__SPlo
-	STA	z:__ZP__2
+	STA	z:__ZP__0
 	LDA	z:__SPhi
-	STA	z:__ZP__3
+	STA	z:__ZP__1
 	JSR	report__counts
 	CLC
 	LDA	#2
@@ -108,11 +108,9 @@ LBB0__3:
 
 .global	__SPhi
 .global	__SPlo
-.global	__ZP__2
-.global	__ZP__3
-.global	memset
 .global	__ZP__0
 .global	__ZP__1
+.global	memset
 .global	next__char
 .global	report__counts
 ```
@@ -172,7 +170,7 @@ TODO:
 The calling convention is presently very barebones:
 - Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`.
 - Pointer arguments/return values are passed in successively increasing pairs
-  of ZP locations, starting with `ZP_2`.
+  of ZP locations.
 - The compiler bails if the arguments/return value don't fit.
 - All compiler-used ZP locations, all registers, and all flags are caller-saved.
   - Use of most physical registers/flags are mandatory for certain operations,
