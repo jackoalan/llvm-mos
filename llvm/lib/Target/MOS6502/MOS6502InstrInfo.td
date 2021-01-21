@@ -11,6 +11,32 @@ class Instr : Instruction {
   let mayStore = 0;
 }
 
+// Pseudoinstructions lower to a sequence of real 6502 instructions. Which
+// sequence of instructions they expand to usually depends on the register
+// allocation of their operands.
+//
+// Unfortunately, it's often the case that the registers internally
+// used/clobbered by these instruction sequences depends on the register
+// allocation as well. Were these sequences emitted naively, they could clobber
+// values used by future instructions.
+//
+// Broadly, there are two different locations where these pseudos can be emitted:
+// before and during/after register allocation. Pseudos that can only be emitted
+// before register allocation should give a conservative estimate of the real
+// register uses of their expansions. Then the register allocator can later use
+// this information to avoid unneccessary conflicts. For pseudos emitted
+// during/after register allocation, it's too late for the register allocator to
+// do this, so pseudos must instead report that they affect nothing.
+//
+// In either case, once the pseudo instructions are to be lowered to a real
+// sequence of instructions, register allocation has already occurred. The
+// emitted instruction sequence is derived from the register allocation of the
+// pseudo's operand. The sequence is then wrapped in appropriate save/reload
+// code to make its register use/def profile match the one advertized by the
+// pseudo definition in this file. It only need to match in an "as-if" fashion:
+// any locations that are not live across the pseudo may be freely used without
+// save/restore.
+
 class Pseudo : Instr {
   let isPseudo = true;
 }
