@@ -13,7 +13,13 @@ class Instr : Instruction {
 
 // Pseudoinstructions lower to a sequence of real 6502 instructions. Which
 // sequence of instructions they expand to usually depends on the register
-// allocation of their operands.
+// allocation of their operands. These allow instruction selection and
+// generation to proceed without baking in hard determinations on which register
+// is used to store the operations. This is particularly important on the 6502,
+// where register classes commonly only contain one register, which would leave
+// the register allocator with nothing to do. The instruction selector isn't
+// really fit to pick up the slack; it knows nothing of live ranges, conflict
+// matrices, or spltting/spilling techniques.
 //
 // Unfortunately, it's often the case that the registers internally
 // used/clobbered by these instruction sequences depends on the register
@@ -24,9 +30,10 @@ class Instr : Instruction {
 // before and during/after register allocation. Pseudos that can only be emitted
 // before register allocation should give a conservative estimate of the real
 // register uses of their expansions. Then the register allocator can later use
-// this information to avoid unneccessary conflicts. For pseudos emitted
-// during/after register allocation, it's too late for the register allocator to
-// do this, so pseudos must instead report that they affect nothing.
+// this information to avoid unneccessary conflicts. For pseudos that can be
+// emitted during/after register allocation, it's too late for the register
+// allocator to do this, so pseudos must instead report that they affect
+// nothing.
 //
 // In either case, once the pseudo instructions are to be lowered to a real
 // sequence of instructions, register allocation has already occurred. The
