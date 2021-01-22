@@ -255,26 +255,27 @@ bool MOS6502InstructionSelector::selectFrameIndex(MachineInstr &MI) {
     Register Hi = MRI.createGenericVirtualRegister(s8);
     Register Carry = MRI.createGenericVirtualRegister(LLT::scalar(1));
 
-    auto LoAdd = Builder.buildInstr(MOS6502::AddFiLo)
-      .addDef(Lo)
-      .addDef(Carry)
-      .add(MI.getOperand(1));
-    if (!constrainSelectedInstRegOperands(*LoAdd, TII, TRI, RBI))
+    auto LoAddr = Builder.buildInstr(MOS6502::AddrLostk)
+                      .addDef(Lo)
+                      .addDef(Carry)
+                      .add(MI.getOperand(1));
+    if (!constrainSelectedInstRegOperands(*LoAddr, TII, TRI, RBI))
       return false;
 
-    auto HiAdc = Builder.buildInstr(MOS6502::AdcFiHi)
-      .addDef(Hi)
-      .add(MI.getOperand(1))
-      .addUse(Carry);
-    if (!constrainSelectedInstRegOperands(*HiAdc, TII, TRI, RBI))
+    auto HiAddr = Builder.buildInstr(MOS6502::AddrHistk)
+                      .addDef(Hi)
+                      .add(MI.getOperand(1))
+                      .addUse(Carry);
+    if (!constrainSelectedInstRegOperands(*HiAddr, TII, TRI, RBI))
       return false;
 
     composePtr(Builder, Dst, Lo, Hi);
   } else {
     // At least one use is in a ZP_PTR, so don't break up the address. This
     // makes the operation easier to analyze and rematerialize.
-    auto Add = Builder.buildInstr(MOS6502::AddFi).addDef(Dst).add(MI.getOperand(1));
-    if (!constrainSelectedInstRegOperands(*Add, TII, TRI, RBI))
+    auto Addr =
+        Builder.buildInstr(MOS6502::Addrstk).addDef(Dst).add(MI.getOperand(1));
+    if (!constrainSelectedInstRegOperands(*Addr, TII, TRI, RBI))
       return false;
   }
   MI.eraseFromParent();

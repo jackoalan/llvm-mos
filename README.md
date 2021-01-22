@@ -230,16 +230,26 @@ code.
 
 ### Memory usage
 
-The compiler currently allocates 3 absolute memory locations for emergency
-saving and restoring: `__SaveA`, `__SaveX`, and `__SaveP`. These are rarely
-used, but all three need to be visible to the linker for program correctness.
+The compiler currently requires 4 absolute memory locations for emergency saving
+and restoring: `__SaveA`, `__SaveX`, `__SaveY`, and `__SaveP`. These locations
+are considered external to the generated assembly, and they must be defined
+somewhere by the C runtime for the generated output to be correct.
+
+Right now, these locations are used quite naively. A more sophisticated approach
+would elide many of them to pushes and pulls, and instruction reordering to
+adjust live ranges should eliminate most of the rest. Use of these locations
+should become increasingly rare, but it appears there will always be situations
+that cannot be completely handled using the hard stack, since generalized push
+and pull pseudoinstructions may themselves require saving live values, and
+push/pull around the pseudos will always interfere with there operation.
 
 Eventually, these locations can be handled like any other de-stackified memory
 locations, as they're guaranteed not to be live across calls. Accordingly, they
 can be lowered to stack indices, which can in turn be lowered to global memory
 locations, with global coloring to reuse those locations where live ranges don't
-interfere. This would remove the requirement for linker scripts and the C
-runtime to be aware of these locations at all.
+interfere. This would remove the requirement for the C runtime to be aware of
+these locations at all. This should also allow assigning them to unused zero
+page locations, which is fewer cycles than push/pull and nearly as dense.
 
 ## Further Examples
 

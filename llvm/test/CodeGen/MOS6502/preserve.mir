@@ -61,3 +61,20 @@ body:             |
 # CHECK-NEXT: PLP
 # CHECK-NEXT: RTS
 ...
+---
+name:            preserve_y
+tracksRegLiveness: true
+# CHECK-LABEL: name: preserve_y
+body:             |
+  bb.0.entry:
+    liveins: $y, $a, $zp_ptr_0
+    STindirimm $a, $zp_ptr_0, 123
+    RTS implicit $y
+# CHECK:      STabs $y, &_SaveY
+# CHECK-NEXT: $y = LDimm 123
+# CHECK-NEXT: STyindirr $a, $zp_ptr_0, $y
+# CHECK-NEXT: PHP
+# CHECK-NEXT: $y = LDabs &_SaveY
+# CHECK-NEXT: PLP
+# CHECK-NEXT: RTS
+...

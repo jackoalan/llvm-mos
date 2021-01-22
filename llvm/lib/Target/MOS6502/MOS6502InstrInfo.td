@@ -48,40 +48,89 @@ class Pseudo : Instr {
   let isPseudo = true;
 }
 
-
 // Frame Pseudoinstructions
 
+// Note: The Ptr versions of the various frame pseudoinstructions are only
+// needed because LLVM expects stores/loads of registers to frame indices to be
+// emissible in only one instruction.
+
+// Generic Frame
+
+def LDstk : Pseudo {
+  dag InOperandList = (ins i16imm:$fi);
+  dag OutOperandList = (outs Anyi8:$dst);
+
+  let Defs = [];
+
+  let mayLoad = true;
+}
+
+def LDPtrstk : Pseudo {
+  dag InOperandList = (ins i16imm:$fi);
+  dag OutOperandList = (outs ZP_PTR:$dst);
+
+  let Defs = [];
+
+  let mayLoad = true;
+}
+
+def STstk : Pseudo {
+  dag InOperandList = (ins Anyi8:$src, i16imm:$fi);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let mayStore = true;
+}
+
+def STPtrstk : Pseudo {
+  dag InOperandList = (ins ZP_PTR:$src, i16imm:$fi);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let mayStore = true;
+}
+
+// Produces the low byte of the address of the given frame index. Produces a
+// carry required by the high byte calculation.
+def AddrLostk : Pseudo {
+  dag InOperandList = (ins i16imm:$fi);
+  dag OutOperandList = (outs Anyi8:$dst, Cc:$carry);
+
+  let Defs = [NZ];
+
+  let isReMaterializable = true;
+}
+
+// Produces the high byte of the address of the given frame index. Accepts the
+// carry produced by the low byte calculation.
+def AddrHistk : Pseudo {
+  dag InOperandList = (ins i16imm:$fi, Cc:$carry);
+  dag OutOperandList = (outs Anyi8:$dst);
+
+  let Defs = [C, NZ];
+
+  let isReMaterializable = true;
+}
+
+// Produces the address of the given frame index. Doesn't allow instructions
+// to be inserted between calculation of the low and high byte, but in exchange,
+// the instruction can be moved around and rematerialized as a whole.
+def Addrstk : Pseudo {
+  dag InOperandList = (ins i16imm:$fi);
+  dag OutOperandList = (outs ZP_PTR:$dst);
+
+  let Defs = [NZ];
+
+  let isReMaterializable = true;
+}
+
+// Hard Stack
 
 def LDhs : Pseudo {
   dag InOperandList = (ins i8imm:$fi);
   dag OutOperandList = (outs Anyi8:$dst);
-
-  let Defs = [];
-
-  let mayLoad = true;
-}
-
-def LDPtrhs : Pseudo {
-  dag InOperandList = (ins i8imm:$fi);
-  dag OutOperandList = (outs ZP_PTR:$dst);
-
-  let Defs = [];
-
-  let mayLoad = true;
-}
-
-def Pullhs : Pseudo {
-  dag InOperandList = (ins);
-  dag OutOperandList = (outs Anyi8:$dst);
-
-  let Defs = [];
-
-  let mayLoad = true;
-}
-
-def PullPtrhs : Pseudo {
-  dag InOperandList = (ins);
-  dag OutOperandList = (outs ZP_PTR:$dst);
 
   let Defs = [];
 
@@ -97,16 +146,16 @@ def SThs : Pseudo {
   let mayStore = true;
 }
 
-def STPtrhs : Pseudo {
-  dag InOperandList = (ins ZP_PTR:$src, i8imm:$fi);
-  dag OutOperandList = (outs);
+def Pull : Pseudo {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs Anyi8:$dst);
 
   let Defs = [];
 
-  let mayStore = true;
+  let mayLoad = true;
 }
 
-def Pushhs : Pseudo {
+def Push : Pseudo {
   dag InOperandList = (ins Anyi8:$src);
   dag OutOperandList = (outs);
 
@@ -115,52 +164,73 @@ def Pushhs : Pseudo {
   let mayStore = true;
 }
 
-def PushPtrhs : Pseudo {
-  dag InOperandList = (ins ZP_PTR:$src);
-  dag OutOperandList = (outs);
-
-  let Defs = [];
-
-  let mayStore = true;
-}
-
-// Adds the low byte of the given offset/frame-index to the low byte of the
-// stack pointer. Outputs a sum and carry.
-def AddFiLo : Pseudo {
-  dag InOperandList = (ins i16imm:$fi);
+def AddrLohs : Pseudo {
+  dag InOperandList = (ins i8imm:$fi);
   dag OutOperandList = (outs Anyi8:$dst, Cc:$carry);
 
-  let Uses = [SP];
+  let Uses = [];
   let Defs = [NZ];
 
   let isReMaterializable = true;
 }
 
-// Adds the high byte of the given offset/frame-index to the high byte of the
-// stack pointer, accepting a carry.
-def AdcFiHi : Pseudo {
-  dag InOperandList = (ins i16imm:$fi, Cc:$carry);
+def AddrHihs : Pseudo {
+  dag InOperandList = (ins i8imm:$fi, Cc:$carry);
   dag OutOperandList = (outs Anyi8:$dst);
 
-  let Uses = [SP];
+  let Uses = [];
   let Defs = [C, NZ];
 
   let isReMaterializable = true;
 }
 
-// Perform an AddFiLo and AdcFiHi together as a single unit. Doesn't allow
-// instructions to be inserted between calculation of the low and high byte, but
-// in exchange, the instruction can be moved around and rematerialized as a
-// whole.
-def AddFi : Pseudo {
-  dag InOperandList = (ins i16imm:$fi);
+def Addrhs : Pseudo {
+  dag InOperandList = (ins i8imm:$fi);
   dag OutOperandList = (outs ZP_PTR:$dst);
 
-  let Uses = [SP];
+  let Uses = [];
   let Defs = [NZ];
 
   let isReMaterializable = true;
 }
+
+// Soft stack
+
+def AddrLoss : Pseudo {
+  dag InOperandList = (ins i16imm:$fi);
+  dag OutOperandList = (outs Anyi8:$dst, Cc:$carry);
+
+  let Uses = [];
+  let Defs = [NZ];
+
+  let isReMaterializable = true;
+}
+
+def AddrHiss : Pseudo {
+  dag InOperandList = (ins i16imm:$fi, Cc:$carry);
+  dag OutOperandList = (outs Anyi8:$dst);
+
+  let Uses = [];
+  let Defs = [C, NZ];
+
+  let isReMaterializable = true;
+}
+
+def Addrss : Pseudo {
+  dag InOperandList = (ins i16imm:$fi);
+  dag OutOperandList = (outs ZP_PTR:$dst);
+
+  let Uses = [];
+  let Defs = [NZ];
+
+  let isReMaterializable = true;
+}
+
+// The soft stack is usually accessed via the LDindirimm and STindirimm pseudos.
+// The base address of these pseudos will either be a virtual base pointer, a
+// frame pointer, or the stack pointer, depending on the situation. Virtual base
+// pointers are needed to allow stack access beyond the first 256 bytes, since
+// there's no efficient 16-bit indexed addressing mode.
 
 // Add $bytes bytes to SP, saving the result back in SP. A negative argument
 // decreases SP.
@@ -168,10 +238,28 @@ def IncSP : Pseudo {
   dag InOperandList = (ins i16imm:$bytes);
   dag OutOperandList = (outs);
 
-  let Uses = [SP];
-  let Defs = [SP];
+  let Defs = [];
 }
 
+// Indirect addressing
+
+def LDindirimm : Pseudo {
+  dag InOperandList = (ins ZP_PTR:$addr, i8imm:$offset);
+  dag OutOperandList = (outs Anyi8:$dst);
+
+  let Defs = [];
+
+  let mayLoad = true;
+}
+
+def STindirimm : Pseudo {
+  dag InOperandList = (ins Anyi8:$val, ZP_PTR:$addr, i8imm:$offset);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let mayStore = true;
+}
 
 // Regular Instructions
 

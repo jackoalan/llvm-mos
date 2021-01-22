@@ -1,56 +1,49 @@
 # RUN: llc -mtriple=mos6502 -run-pass=postrapseudos -verify-machineinstrs -o - %s | FileCheck %s
 ---
-name: addfilo
-# CHECK-LABEL: name: addfilo
+name: addrloss
+# CHECK-LABEL: name: addrloss
 body: |
   bb.0.entry:
-    $a, $c = AddFiLo 1234, implicit-def $nz, implicit $sp
+    $zp_0, $c = AddrLoss 1234, implicit-def $nz
 # CHECK:      $a = LDimm 210
 # CHECK-NEXT: $c = LDCimm 0
 # CHECK-NEXT: $a, $c = ADCzpr $a, $splo, $c
+# CHECK-NEXT: $zp_0 = STzpr $a
 ...
 ---
-name: addfilo0
-# CHECK-LABEL: name: addfilo0
+name: addrloss0
+# CHECK-LABEL: name: addrloss0
 body: |
   bb.0.entry:
-    $a, $c = AddFiLo 512, implicit-def $nz, implicit $sp
-# CHECK: $a = LDzpr $splo
-...
----
-name: addfilo_copy
-# CHECK-LABEL: name: addfilo_copy
-body: |
-  bb.0.entry:
-    $zp_1, $c = AddFiLo 512, implicit-def $nz, implicit $sp
+    $zp_0, $c = AddrLoss 512, implicit-def $nz
 # CHECK:      $a = LDzpr $splo
-# CHECK-NEXT: $zp_1 = STzpr $a
+# CHECK-NEXT: $zp_0 = STzpr $a
 ...
 ---
-name: adcfihi
-# CHECK-LABEL: name: adcfihi
+name: addrhiss
+# CHECK-LABEL: name: addrhiss
 body: |
   bb.0.entry:
-    $a = AdcFiHi 1234, $c, implicit-def $c, implicit-def $nz, implicit $sp
+    $a = AddrHiss 1234, $c, implicit-def $c, implicit-def $nz
 # CHECK:      $a = LDimm 4
 # CHECK-NEXT: $a, dead $c = ADCzpr $a, $sphi, $c
 ...
 ---
-name: adcfihi_lo0
-# CHECK-LABEL: name: adcfihi
+name: addrhiss_lo0
+# CHECK-LABEL: name: addrhiss_lo0
 body: |
   bb.0.entry:
-    $a = AdcFiHi 512, $c, implicit-def $c, implicit-def $nz, implicit $sp
+    $a = AddrHiss 512, $c, implicit-def $c, implicit-def $nz
 # CHECK:      $a = LDimm 2
 # CHECK-NEXT: LDCimm 0
 # CHECK-NEXT: $a, dead $c = ADCzpr $a, $sphi, $c
 ...
 ---
-name: addfi
-# CHECK-LABEL: name: addfi
+name: addrss
+# CHECK-LABEL: name: addrss
 body: |
   bb.0.entry:
-    $zp_ptr_0 = AddFi 1234, implicit-def $c, implicit-def $nz, implicit $sp
+    $zp_ptr_0 = Addrss 1234, implicit-def $c, implicit-def $nz
     RTS
 # CHECK:      $a = LDimm 210
 # CHECK-NEXT: $c = LDCimm 0
@@ -62,11 +55,80 @@ body: |
 # CHECK-NEXT: RTS
 ...
 ---
+name: addrlohs
+# CHECK-LABEL: name: addrlohs
+body: |
+  bb.0.entry:
+    $x, $c = AddrLohs 123, implicit-def $nz
+# CHECK:      TSX
+# CHECK-NEXT: T_A $x
+# CHECK-NEXT: $c = LDCimm 0
+# CHECK-NEXT: $a, $c = ADCimm $a, 123, $c
+# CHECK-NEXT: $x = TA_
+...
+---
+name: addrlohs0
+# CHECK-LABEL: name: addrlohs0
+body: |
+  bb.0.entry:
+    $a, $c = AddrLohs 0, implicit-def $nz
+# CHECK:      TSX
+# CHECK-NEXT: T_A $x
+...
+---
+name: addrhihs
+# CHECK-LABEL: name: addrhihs
+body: |
+  bb.0.entry:
+    $x = AddrHihs 123, $c, implicit-def $c, implicit-def $nz
+# CHECK:      $a = LDimm 1
+# CHECK-NEXT: $a, dead $c = ADCimm $a, 0, $c
+# CHECK-NEXT: $x = TA_
+...
+---
+name: addrhihs0
+# CHECK-LABEL: name: addrhihs0
+body: |
+  bb.0.entry:
+    $x = AddrHihs 0, $c, implicit-def $c, implicit-def $nz
+    RTS
+# CHECK:      $x = LDimm 1
+# CHECK-NEXT: RTS
+...
+---
+name: addrhihs0_copy
+# CHECK-LABEL: name: addrhihs0
+body: |
+  bb.0.entry:
+    $zp_0 = AddrHihs 0, $c, implicit-def $c, implicit-def $nz
+    RTS
+# CHECK:      $a = LDimm 1
+# CHECK-NEXT: $zp_0 = STzpr $a
+# CHECK-NEXT: RTS
+...
+---
+name: addrhs
+# CHECK-LABEL: name: addrhs
+body: |
+  bb.0.entry:
+    $zp_ptr_0 = Addrhs 123, implicit-def $c, implicit-def $nz
+    RTS
+# CHECK:      TSX
+# CHECK-NEXT: T_A $x
+# CHECK-NEXT: $c = LDCimm 0
+# CHECK-NEXT: $a, $c = ADCimm $a, 123, $c
+# CHECK-NEXT: $zp_0 = STzpr $a
+# CHECK-NEXT: $a = LDimm 1
+# CHECK-NEXT: $a, dead $c = ADCimm $a, 0, $c
+# CHECK-NEXT: $zp_1 = STzpr $a
+# CHECK-NEXT: RTS
+...
+---
 name: incsp
 # CHECK-LABEL: name: incsp
 body: |
   bb.0.entry:
-    IncSP -1234, implicit-def $sp, implicit $sp
+    IncSP -1234
     RTS
 # CHECK:      $c = LDCimm 0
 # CHECK-NEXT: $a = LDimm 46
@@ -81,12 +143,36 @@ name: incsp_hi_only
 # CHECK-LABEL: name: incsp
 body: |
   bb.0.entry:
-    IncSP -512, implicit-def $sp, implicit $sp
+    IncSP -512
     RTS
-# CHECK:      $c = LDCimm 0
+# CHECK:      $c = LDCimm 0 
 # CHECK-NEXT: $a = LDimm 254
 # CHECK-NEXT: $a, dead $c = ADCzpr $a, $sphi, $c
 # CHECK-NEXT: $sphi = STzpr $a
+...
+---
+name: ldindirimm
+# CHECK-LABEL: name: ldindirimm
+body: |
+  bb.0.entry:
+    $zp_0 = LDindirimm $zp_ptr_0, 123
+    RTS
+# CHECK:      $y = LDimm 123
+# CHECK-NEXT: $a = LDyindirr $zp_ptr_0, $y
+# CHECK-NEXT: $zp_0 = STzpr $a
+# CHECK-NEXT: RTS
+...
+---
+name: stindirimm
+# CHECK-LABEL: name: stindirimm
+body: |
+  bb.0.entry:
+    STindirimm $zp_0, $zp_ptr_0, 123
+    RTS
+# CHECK:      $a = LDzpr $zp_0
+# CHECK-NEXT: $y = LDimm 123
+# CHECK-NEXT: STyindirr $a, $zp_ptr_0, $y
+# CHECK-NEXT: RTS
 ...
 ---
 name: ldaidx
@@ -141,6 +227,16 @@ body: |
 # CHECK-NEXT: $x = TA_
 ...
 ---
+name: ldhs_copy
+# CHECK-LABEL: name: ldhs_copy
+body: |
+  bb.0.entry:
+    $zp_0 = LDhs 2
+# CHECK:      TSX
+# CHECK-NEXT: LDAidx 258, $x
+# CHECK-NEXT: $zp_0 = STzpr $a
+...
+---
 name: sths
 # CHECK-LABEL: name: sths
 body: |
@@ -150,73 +246,46 @@ body: |
 # CHECK-NEXT: STidx $a, 258, $x
 ...
 ---
-name: pushhs_a
-# CHECK-LABEL: name: pushhs_a
+name: push_a
+# CHECK-LABEL: name: push_a
 body: |
   bb.0.entry:
     liveins: $a
-    Pushhs $a
+    Push $a
     RTS
 # CHECK:      PHA
 # CHECK-NEXT: RTS
 ...
 ---
-name: pushhs_x
-# CHECK-LABEL: name: pushhs_x
+name: push_x
+# CHECK-LABEL: name: push_x
 body: |
   bb.0.entry:
     liveins: $x
-    Pushhs $x
+    Push $x
     RTS
 # CHECK:      T_A $x
 # CHECK-NEXT: PHA
 # CHECK-NEXT: RTS
 ...
 ---
-name: pushptrhs
-# CHECK-LABEL: name: pushptrhs
+name: pull_a
+# CHECK-LABEL: name: pull_a
 body: |
   bb.0.entry:
-    liveins: $zp_ptr_0
-    PushPtrhs $zp_ptr_0
-    RTS
-# CHECK:      $a = LDzpr $zp_1
-# CHECK-NEXT: PHA
-# CHECK-NEXT: $a = LDzpr $zp_0
-# CHECK-NEXT: PHA
-# CHECK-NEXT: RTS
-...
----
-name: pullhs_a
-# CHECK-LABEL: name: pullhs_a
-body: |
-  bb.0.entry:
-    $a = Pullhs
+    $a = Pull
     RTS implicit $a
 # CHECK:      PLA
 # CHECK-NEXT: RTS
 ...
 ---
-name: pullhs_x
-# CHECK-LABEL: name: pullhs_x
+name: pull_x
+# CHECK-LABEL: name: pull_x
 body: |
   bb.0.entry:
-    $x = Pullhs
+    $x = Pull
     RTS implicit $x
 # CHECK:      PLA
 # CHECK-NEXT: $x = TA_
-# CHECK-NEXT: RTS
-...
----
-name: pullptrhs
-# CHECK-LABEL: name: pullptrhs
-body: |
-  bb.0.entry:
-    $zp_ptr_0 = PullPtrhs
-    RTS implicit $zp_ptr_0
-# CHECK:      PLA
-# CHECK-NEXT: $zp_0 = STzpr $a
-# CHECK-NEXT: PLA
-# CHECK-NEXT: $zp_1 = STzpr $a
 # CHECK-NEXT: RTS
 ...
