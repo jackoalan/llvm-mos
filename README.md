@@ -64,8 +64,8 @@ char__stats:
 	LDA	z:__SPhi
 	STA	z:__ZP__1
 	LDA	#0
-	LDX	#0
 	LDY	#2
+	TAX
 	JSR	memset
 	JMP	LBB0__2
 LBB0__1:

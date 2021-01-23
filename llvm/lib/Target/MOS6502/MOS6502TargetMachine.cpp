@@ -104,6 +104,8 @@ public:
 
   ScheduleDAGInstrs *
   createMachineScheduler(MachineSchedContext *C) const override;
+
+  std::unique_ptr<CSEConfigBase> getCSEConfig() const override;
 };
 
 } // namespace
@@ -149,4 +151,8 @@ void MOS6502PassConfig::addPreGlobalInstructionSelect() {
 ScheduleDAGInstrs *
 MOS6502PassConfig::createMachineScheduler(MachineSchedContext *C) const {
   return new ScheduleDAGMILive(C, std::make_unique<MOS6502SchedStrategy>(C));
+}
+
+std::unique_ptr<CSEConfigBase> MOS6502PassConfig::getCSEConfig() const {
+  return getStandardCSEConfigForOpt(TM->getOptLevel());
 }
