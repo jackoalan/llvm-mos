@@ -132,7 +132,7 @@ bool MOS6502LegalizerInfo::legalizeShl(LegalizerHelper &Helper,
 
   assert(MI.getOpcode() == G_SHL);
 
-  MachineIRBuilder Builder(MI);
+  MachineIRBuilder &Builder = Helper.MIRBuilder;
 
   MachineOperand &Dst = MI.getOperand(0);
   MachineOperand &Src = MI.getOperand(1);
@@ -182,7 +182,7 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
 
   assert(MI.getOpcode() == G_PTR_ADD);
 
-  MachineIRBuilder Builder(MI);
+  MachineIRBuilder &Builder = Helper.MIRBuilder;
 
   MachineOperand &Result = MI.getOperand(0);
   MachineOperand &Base = MI.getOperand(1);
@@ -241,7 +241,7 @@ bool MOS6502LegalizerInfo::legalizeUAddO(LegalizerHelper &Helper,
 
   assert(MI.getOpcode() == G_UADDO);
 
-  MachineIRBuilder Builder(MI);
+  MachineIRBuilder &Builder = Helper.MIRBuilder;
   auto CarryIn = Builder.buildConstant(LLT::scalar(1), 0).getReg(0);
   Builder.buildUAdde(MI.getOperand(0), MI.getOperand(1), MI.getOperand(2),
                      MI.getOperand(3), CarryIn);
