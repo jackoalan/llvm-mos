@@ -1929,6 +1929,13 @@ void Clang::AddMOS6502TargetArgs(const ArgList &Args,
   CmdArgs.push_back("-force-precise-rotation-cost");
   CmdArgs.push_back("-mllvm");
   CmdArgs.push_back("-jump-inst-cost=6");
+
+  // Never fold control flow into selects; control flow is already the most
+  // efficient way to implement select.
+  CmdArgs.push_back("-mllvm");
+  CmdArgs.push_back("-phi-node-folding-threshold=0");
+  CmdArgs.push_back("-mllvm");
+  CmdArgs.push_back("-two-entry-phi-node-folding-threshold=0");
 }
 
 void Clang::AddPPCTargetArgs(const ArgList &Args,
