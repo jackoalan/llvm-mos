@@ -73,8 +73,9 @@ body:             |
 # CHECK:      STabs $a, &_SaveA
 # CHECK-NEXT: T_A $x
 # CHECK-NEXT: $y = TA_
+# CHECK-NEXT: PHP
 # CHECK-NEXT: $a = LDabs &_SaveA
-# CHECK-NEXT: CMPimm $a, 0
+# CHECK-NEXT: PLP
 ...
 ---
 name:            stzp
@@ -145,7 +146,9 @@ body:             |
 # CHECK:      STabs $a, &_SaveA
 # CHECK-NEXT: $a = LDzpr $zp_0
 # CHECK-NEXT: $zp_1 = STzpr $a
+# CHECK-NEXT: PHP
 # CHECK-NEXT: $a = LDabs &_SaveA
+# CHECK-NEXT: PLP
 # CHECK-NEXT: RTS
 ...
 ---
