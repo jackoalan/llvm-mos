@@ -203,9 +203,8 @@ body: |
 # CHECK:      STabs $a, &_SaveA
 # CHECK-NEXT: LDAidx 1234, $x
 # CHECK-NEXT: $x = TA_
-# CHECK-NEXT: PHP
 # CHECK-NEXT: $a = LDabs &_SaveA
-# CHECK-NEXT: PLP
+# CHECK-NEXT: CMPimm $a, 0
 ...
 ---
 name: ldyidx_x

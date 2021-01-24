@@ -88,7 +88,7 @@ LBB0__1:                                ; %while.body
 	JSR	next__char
 	CMP	#0
 	BEQ	LBB0__3
-; %bb.2:                                ; %while.body
+LBB0__2:                                ; %while.body
                                         ;   in Loop: Header=BB0_1 Depth=1
 	ASL	A
 	STA	z:__ZP__0

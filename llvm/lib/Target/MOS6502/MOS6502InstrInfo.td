@@ -311,6 +311,10 @@ def CMPimm : Instr {
 
   let isCompare = true;
   let isReMaterializable = true;
+
+  // Keep CMPimm adjacent to the branch that uses it.
+  // This prevents NZ from ever being live across an instruction.
+  let isTerminator = true;
 }
 
 def IN_ : Instr {

@@ -57,7 +57,7 @@ LBB0__1:                                ; %while.body
 	INX
 	CPX	#14
 	BNE	LBB0__1
-; %bb.2:                                ; %while.end
+LBB0__2:                                ; %while.end
 	LDA	#0
 	LDX	#0
 	RTS

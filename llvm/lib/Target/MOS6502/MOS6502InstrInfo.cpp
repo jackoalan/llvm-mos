@@ -33,6 +33,13 @@ bool isMaybeLive(MachineIRBuilder &Builder, Register Reg) {
              Builder.getInsertPt()) != MachineBasicBlock::LQR_Dead;
 }
 
+bool isKnownLive(MachineIRBuilder &Builder, Register Reg) {
+  const auto &MBB = Builder.getMBB();
+  return MBB.computeRegisterLiveness(
+             MBB.getParent()->getSubtarget().getRegisterInfo(), Reg,
+             Builder.getInsertPt()) == MachineBasicBlock::LQR_Live;
+}
+
 // Retrieve the first free register of a given class. If none are free,
 // returns the first register in the class. Should not be used on classes
 // containing reserved registers or CSRs.
@@ -206,6 +213,10 @@ bool MOS6502InstrInfo::analyzeBranch(MachineBasicBlock &MBB,
                                      bool AllowModify) const {
   auto I = MBB.getFirstTerminator();
 
+  // Advance past any comparison terminators.
+  while (I != MBB.end() && I->isCompare())
+    ++I;
+
   // No terminators, so falls through.
   if (I == MBB.end())
     return false;
@@ -255,23 +266,28 @@ bool MOS6502InstrInfo::analyzeBranch(MachineBasicBlock &MBB,
 unsigned MOS6502InstrInfo::removeBranch(MachineBasicBlock &MBB,
                                         int *BytesRemoved) const {
   // Since analyzeBranch succeeded, we know that the only terminators are
-  // branches.
+  // comparisons and branches.
 
-  unsigned NumRemoved = std::distance(MBB.getFirstTerminator(), MBB.end());
+  auto Begin = MBB.getFirstTerminator();
+  auto End = MBB.end();
+  while (Begin != End && Begin->isCompare())
+    ++Begin;
+
+  unsigned NumRemoved = std::distance(Begin, End);
   if (BytesRemoved) {
     *BytesRemoved = 0;
-    for (const MachineInstr &I : MBB.terminators())
-      *BytesRemoved += getInstSizeInBytes(I);
+    for (auto I = Begin; I != End; ++I)
+      *BytesRemoved += getInstSizeInBytes(*I);
   }
-  MBB.erase(MBB.getFirstTerminator(), MBB.end());
+  MBB.erase(Begin, End);
   return NumRemoved;
 }
 
 unsigned MOS6502InstrInfo::insertBranch(
     MachineBasicBlock &MBB, MachineBasicBlock *TBB, MachineBasicBlock *FBB,
     ArrayRef<MachineOperand> Cond, const DebugLoc &DL, int *BytesAdded) const {
-  // Since analyzeBranch succeeded and any existing branches were removed, there
-  // can be no terminators.
+  // Since analyzeBranch succeeded and any existing branches were removed, the
+  // only remaining terminators are comparisons.
 
   MachineIRBuilder Builder(MBB, MBB.end());
   unsigned NumAdded = 0;
@@ -763,6 +779,16 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
       MaybeLive.set(Reg);
   }
 
+  // Note: Since all comparison instructions are terminators, and no other
+  // terminators write to NZ, NZ cannot be live across pseudoinstructions. There
+  // are also no pseudoinstructions that place defined outputs in NZ. Thus,
+  // these routines can freely write to NZ in the course of saving/restoring
+  // other locations.
+  assert(!isKnownLive(Builder, MOS6502::N));
+  MaybeLive.reset(MOS6502::N);
+  assert(!isKnownLive(Builder, MOS6502::Z));
+  MaybeLive.reset(MOS6502::Z);
+
   SparseBitVector<> ExpectedWrites = GetWrites(*Builder.getInsertPt());
 
   // If begin was the first instruction, it may no longer be the first once
@@ -811,18 +837,9 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   // state as before the sequence. After the restore sequence, all registers
   // and flags are in the same state as before the sequence, except those that
   // were saved, which have their value at time of save. The only memory
-  // locations affected by either are _Save<Reg>, for Reg={P,A,X,Y}.
+  // locations affected by either are _Save<Reg>, for Reg={A,X,Y}.
 
   Builder.setInsertPt(MBB, Begin);
-  if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C)) {
-    Builder.buildInstr(MOS6502::PHA);
-    Builder.buildInstr(MOS6502::PHP);
-    Builder.buildInstr(MOS6502::PLA);
-    Builder.buildInstr(MOS6502::STabs)
-        .addUse(MOS6502::A)
-        .addExternalSymbol("_SaveP");
-    Builder.buildInstr(MOS6502::PLA);
-  }
   if (Save.test(MOS6502::A))
     Builder.buildInstr(MOS6502::STabs)
         .addUse(MOS6502::A)
@@ -837,52 +854,22 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
         .addExternalSymbol("_SaveY");
 
   Builder.setInsertPt(MBB, End);
-  if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C)) {
-    // Note: This is particularly awful due to the requirement that the last
-    // operation be a PLP. This means we have to get P onto the stack behind
-    // the values of any registers that need to be saved to do so; hence the
-    // indexed store behind the saves of X and A. That way, we can restore X
-    // and A *before* P, preventing those restores from clobbering NZ.
-    Builder.buildInstr(MOS6502::PHA);
-    Builder.buildInstr(MOS6502::PHA);
-    Builder.buildInstr(MOS6502::T_A).addUse(MOS6502::X);
-    Builder.buildInstr(MOS6502::PHA);
-    Builder.buildInstr(MOS6502::TSX);
-    Builder.buildInstr(MOS6502::LDabs)
-        .addDef(MOS6502::A)
-        .addExternalSymbol("_SaveP");
-    Builder.buildInstr(MOS6502::STidx)
-        .addUse(MOS6502::A)
-        .addImm(0x103) // Byte pushed by first PHA.
-        .addUse(MOS6502::X);
-    Builder.buildInstr(MOS6502::PLA);
-    Builder.buildInstr(MOS6502::TA_).addDef(MOS6502::X);
-    Builder.buildInstr(MOS6502::PLA);
-    Builder.buildInstr(MOS6502::PLP);
-    RecordSaved(MOS6502::P);
-  }
   if (Save.test(MOS6502::A)) {
-    Builder.buildInstr(MOS6502::PHP);
     Builder.buildInstr(MOS6502::LDabs)
         .addDef(MOS6502::A)
         .addExternalSymbol("_SaveA");
-    Builder.buildInstr(MOS6502::PLP);
     RecordSaved(MOS6502::A);
   }
   if (Save.test(MOS6502::X)) {
-    Builder.buildInstr(MOS6502::PHP);
     Builder.buildInstr(MOS6502::LDabs)
         .addDef(MOS6502::X)
         .addExternalSymbol("_SaveX");
-    Builder.buildInstr(MOS6502::PLP);
     RecordSaved(MOS6502::X);
   }
   if (Save.test(MOS6502::Y)) {
-    Builder.buildInstr(MOS6502::PHP);
     Builder.buildInstr(MOS6502::LDabs)
         .addDef(MOS6502::Y)
         .addExternalSymbol("_SaveY");
-    Builder.buildInstr(MOS6502::PLP);
     RecordSaved(MOS6502::Y);
   }
 
