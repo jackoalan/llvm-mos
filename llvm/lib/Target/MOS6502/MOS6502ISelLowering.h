@@ -29,6 +29,9 @@ public:
   bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
                              unsigned AddrSpace,
                              Instruction *I = nullptr) const override;
+
+  bool shouldLocalize(const MachineInstr &MI,
+                      const TargetTransformInfo *TTI) const override;
 };
 
 } // namespace llvm
