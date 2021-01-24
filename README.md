@@ -59,12 +59,12 @@ char__stats:
 	LDA	#254
 	ADC	z:__SPhi
 	STA	z:__SPhi
-	LDA	z:__SPlo
-	STA	z:__ZP__0
-	LDA	z:__SPhi
-	STA	z:__ZP__1
 	LDA	#0
 	LDY	#2
+	LDX	z:__SPlo
+	STX	z:__ZP__0
+	LDX	z:__SPhi
+	STX	z:__ZP__1
 	TAX
 	JSR	memset
 	JMP	LBB0__2
@@ -482,4 +482,4 @@ TODO:
 
 </details>
 
-Updated January 17, 2021.
+Updated January 24, 2021.
