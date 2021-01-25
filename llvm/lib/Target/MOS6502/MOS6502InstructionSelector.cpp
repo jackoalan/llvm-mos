@@ -134,6 +134,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &MI) {
   switch (MI.getOpcode()) {
   default:
     return false;
+  case MOS6502::G_ADD:
+    return selectAdd(MI);
   case MOS6502::G_BRCOND:
     return selectCompareBranch(MI);
   case MOS6502::G_CONSTANT:
@@ -165,6 +167,19 @@ bool MOS6502InstructionSelector::select(MachineInstr &MI) {
   case MOS6502::G_UNMERGE_VALUES:
     return selectUnMergeValues(MI);
   }
+}
+
+bool MOS6502InstructionSelector::selectAdd(MachineInstr &MI) {
+  MachineIRBuilder Builder(MI);
+  Register CarryIn =
+      Builder.getMRI()->createGenericVirtualRegister(LLT::scalar(1));
+  Builder.buildInstr(MOS6502::LDCimm).addDef(CarryIn).addImm(0);
+  auto Add = Builder.buildUAdde(MI.getOperand(0), LLT::scalar(1),
+                                MI.getOperand(1), MI.getOperand(2), CarryIn);
+  MI.eraseFromParent();
+  if (!selectUAddE(*Add))
+    return false;
+  return true;
 }
 
 bool MOS6502InstructionSelector::selectCompareBranch(MachineInstr &MI) {
