@@ -8323,8 +8323,9 @@ const SCEV *ScalarEvolution::computeExitCountExhaustively(const Loop *L,
       // The returned size should be tightly constrained, since otherwise it
       // appears as if a larger IV's range has a larger bitwidth, and is thus
       // unconstrained by this count. Leave an additional bit to allow both
-      // signed and unsigned values to be the same.
-      return getConstant(Count.trunc(Count.getActiveBits() + 1));
+      // signed and unsigned values to be the same. Minimum size is two bits;
+      // otherwise it will print as true/false.
+      return getConstant(Count.trunc(std::max(Count.getActiveBits() + 1, 2u)));
     }
 
     // Update all the PHI nodes for the next iteration.
