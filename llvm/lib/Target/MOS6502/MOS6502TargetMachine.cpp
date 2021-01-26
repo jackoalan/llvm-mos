@@ -3,6 +3,7 @@
 #include "MOS6502.h"
 #include "MOS6502IndexIVPass.h"
 #include "MOS6502MachineScheduler.h"
+#include "MOS6502NoRecurse.h"
 #include "MOS6502PreLegalizerCombiner.h"
 #include "MOS6502PreRegAlloc.h"
 #include "MOS6502TargetObjectFile.h"
@@ -29,6 +30,8 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502Target() {
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializeGlobalISel(PR);
   initializeMOS6502IndexIVPass(PR);
+  initializeMOS6502NoRecursePass(PR);
+  initializeMOS6502PreRegAllocPass(PR);
   initializeMOS6502PreLegalizerCombinerPass(PR);
 }
 
@@ -93,6 +96,7 @@ public:
     return getTM<MOS6502TargetMachine>();
   }
 
+  void addIRPasses() override;
   bool addIRTranslator() override;
   void addPreLegalizeMachineIR() override;
   bool addLegalizeMachineIR() override;
@@ -113,6 +117,11 @@ public:
 
 TargetPassConfig *MOS6502TargetMachine::createPassConfig(PassManagerBase &PM) {
   return new MOS6502PassConfig(*this, PM);
+}
+
+void MOS6502PassConfig::addIRPasses() {
+  addPass(createMOS6502NoRecursePass());
+  TargetPassConfig::addIRPasses();
 }
 
 bool MOS6502PassConfig::addIRTranslator() {
