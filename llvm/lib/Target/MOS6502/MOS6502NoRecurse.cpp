@@ -41,12 +41,6 @@ struct MOS6502NoRecurse : public CallGraphSCCPass {
 };
 
 bool MOS6502NoRecurse::runOnSCC(CallGraphSCC &SCC) {
-  LLVM_DEBUG(dbgs() << "Begin SCC:\n");
-  for (const CallGraphNode *N : SCC) {
-    LLVM_DEBUG(N->print(dbgs()));
-  }
-  LLVM_DEBUG(dbgs() << "End SCC:\n");
-
   // All nodes in SCCs with more than one node may be recursive. It's not
   // certain since CFG analysis is conservative, but there's no more
   // information to be gleaned from looking at the call graph, and other
