@@ -16,6 +16,64 @@ Once the remaining tasks are more or less mechanical, the compiler will be known
 to have "good bones." At that point, work will move from section to section,
 generalizing each and filling out the compiler until it reaches MVP.
 
+## Risk Factors
+
+<dl>
+  <dt>Restricted zero page register set</dt>
+  <dd>
+    Can the compiler be made to use fewer zero page registers when requested via
+    command line flag? The risk here is that the target description will become
+    completely unmanageable, and/or TableGen will explode.
+  </dd>
+  
+  <dt>Stack frame elision</dt>
+  <dd>
+    Can non-recursive functions be detected reliably enough for stack frame
+    elision? Can inline assembly and external calls be annotated to prevent
+    them from appearing to possibly call main()? To what degree does link-time
+    optimization decrease the burden on this analysis?
+  </dd>
+  
+  <dt>PostRA pseudo scheduling</dt>
+  <dd>
+    Post-register-allocation pseudo-instructions cannot report their full side-effect profile, since
+    their implementation will wildly differ depending on where the register allocator places their
+    inputs and outputs. Once register allocation occurs, their side effect profiles will be known,
+    and they might be reschedulable to locations where they don't interfere with live registers.
+    It's unlikely that we'd be able to rely on the existing scheduler for this though, since the pseudos
+    will behave as advertised by emitting save/restore code. At no point do they exhibit their real
+    side-effect profile.
+  </dd>
+  
+  <dt>Parameter stack elision</dt>
+  <dd>
+    Can stack for incoming parameters be elided for nonrecursive functions?
+    Ideally, the caller of such a function would place arguments directly into
+    the static stack frame of the callee. However, this would make non-recursion
+    part of the ABI of the function, so this would likely only be possible for
+    internal functions. If the parameters cannot be elided, can the locals still be?
+    How about outgoing parameters to recursive callees?
+  </dd>
+  
+  <dt>PostRA pseudo scavenging</dt>
+  <dd>
+    PostRA pseudo save/restore logic tightly wraps the affected region. If the register scavenger were
+    used instead, then live registers could be spilled around broad regions, preventing redundant saves
+    and restores from ever being emitted.
+  </dd>
+  
+  <dt>Multibyte operations</dt>
+  <dd>
+    Beyond simple ADC, multibyte operations on the 6502 can look drastically different
+    depending on how they are implemented. For example, >> 8 a 16-bit int
+    by 8 would be a simple copy of the high byte to the low byte and a clear of the high byte,
+    while shifting it by one would be a pair of LSR/ROR. Multibyte comparisons can work either
+    from the high byte to the low byte, or from the low byte to the high byte. The efficiencies
+    of these alternatives need to be studied, and enough examples constructed to suggest that
+    it's possible to fill in the rest.
+  </dd>
+</dl>
+
 ## Current Working Example
 
 Code generation for the following example is currently being tuned. Once the
