@@ -91,7 +91,8 @@ void CallGraph::populateCallGraphNode(CallGraphNode *Node) {
 
   // If this function is not defined in this translation unit, it could call
   // anything.
-  if (F->isDeclaration() && !F->isIntrinsic())
+  if (F->isDeclaration() && !F->isIntrinsic() &&
+      !F->hasAttribute(AttributeList::FunctionIndex, Attribute::NoCallback))
     Node->addCalledFunction(nullptr, CallsExternalNode.get());
 
   // Look for calls by this function.
