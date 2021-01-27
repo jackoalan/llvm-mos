@@ -99,12 +99,18 @@ void CallGraph::populateCallGraphNode(CallGraphNode *Node) {
     for (Instruction &I : BB) {
       if (auto *Call = dyn_cast<CallBase>(&I)) {
         const Function *Callee = Call->getCalledFunction();
-        if (!Callee || !Intrinsic::isLeaf(Callee->getIntrinsicID()))
+        if (!Callee || !Intrinsic::isLeaf(Callee->getIntrinsicID())) {
           // Indirect calls of intrinsics are not allowed so no need to check.
           // We can be more precise here by using TargetArg returned by
           // Intrinsic::isLeaf.
-          Node->addCalledFunction(Call, CallsExternalNode.get());
-        else if (!Callee->isIntrinsic())
+
+          // NoCallback calls are guaranteed not to call anything in the current
+          // module. We'll make an exception for explicit callback metadata,
+          // that way, there's a way to specify "nocallback except these
+          // specific callbacks."
+          if (!Call->hasFnAttr(Attribute::NoCallback))
+            Node->addCalledFunction(Call, CallsExternalNode.get());
+        } else if (!Callee->isIntrinsic())
           Node->addCalledFunction(Call, getOrInsertFunction(Callee));
 
         // Add reference to callback functions.
@@ -159,7 +165,7 @@ void CallGraph::ReplaceExternalCallEdge(CallGraphNode *Old,
 //
 Function *CallGraph::removeFunctionFromModule(CallGraphNode *CGN) {
   assert(CGN->empty() && "Cannot remove function from call "
-         "graph if it references other functions!");
+                         "graph if it references other functions!");
   Function *F = CGN->getFunction(); // Get the function for the call graph node
   FunctionMap.erase(F);             // Remove the call graph node from the map
 
@@ -195,7 +201,7 @@ void CallGraphNode::print(raw_ostream &OS) const {
   for (const auto &I : *this) {
     OS << "  CS<" << I.first << "> calls ";
     if (Function *FI = I.second->getFunction())
-      OS << "function '" << FI->getName() <<"'\n";
+      OS << "function '" << FI->getName() << "'\n";
     else
       OS << "external node\n";
   }
@@ -210,7 +216,7 @@ LLVM_DUMP_METHOD void CallGraphNode::dump() const { print(dbgs()); }
 /// specified call site.  Note that this method takes linear time, so it
 /// should be used sparingly.
 void CallGraphNode::removeCallEdgeFor(CallBase &Call) {
-  for (CalledFunctionsVector::iterator I = CalledFunctions.begin(); ; ++I) {
+  for (CalledFunctionsVector::iterator I = CalledFunctions.begin();; ++I) {
     assert(I != CalledFunctions.end() && "Cannot find callsite to remove!");
     if (I->first && *I->first == &Call) {
       I->second->DropRef();
@@ -235,14 +241,15 @@ void CallGraphNode::removeAnyCallEdgeTo(CallGraphNode *Callee) {
       Callee->DropRef();
       CalledFunctions[i] = CalledFunctions.back();
       CalledFunctions.pop_back();
-      --i; --e;
+      --i;
+      --e;
     }
 }
 
 /// removeOneAbstractEdgeTo - Remove one edge associated with a null callsite
 /// from this node to the specified callee function.
 void CallGraphNode::removeOneAbstractEdgeTo(CallGraphNode *Callee) {
-  for (CalledFunctionsVector::iterator I = CalledFunctions.begin(); ; ++I) {
+  for (CalledFunctionsVector::iterator I = CalledFunctions.begin();; ++I) {
     assert(I != CalledFunctions.end() && "Cannot find callee to remove!");
     CallRecord &CR = *I;
     if (CR.second == Callee && !CR.first) {
@@ -259,7 +266,7 @@ void CallGraphNode::removeOneAbstractEdgeTo(CallGraphNode *Callee) {
 /// time, so it should be used sparingly.
 void CallGraphNode::replaceCallEdge(CallBase &Call, CallBase &NewCall,
                                     CallGraphNode *NewNode) {
-  for (CalledFunctionsVector::iterator I = CalledFunctions.begin(); ; ++I) {
+  for (CalledFunctionsVector::iterator I = CalledFunctions.begin();; ++I) {
     assert(I != CalledFunctions.end() && "Cannot find callsite to remove!");
     if (I->first && *I->first == &Call) {
       I->second->DropRef();
