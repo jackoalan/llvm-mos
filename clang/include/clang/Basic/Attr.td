@@ -1469,9 +1469,9 @@ def LayoutVersion : InheritableAttr, TargetSpecificAttr<TargetMicrosoftCXXABI> {
   let Documentation = [LayoutVersionDocs];
 }
 
-def Leaf : InheritableAttr {
+def Leaf : DeclOrStmtAttr {
   let Spellings = [GCC<"leaf">];
-  let Subjects = SubjectList<[Function]>;
+  let Subjects = SubjectList<[Function], WarnDiag, "functions and statements">;
   let Documentation = [LeafDocs];
   let SimpleHandler = 1;
 }

@@ -634,12 +634,22 @@ void CodeGenFunction::EmitLabelStmt(const LabelStmt &S) {
 
 void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
   bool nomerge = false;
-  for (const auto *A : S.getAttrs())
-    if (A->getKind() == attr::NoMerge) {
+  bool leaf = false;
+
+  for (const auto *A : S.getAttrs()) {
+    switch (A->getKind()) {
+    default:
+      break;
+    case attr::NoMerge:
       nomerge = true;
       break;
+    case attr::Leaf:
+      leaf = true;
+      break;
     }
+  }
   SaveAndRestore<bool> save_nomerge(InNoMergeAttributedStmt, nomerge);
+  SaveAndRestore<bool> save_leaf(InLeafAttributedStmt, leaf);
   EmitStmt(S.getSubStmt(), S.getAttrs());
 }
 
@@ -2114,17 +2124,19 @@ static llvm::MDNode *getAsmSrcLocInfo(const StringLiteral *Str,
   return llvm::MDNode::get(CGF.getLLVMContext(), Locs);
 }
 
-static void UpdateAsmCallInst(llvm::CallBase &Result, bool HasSideEffect,
-                              bool ReadOnly, bool ReadNone, bool NoMerge,
-                              const AsmStmt &S,
-                              const std::vector<llvm::Type *> &ResultRegTypes,
-                              CodeGenFunction &CGF,
+static void UpdateAsmCallInst(llvm::CallBase &Result, bool HasSideEffect, bool
+                              ReadOnly, bool ReadNone, bool NoMerge, bool Leaf,
+                              const AsmStmt &S, const std::vector<llvm::Type *>
+                              &ResultRegTypes, CodeGenFunction &CGF,
                               std::vector<llvm::Value *> &RegResults) {
   Result.addAttribute(llvm::AttributeList::FunctionIndex,
                       llvm::Attribute::NoUnwind);
   if (NoMerge)
     Result.addAttribute(llvm::AttributeList::FunctionIndex,
                         llvm::Attribute::NoMerge);
+  if (Leaf)
+    Result.addAttribute(llvm::AttributeList::FunctionIndex,
+                        llvm::Attribute::NoCallback);
   // Attach readnone and readonly attributes.
   if (!HasSideEffect) {
     if (ReadNone)
@@ -2539,13 +2551,13 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
         Builder.CreateCallBr(IA, Fallthrough, Transfer, Args);
     EmitBlock(Fallthrough);
     UpdateAsmCallInst(cast<llvm::CallBase>(*Result), HasSideEffect, ReadOnly,
-                      ReadNone, InNoMergeAttributedStmt, S, ResultRegTypes,
+                      ReadNone, InNoMergeAttributedStmt, InLeafAttributedStmt, S, ResultRegTypes,
                       *this, RegResults);
   } else {
     llvm::CallInst *Result =
         Builder.CreateCall(IA, Args, getBundlesForFunclet(IA));
     UpdateAsmCallInst(cast<llvm::CallBase>(*Result), HasSideEffect, ReadOnly,
-                      ReadNone, InNoMergeAttributedStmt, S, ResultRegTypes,
+                      ReadNone, InNoMergeAttributedStmt, InLeafAttributedStmt, S, ResultRegTypes,
                       *this, RegResults);
   }
 
