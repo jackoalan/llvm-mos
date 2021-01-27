@@ -26,7 +26,8 @@ struct MOS6502NoRecurse : public CallGraphSCCPass {
     // For the conservative recursion analysis, any external call may call any
     // externally-callable function.
     assert(CG.getCallsExternalNode()->empty());
-    CG.getCallsExternalNode()->addCalledFunction(nullptr, CG.getExternalCallingNode());
+    CG.getCallsExternalNode()->addCalledFunction(nullptr,
+                                                 CG.getExternalCallingNode());
     // Report unchanged, since the call graph will be returned to its original
     // condition on finalization.
     return false;
@@ -86,8 +87,10 @@ bool MOS6502NoRecurse::runOnSCC(CallGraphSCC &SCC) {
 
 char MOS6502NoRecurse::ID = 0;
 
-INITIALIZE_PASS(MOS6502NoRecurse, DEBUG_TYPE,
-                "Introduce 8-bit IVs for GEP indices", false, false)
+INITIALIZE_PASS(
+    MOS6502NoRecurse, DEBUG_TYPE,
+    "Detect non-recursive functions via detailed call graph analysis", false,
+    false)
 
 CallGraphSCCPass *llvm::createMOS6502NoRecursePass() {
   return new MOS6502NoRecurse();
