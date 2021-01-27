@@ -80,6 +80,14 @@ generalizing each and filling out the compiler until it reaches MVP.
     of these alternatives need to be studied, and enough examples constructed to suggest that
     it's possible to fill in the rest.
   </dd>
+  
+  <dt>Variable sized stack objects</dt>
+  <dd>
+    Variable sized stack objects (C99 variable length arrays, alloca) require the use of a soft
+    stack and the maintenance of a frame pointer. How can this be combined with non-recursive
+    stack frame elision? Is it possible to have only the variable-length part of the frame on
+    the soft stack, while the rest is allocated statically?
+  </dd>
 </dl>
 
 ## Current Working Example
