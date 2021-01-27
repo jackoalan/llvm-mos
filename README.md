@@ -25,6 +25,14 @@ generalizing each and filling out the compiler until it reaches MVP.
     command line flag? The risk here is that the target description will become
     completely unmanageable, and/or TableGen will explode.
   </dd>
+	
+  <dt>Far stack access</dt>
+  <dd>
+    Can the compiler access locals that are more than 256 bytes above the stack pointer?
+    How about parameters? The only available indirect addressing mode has at most 256 byte
+    offsets, so virtual frame registers are required for both. Can these be scavenged if
+    necessary? How do we avoid redundant calculation of these frame registers?
+  </dd>
   
   <dt>Stack frame elision</dt>
   <dd>
