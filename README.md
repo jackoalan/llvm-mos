@@ -19,13 +19,6 @@ generalizing each and filling out the compiler until it reaches MVP.
 ## Risk Factors
 
 <dl>
-  <dt>Restricted zero page register set</dt>
-  <dd>
-    Can the compiler be made to use fewer zero page registers when requested via
-    command line flag? The risk here is that the target description will become
-    completely unmanageable, and/or TableGen will explode.
-  </dd>
-	
   <dt>Far stack access</dt>
   <dd>
     Can the compiler access locals that are more than 256 bytes above the stack pointer?
@@ -33,7 +26,7 @@ generalizing each and filling out the compiler until it reaches MVP.
     offsets, so virtual frame registers are required for both. Can these be scavenged if
     necessary? How do we avoid redundant calculation of these frame registers?
   </dd>
-  
+
   <dt>Stack frame elision</dt>
   <dd>
     Can non-recursive functions be detected reliably enough for stack frame
@@ -286,21 +279,28 @@ runtime.
 
 ### Zero page usage
 
-The compiler currently assumes it has access to 128 2-byte zero page pointer
-registers, each composed of 2 individually addressable zero page registers. The
-compiler makes no assumptions about the relative layout of these registers, and
-at the end of code generation, references to the zero page registers are lowered
-to abstract symbols placed in the zero page by the linker. Only registers
-actually accessed are emitted.
+The number of zero-page memory location can be specified using the
+`--num-zp-ptrs` compiler flag. This determines the number of consecutive
+two-byte pointer locations the compiler will use when generating code. At least
+one such pointer must be available; otherwise, the compiler would be unable to
+indirectly access memory without self-modifying code.
 
-One 2-byte pointer register is presently reserved by the compiler as a soft
-stack; it's low and high bytes are the external symbols `__SPlo` and `__SPhi`,
-respectively.
+The first two zero page locations are `__ZP__0` and `__ZP__1`, the next two (if
+available) are `__ZP__2` and `__ZP__3`, and so forth. The compiler makes no
+assumptions about the absolute arrangement of these pairs in memory, only that
+the two bytes in each pair are consecutive. The compiler presently has no way to
+use zero page locations that are neither the high nor the low byte of a pair.
 
-Eventually, a compiler flag should allow the user to specify how many zero page
-locations are available for use by the compiler. This will limit the register
-allocator and potentially increase the amount of stack used by the generated
-code.
+One 2-byte pointer register is always reserved by the compiler as a soft stack;
+it's low and high bytes are the external symbols `__SPlo` and `__SPhi`,
+respectively. This location is not included in the count given to
+`--num-zp-ptrs`.
+
+At the end of code generation, references to the zero page registers are lowered
+to abstract symbols to placed in the zero page by the linker. Only registers
+actually accessed are emitted. It's up to the C runtime environment to actually
+allocate memory behind these symbols; they're considered external to every C
+module.
 
 ### Memory usage
 

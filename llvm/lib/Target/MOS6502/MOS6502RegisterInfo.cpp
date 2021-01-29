@@ -14,10 +14,16 @@
 
 using namespace llvm;
 
+cl::opt<int>
+    NumZPPtrs("num-zp-ptrs", cl::init(127),
+              cl::desc("Number of zero-page pointers available for compiler "
+                       "use, excluding the stack pointer."),
+              cl::value_desc("zero-page pointers"));
+
 MOS6502RegisterInfo::MOS6502RegisterInfo()
     : MOS6502GenRegisterInfo(/*RA=*/0, /*DwarfFlavor=*/0, /*EHFlavor=*/0,
                              /*PC=*/0, /*HwMode=*/0),
-      ZPSymbolNames(new std::string[getNumRegs()]) {
+      ZPSymbolNames(new std::string[getNumRegs()]), Reserved(getNumRegs()) {
   for (unsigned Reg = 0; Reg < getNumRegs(); ++Reg) {
     // Pointers are referred to by their low byte in the addressing modes that
     // use them.
@@ -29,6 +35,22 @@ MOS6502RegisterInfo::MOS6502RegisterInfo()
     ZPSymbolNames[Reg] = "_";
     ZPSymbolNames[Reg] += getName(R);
   }
+
+  if (NumZPPtrs <= 0)
+    report_fatal_error("At least one zero-page pointer must be available.");
+  if (NumZPPtrs > 127)
+    report_fatal_error("More than 127 zero-page pointers cannot be available.");
+
+  for (int Idx = 0; Idx < 127 - NumZPPtrs; Idx++) {
+    Reserved.set(MOS6502::ZP_PTR_126 - Idx);
+    Reserved.set(MOS6502::ZP_253 - Idx * 2);
+    Reserved.set(MOS6502::ZP_253 - Idx * 2 - 1);
+  }
+
+  // Stack pointer.
+  Reserved.set(MOS6502::SP);
+  Reserved.set(MOS6502::SPlo);
+  Reserved.set(MOS6502::SPhi);
 }
 
 const MCPhysReg *
@@ -44,13 +66,6 @@ MOS6502RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
 
 BitVector
 MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
-  BitVector Reserved(getNumRegs());
-
-  // Stack pointer.
-  Reserved.set(MOS6502::SP);
-  Reserved.set(MOS6502::SPlo);
-  Reserved.set(MOS6502::SPhi);
-
   return Reserved;
 }
 
@@ -152,8 +167,8 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
     // Insert the high half of the load.
     MachineIRBuilder Builder(*MI->getParent(), std::next(MI));
     Builder.buildInstr(MOS6502::LDhs)
-      .addDef(getSubReg(Dst, MOS6502::subhi))
-      .addImm(Offset + 1);
+        .addDef(getSubReg(Dst, MOS6502::subhi))
+        .addImm(Offset + 1);
     break;
   }
   case MOS6502::STPtrstk: {
@@ -184,8 +199,8 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
     // Insert the high half of the store.
     MachineIRBuilder Builder(*MI->getParent(), std::next(MI));
     Builder.buildInstr(MOS6502::SThs)
-      .addUse(getSubReg(Src, MOS6502::subhi))
-      .addImm(Offset + 1);
+        .addUse(getSubReg(Src, MOS6502::subhi))
+        .addImm(Offset + 1);
     break;
   }
   }

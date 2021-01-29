@@ -10,6 +10,7 @@ namespace llvm {
 
 class MOS6502RegisterInfo : public MOS6502GenRegisterInfo {
   std::unique_ptr<std::string[]> ZPSymbolNames;
+  BitVector Reserved;
 
 public:
   MOS6502RegisterInfo();
