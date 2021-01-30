@@ -304,10 +304,11 @@ module.
 
 ### Memory usage
 
-The compiler currently requires 4 absolute memory locations for emergency saving
-and restoring: `__SaveA`, `__SaveX`, `__SaveY`, and `__SaveP`. These locations
-are considered external to the generated assembly, and they must be defined
-somewhere by the C runtime for the generated output to be correct.
+The compiler currently requires 6 absolute memory locations for emergency saving
+and restoring: `__SaveA`, `__SaveX`, `__SaveY`, `__SaveP`, `__SaveZPlo`, and
+`__SaveZPhi`. These locations are considered external to the generated assembly,
+and they must be defined somewhere by the C runtime for the generated output to
+be correct.
 
 Right now, these locations are used quite naively. A more sophisticated approach
 would elide many of them to pushes and pulls, and instruction reordering to

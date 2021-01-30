@@ -802,7 +802,7 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   // state as before the sequence. After the restore sequence, all registers
   // and flags are in the same state as before the sequence, except those that
   // were saved, which have their value at time of save. The only memory
-  // locations affected by either are _Save<Reg>, for Reg={P,A,X,Y}.
+  // locations affected by either are _Save<Reg>.
 
   Builder.setInsertPt(MBB, Begin);
   if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C)) {
@@ -826,6 +826,50 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Builder.buildInstr(MOS6502::STabs)
         .addUse(MOS6502::Y)
         .addExternalSymbol("_SaveY");
+  if (Save.test(MOS6502::ZP_0)) {
+    assert(!Save.test(MOS6502::ZP_2));
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::A).addUse(MOS6502::ZP_0);
+    Builder.buildInstr(MOS6502::STabs)
+        .addUse(MOS6502::A)
+        .addExternalSymbol("_SaveZPlo");
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::PLP);
+  }
+  if (Save.test(MOS6502::ZP_1)) {
+    assert(!Save.test(MOS6502::ZP_3));
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::A).addUse(MOS6502::ZP_1);
+    Builder.buildInstr(MOS6502::STabs)
+        .addUse(MOS6502::A)
+        .addExternalSymbol("_SaveZPhi");
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::PLP);
+  }
+  if (Save.test(MOS6502::ZP_2)) {
+    assert(!Save.test(MOS6502::ZP_0));
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::A).addUse(MOS6502::ZP_2);
+    Builder.buildInstr(MOS6502::STabs)
+      .addUse(MOS6502::A)
+      .addExternalSymbol("_SaveZPlo");
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::PLP);
+  }
+  if (Save.test(MOS6502::ZP_3)) {
+    assert(!Save.test(MOS6502::ZP_1));
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::A).addUse(MOS6502::ZP_3);
+    Builder.buildInstr(MOS6502::STabs)
+      .addUse(MOS6502::A)
+      .addExternalSymbol("_SaveZPhi");
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::PLP);
+  }
 
   Builder.setInsertPt(MBB, End);
   if (Save.test(MOS6502::N) || Save.test(MOS6502::Z) || Save.test(MOS6502::C)) {
@@ -875,6 +919,46 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
         .addExternalSymbol("_SaveY");
     Builder.buildInstr(MOS6502::PLP);
     RecordSaved(MOS6502::Y);
+  }
+  if (Save.test(MOS6502::ZP_0)) {
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::LDabs)
+        .addDef(MOS6502::A)
+        .addExternalSymbol("_SaveZPlo");
+    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_0).addUse(MOS6502::A);
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::PLP);
+  }
+  if (Save.test(MOS6502::ZP_1)) {
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::LDabs)
+        .addDef(MOS6502::A)
+        .addExternalSymbol("_SaveZPhi");
+    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_1).addUse(MOS6502::A);
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::PLP);
+  }
+  if (Save.test(MOS6502::ZP_2)) {
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::LDabs)
+      .addDef(MOS6502::A)
+      .addExternalSymbol("_SaveZPlo");
+    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_2).addUse(MOS6502::A);
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::PLP);
+  }
+  if (Save.test(MOS6502::ZP_3)) {
+    Builder.buildInstr(MOS6502::PHP);
+    Builder.buildInstr(MOS6502::PHA);
+    Builder.buildInstr(MOS6502::LDabs)
+      .addDef(MOS6502::A)
+      .addExternalSymbol("_SaveZPhi");
+    Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_3).addUse(MOS6502::A);
+    Builder.buildInstr(MOS6502::PLA);
+    Builder.buildInstr(MOS6502::PLP);
   }
 
   if (Save.count()) {
