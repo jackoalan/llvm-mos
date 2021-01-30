@@ -23,10 +23,14 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
   // The instruction causing control flow to leave the current function.
   MachineInstrBuilder &MIB;
 
+  BitVector Reserved;
+
   MOS6502OutgoingValueHandler(MachineIRBuilder &MIRBuilder,
                               MachineInstrBuilder &MIB,
                               MachineRegisterInfo &MRI, CCAssignFn *AssignFn)
-      : OutgoingValueHandler(MIRBuilder, MRI, AssignFn), MIB(MIB) {}
+      : OutgoingValueHandler(MIRBuilder, MRI, AssignFn), MIB(MIB) {
+    Reserved = MRI.getTargetRegisterInfo()->getReservedRegs(MIRBuilder.getMF());
+  }
 
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
@@ -52,15 +56,27 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
                             MachinePointerInfo &MPO, CCValAssign &VA) override {
     report_fatal_error("Not yet implemented.");
   }
+
+  bool assignArg(unsigned ValNo, MVT ValVT, MVT LocVT,
+                 CCValAssign::LocInfo LocInfo,
+                 const llvm::CallLowering::ArgInfo &Info, ISD::ArgFlagsTy Flags,
+                 CCState &State) override {
+    for (Register R : Reserved.set_bits())
+      State.AllocateReg(R);
+    return AssignFn(ValNo, ValVT, LocVT, LocInfo, Flags, State);
+  }
 };
 
 struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
   std::function<void(Register Reg)> MakeLive;
+  BitVector Reserved;
 
   MOS6502IncomingValueHandler(MachineIRBuilder &MIRBuilder,
                               MachineRegisterInfo &MRI, CCAssignFn *AssignFn,
                               std::function<void(Register Reg)> MakeLive)
-      : IncomingValueHandler(MIRBuilder, MRI, AssignFn), MakeLive(MakeLive) {}
+      : IncomingValueHandler(MIRBuilder, MRI, AssignFn), MakeLive(MakeLive) {
+    Reserved = MRI.getTargetRegisterInfo()->getReservedRegs(MIRBuilder.getMF());
+  }
 
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
@@ -85,6 +101,15 @@ struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
   void assignValueToAddress(Register ValVReg, Register Addr, uint64_t Size,
                             MachinePointerInfo &MPO, CCValAssign &VA) override {
     report_fatal_error("Not yet implemented.");
+  }
+
+  bool assignArg(unsigned ValNo, MVT ValVT, MVT LocVT,
+                 CCValAssign::LocInfo LocInfo,
+                 const llvm::CallLowering::ArgInfo &Info, ISD::ArgFlagsTy Flags,
+                 CCState &State) override {
+    for (Register R : Reserved.set_bits())
+      State.AllocateReg(R);
+    return AssignFn(ValNo, ValVT, LocVT, LocInfo, Flags, State);
   }
 };
 
