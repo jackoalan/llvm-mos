@@ -273,13 +273,15 @@ bool MOS6502InstructionSelector::selectFrameIndex(MachineInstr &MI) {
     auto LoAddr = Builder.buildInstr(MOS6502::AddrLostk)
                       .addDef(Lo)
                       .addDef(Carry)
-                      .add(MI.getOperand(1));
+                      .add(MI.getOperand(1))
+                      .addImm(0);
     if (!constrainSelectedInstRegOperands(*LoAddr, TII, TRI, RBI))
       return false;
 
     auto HiAddr = Builder.buildInstr(MOS6502::AddrHistk)
                       .addDef(Hi)
                       .add(MI.getOperand(1))
+                      .addImm(0)
                       .addUse(Carry);
     if (!constrainSelectedInstRegOperands(*HiAddr, TII, TRI, RBI))
       return false;
@@ -288,8 +290,10 @@ bool MOS6502InstructionSelector::selectFrameIndex(MachineInstr &MI) {
   } else {
     // At least one use is in a ZP_PTR, so don't break up the address. This
     // makes the operation easier to analyze and rematerialize.
-    auto Addr =
-        Builder.buildInstr(MOS6502::Addrstk).addDef(Dst).add(MI.getOperand(1));
+    auto Addr = Builder.buildInstr(MOS6502::Addrstk)
+                    .addDef(Dst)
+                    .add(MI.getOperand(1))
+                    .addImm(0);
     if (!constrainSelectedInstRegOperands(*Addr, TII, TRI, RBI))
       return false;
   }

@@ -1,6 +1,7 @@
 #include "MOS6502FrameLowering.h"
 
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
+#include "MOS6502RegisterInfo.h"
 
 #include "llvm/CodeGen/GlobalISel/CallLowering.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
@@ -93,14 +94,12 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
       NeedsCorrectS = true;
       break;
     case MOS6502::LDstk:
-    case MOS6502::LDPtrstk:
     case MOS6502::AddrHistk:
     case MOS6502::Addrstk:
       Idx = MI->getOperand(1).getIndex();
       NeedsCorrectS = true;
       break;
     case MOS6502::STstk:
-    case MOS6502::STPtrstk:
       Idx = MI->getOperand(1).getIndex();
       break;
     }
@@ -130,16 +129,16 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
     // The store is to S, so it can folded together with a Push or two.
     assert(Offset == S);
     MachineIRBuilder Builder(MBB, MI);
-    if (MI->getOpcode() == MOS6502::STstk) {
-      auto Push = Builder.buildInstr(MOS6502::Push).add(MI->getOperand(0));
-      LLVM_DEBUG(dbgs() << *Push);
-    } else {
-      Register Reg = MI->getOperand(0).getReg();
+    Register Src = MI->getOperand(0).getReg();
+    if (MOS6502::ZP_PTRRegClass.contains(Src)) {
       // The high byte is pushed first, since it should have the higher memory
       // location (towards the bottom of the stack).
-      auto Push = Builder.buildInstr(MOS6502::Push).addUse(TRI.getSubReg(Reg, MOS6502::subhi));
+      auto Push = Builder.buildInstr(MOS6502::Push).addUse(TRI.getSubReg(Src, MOS6502::subhi));
       LLVM_DEBUG(dbgs() << *Push);
-      Push = Builder.buildInstr(MOS6502::Push).addUse(TRI.getSubReg(Reg, MOS6502::sublo));
+      Push = Builder.buildInstr(MOS6502::Push).addUse(TRI.getSubReg(Src, MOS6502::sublo));
+      LLVM_DEBUG(dbgs() << *Push);
+    } else {
+      auto Push = Builder.buildInstr(MOS6502::Push).add(MI->getOperand(0));
       LLVM_DEBUG(dbgs() << *Push);
     }
     LLVM_DEBUG(dbgs() << "Erasing: " << *MI);
@@ -207,7 +206,6 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
       NeedsCorrectS = true;
       break;
     case MOS6502::STstk:
-    case MOS6502::STPtrstk:
     case MOS6502::AddrHistk:
     case MOS6502::Addrstk:
       Idx = MI->getOperand(1).getIndex();
@@ -217,7 +215,6 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
       IsPush = true;
       break;
     case MOS6502::LDstk:
-    case MOS6502::LDPtrstk:
       Idx = MI->getOperand(1).getIndex();
       break;
     }
@@ -253,16 +250,16 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
     assert(Offset == S);
 
     MachineIRBuilder Builder(MBB, std::prev(MI).getReverse());
-    if (MI->getOpcode() == MOS6502::LDstk) {
-      auto Pull = Builder.buildInstr(MOS6502::Pull).add(MI->getOperand(0));
-      LLVM_DEBUG(dbgs() << *Pull);
-    } else {
-      Register Dst = MI->getOperand(0).getReg();
+    Register Dst = MI->getOperand(0).getReg();
+    if (MOS6502::ZP_PTRRegClass.contains(Dst)) {
       // The low byte is pulled first, since it has the lower memory location
       // (towards the top of the stack).
       auto Pull = Builder.buildInstr(MOS6502::Pull).addDef(TRI.getSubReg(Dst, MOS6502::sublo));
       LLVM_DEBUG(dbgs() << *Pull);
       Pull = Builder.buildInstr(MOS6502::Pull).addDef(TRI.getSubReg(Dst, MOS6502::subhi));
+      LLVM_DEBUG(dbgs() << *Pull);
+    } else {
+      auto Pull = Builder.buildInstr(MOS6502::Pull).add(MI->getOperand(0));
       LLVM_DEBUG(dbgs() << *Pull);
     }
     auto NextMI = std::next(MI);

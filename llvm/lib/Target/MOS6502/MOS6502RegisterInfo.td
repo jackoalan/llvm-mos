@@ -37,6 +37,8 @@ foreach i = 0 ... 253 in {
   def ZP_#i : MOS6502Reg<"ZP_"#i>;
 }
 
+def S : MOS6502Reg<"S">;
+
 def SP : MOS6502Reg<"SP"> {
   let SubRegs = [SPlo, SPhi];
   let SubRegIndices = [sublo, subhi];
@@ -74,7 +76,15 @@ let isPressureFineGrained = true in {
 def ZP : MOS6502RegClass<[i8], 8, (add SPlo, SPhi, (sequence "ZP_%u", 0, 253))>;
 def ZP_PTR : MOS6502RegClass<[i16], 8, (add SP, (sequence "ZP_PTR_%u", 0, 126))>;
 
+def Stack : MOS6502RegClass<[i16], 8, (add S, ZP_PTR)> {
+  let isAllocatable = false;
+}
+
 def AZP : MOS6502RegClass<[i8], 8, (add A, ZP)>;
 
 def Anyi8 : MOS6502RegClass<[i8], 8, (add GPR, ZP)>;
 def Anyi1 : MOS6502RegClass<[i1], 8, (add GPR, ZP, Cc)>;
+
+def Anyc : MOS6502RegClass<[i8, i16], 8, (add Anyi8, ZP_PTR)> {
+  let isAllocatable = false;
+}

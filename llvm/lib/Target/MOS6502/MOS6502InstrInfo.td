@@ -50,24 +50,9 @@ class Pseudo : Instr {
 
 // Frame Pseudoinstructions
 
-// Note: The Ptr versions of the various frame pseudoinstructions are only
-// needed because LLVM expects stores/loads of registers to frame indices to be
-// emissible in only one instruction.
-
-// Generic Frame
-
 def LDstk : Pseudo {
-  dag InOperandList = (ins i16imm:$fi);
-  dag OutOperandList = (outs Anyi8:$dst);
-
-  let Defs = [];
-
-  let mayLoad = true;
-}
-
-def LDPtrstk : Pseudo {
-  dag InOperandList = (ins i16imm:$fi);
-  dag OutOperandList = (outs ZP_PTR:$dst);
+  dag InOperandList = (ins Stack:$base, i16imm:$offset);
+  dag OutOperandList = (outs Anyc:$dst);
 
   let Defs = [];
 
@@ -75,16 +60,7 @@ def LDPtrstk : Pseudo {
 }
 
 def STstk : Pseudo {
-  dag InOperandList = (ins Anyi8:$src, i16imm:$fi);
-  dag OutOperandList = (outs);
-
-  let Defs = [];
-
-  let mayStore = true;
-}
-
-def STPtrstk : Pseudo {
-  dag InOperandList = (ins ZP_PTR:$src, i16imm:$fi);
+  dag InOperandList = (ins Anyc:$src, Stack:$base, i16imm:$fi);
   dag OutOperandList = (outs);
 
   let Defs = [];
@@ -95,7 +71,7 @@ def STPtrstk : Pseudo {
 // Produces the low byte of the address of the given frame index. Produces a
 // carry required by the high byte calculation.
 def AddrLostk : Pseudo {
-  dag InOperandList = (ins i16imm:$fi);
+  dag InOperandList = (ins Stack:$base, i16imm:$offset);
   dag OutOperandList = (outs Anyi8:$dst, Cc:$carry);
 
   let Defs = [NZ];
@@ -106,7 +82,7 @@ def AddrLostk : Pseudo {
 // Produces the high byte of the address of the given frame index. Accepts the
 // carry produced by the low byte calculation.
 def AddrHistk : Pseudo {
-  dag InOperandList = (ins i16imm:$fi, Cc:$carry);
+  dag InOperandList = (ins Stack:$base, i16imm:$offset, Cc:$carry);
   dag OutOperandList = (outs Anyi8:$dst);
 
   let Defs = [C, NZ];
@@ -118,7 +94,7 @@ def AddrHistk : Pseudo {
 // to be inserted between calculation of the low and high byte, but in exchange,
 // the instruction can be moved around and rematerialized as a whole.
 def Addrstk : Pseudo {
-  dag InOperandList = (ins i16imm:$fi);
+  dag InOperandList = (ins Stack:$base, i16imm:$offset);
   dag OutOperandList = (outs ZP_PTR:$dst);
 
   let Defs = [NZ];
@@ -127,24 +103,6 @@ def Addrstk : Pseudo {
 }
 
 // Hard Stack
-
-def LDhs : Pseudo {
-  dag InOperandList = (ins i8imm:$fi);
-  dag OutOperandList = (outs Anyi8:$dst);
-
-  let Defs = [];
-
-  let mayLoad = true;
-}
-
-def SThs : Pseudo {
-  dag InOperandList = (ins Anyi8:$src, i8imm:$fi);
-  dag OutOperandList = (outs);
-
-  let Defs = [];
-
-  let mayStore = true;
-}
 
 def Pull : Pseudo {
   dag InOperandList = (ins);
@@ -164,67 +122,7 @@ def Push : Pseudo {
   let mayStore = true;
 }
 
-def AddrLohs : Pseudo {
-  dag InOperandList = (ins i8imm:$fi);
-  dag OutOperandList = (outs Anyi8:$dst, Cc:$carry);
-
-  let Uses = [];
-  let Defs = [NZ];
-
-  let isReMaterializable = true;
-}
-
-def AddrHihs : Pseudo {
-  dag InOperandList = (ins i8imm:$fi, Cc:$carry);
-  dag OutOperandList = (outs Anyi8:$dst);
-
-  let Uses = [];
-  let Defs = [C, NZ];
-
-  let isReMaterializable = true;
-}
-
-def Addrhs : Pseudo {
-  dag InOperandList = (ins i8imm:$fi);
-  dag OutOperandList = (outs ZP_PTR:$dst);
-
-  let Uses = [];
-  let Defs = [NZ];
-
-  let isReMaterializable = true;
-}
-
 // Soft stack
-
-def AddrLoss : Pseudo {
-  dag InOperandList = (ins i16imm:$fi);
-  dag OutOperandList = (outs Anyi8:$dst, Cc:$carry);
-
-  let Uses = [];
-  let Defs = [NZ];
-
-  let isReMaterializable = true;
-}
-
-def AddrHiss : Pseudo {
-  dag InOperandList = (ins i16imm:$fi, Cc:$carry);
-  dag OutOperandList = (outs Anyi8:$dst);
-
-  let Uses = [];
-  let Defs = [C, NZ];
-
-  let isReMaterializable = true;
-}
-
-def Addrss : Pseudo {
-  dag InOperandList = (ins i16imm:$fi);
-  dag OutOperandList = (outs ZP_PTR:$dst);
-
-  let Uses = [];
-  let Defs = [NZ];
-
-  let isReMaterializable = true;
-}
 
 // The soft stack is usually accessed via the LDindirimm and STindirimm pseudos.
 // The base address of these pseudos will either be a virtual base pointer, a
@@ -241,28 +139,7 @@ def IncSP : Pseudo {
   let Defs = [];
 }
 
-// Indirect addressing
-
-def LDindirimm : Pseudo {
-  dag InOperandList = (ins ZP_PTR:$addr, i8imm:$offset);
-  dag OutOperandList = (outs Anyi8:$dst);
-
-  let Defs = [];
-
-  let mayLoad = true;
-}
-
-def STindirimm : Pseudo {
-  dag InOperandList = (ins Anyi8:$val, ZP_PTR:$addr, i8imm:$offset);
-  dag OutOperandList = (outs);
-
-  let Defs = [];
-
-  let mayStore = true;
-}
-
 // Regular Instructions
-
 
 def ADCimm : Instr {
   dag InOperandList = (ins Ac:$l, i8imm:$r, Cc:$carryin);

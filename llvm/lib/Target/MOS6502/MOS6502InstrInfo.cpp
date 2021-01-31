@@ -386,22 +386,16 @@ void MOS6502InstrInfo::storeRegToStackSlot(
       MFI.getObjectAlign(FrameIndex));
 
   MachineIRBuilder Builder(MBB, MI);
-  unsigned Opcode;
   if ((SrcReg.isVirtual() &&
-       MRI.getRegClass(SrcReg)->hasSuperClassEq(&MOS6502::Anyi8RegClass)) ||
-      (SrcReg.isPhysical() && MOS6502::Anyi8RegClass.contains(SrcReg))) {
-    Opcode = MOS6502::STstk;
-  } else if ((SrcReg.isVirtual() && MRI.getRegClass(SrcReg)->hasSuperClassEq(
-                                        &MOS6502::ZP_PTRRegClass)) ||
-             (SrcReg.isPhysical() &&
-              MOS6502::ZP_PTRRegClass.contains(SrcReg))) {
-    Opcode = MOS6502::STPtrstk;
-  } else {
+       !MRI.getRegClass(SrcReg)->hasSuperClassEq(&MOS6502::AnycRegClass)) &&
+      (SrcReg.isPhysical() && !MOS6502::AnycRegClass.contains(SrcReg))) {
     report_fatal_error("Not yet implemented.");
   }
-  Builder.buildInstr(Opcode)
+
+  Builder.buildInstr(MOS6502::STstk)
       .addReg(SrcReg, getKillRegState(isKill))
       .addFrameIndex(FrameIndex)
+      .addImm(0)
       .addMemOperand(MMO);
 }
 
@@ -420,22 +414,16 @@ void MOS6502InstrInfo::loadRegFromStackSlot(
       MFI.getObjectAlign(FrameIndex));
 
   MachineIRBuilder Builder(MBB, MI);
-  unsigned Opcode;
   if ((DestReg.isVirtual() &&
-       MRI.getRegClass(DestReg)->hasSuperClassEq(&MOS6502::Anyi8RegClass)) ||
-      (DestReg.isPhysical() && MOS6502::Anyi8RegClass.contains(DestReg))) {
-    Opcode = MOS6502::LDstk;
-  } else if ((DestReg.isVirtual() && MRI.getRegClass(DestReg)->hasSuperClassEq(
-                                         &MOS6502::ZP_PTRRegClass)) ||
-             (DestReg.isPhysical() &&
-              MOS6502::ZP_PTRRegClass.contains(DestReg))) {
-    Opcode = MOS6502::LDPtrstk;
-  } else {
+       !MRI.getRegClass(DestReg)->hasSuperClassEq(&MOS6502::AnycRegClass)) &&
+      (DestReg.isPhysical() && !MOS6502::AnycRegClass.contains(DestReg))) {
     report_fatal_error("Not yet implemented.");
   }
-  Builder.buildInstr(Opcode)
+
+  Builder.buildInstr(MOS6502::LDstk)
       .addDef(DestReg)
       .addFrameIndex(FrameIndex)
+      .addImm(0)
       .addMemOperand(MMO);
 }
 
@@ -491,95 +479,104 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     break;
   }
 
-  case MOS6502::LDindirimm: {
-    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).add(MI.getOperand(2));
-    Builder.buildInstr(MOS6502::LDyindirr)
-        .addDef(MOS6502::A)
-        .add(MI.getOperand(1))
-        .addUse(MOS6502::Y);
-    copyPhysRegNoPreserve(Builder, MI.getOperand(0).getReg(), MOS6502::A);
-    break;
-  }
+  case MOS6502::AddrLostk: {
+    Register Dst = MI.getOperand(0).getReg();
+    Register Base = MI.getOperand(2).getReg();
 
-  case MOS6502::STindirimm: {
-    copyPhysRegNoPreserve(Builder, MOS6502::A, MI.getOperand(0).getReg());
-    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).add(MI.getOperand(2));
-    Builder.buildInstr(MOS6502::STyindirr)
-        .addUse(MOS6502::A)
-        .add(MI.getOperand(1))
-        .addUse(MOS6502::Y);
-    break;
-  }
-
-  case MOS6502::AddrLoss: {
-    int64_t OffsetImm = MI.getOperand(2).getImm();
+    int64_t OffsetImm = MI.getOperand(3).getImm();
     assert(0 <= OffsetImm && OffsetImm < 65536);
     auto Offset = static_cast<uint16_t>(OffsetImm);
 
     Offset = Offset & 0xFF;
 
-    Register Dst = MI.getOperand(0).getReg();
+    Register Src;
+    if (Base == MOS6502::S) {
+      Builder.buildInstr(MOS6502::TSX);
+      Src = MOS6502::X;
+    } else {
+      assert(Base == MOS6502::SP);
+      Src = MOS6502::SPlo;
+    }
 
     if (!Offset) {
-      copyPhysRegNoPreserve(Builder, Dst, MOS6502::SPlo);
+      copyPhysRegNoPreserve(Builder, Dst, Src);
       break;
     }
 
-    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(Offset);
+    copyPhysRegNoPreserve(Builder, MOS6502::A, Src);
     Builder.buildInstr(MOS6502::LDCimm).addDef(MOS6502::C).addImm(0);
-    Builder.buildInstr(MOS6502::ADCzpr)
+    Builder.buildInstr(MOS6502::ADCimm)
         .addDef(MOS6502::A)
         .addDef(MOS6502::C)
         .addUse(MOS6502::A)
-        .addUse(MOS6502::SPlo)
+        .addImm(Offset)
         .addUse(MOS6502::C);
     copyPhysRegNoPreserve(Builder, Dst, MOS6502::A);
     break;
   }
 
-  case MOS6502::AddrHiss: {
-    int64_t OffsetImm = MI.getOperand(1).getImm();
+  case MOS6502::AddrHistk: {
+    Register Dst = MI.getOperand(0).getReg();
+    Register Base = MI.getOperand(1).getReg();
+
+    int64_t OffsetImm = MI.getOperand(2).getImm();
     assert(0 <= OffsetImm && OffsetImm < 65536);
     auto Offset = static_cast<uint16_t>(OffsetImm);
 
-    Register Dst = MI.getOperand(0).getReg();
-
     if (!Offset) {
-      copyPhysRegNoPreserve(Builder, Dst, MOS6502::SPhi);
+      if (Base == MOS6502::S) {
+        if (MOS6502::GPRRegClass.contains(Dst))
+          Builder.buildInstr(MOS6502::LDimm).addDef(Dst).addImm(1);
+        else {
+          Register Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
+          Builder.buildInstr(MOS6502::LDimm).addDef(Tmp).addImm(1);
+          copyPhysRegNoPreserve(Builder, Dst, Tmp);
+        }
+      } else {
+        assert(Base == MOS6502::SP);
+        copyPhysRegNoPreserve(Builder, Dst, MOS6502::SPhi);
+      }
       break;
     }
 
-    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(Offset >> 8);
-    // AddrLoss won't reset the carry if it has a zero offset.
+    if (Base == MOS6502::S) {
+      // The stack page begins at 0x0100
+      Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(1);
+    } else {
+      assert(Base == MOS6502::SP);
+      Builder.buildInstr(MOS6502::LDzpr)
+          .addDef(MOS6502::A)
+          .addUse(MOS6502::SPhi);
+    }
+
+    // AddrLostk won't reset the carry if it has a zero offset.
     if (!(Offset & 0xFF))
       Builder.buildInstr(MOS6502::LDCimm).addDef(MOS6502::C).addImm(0);
-    Builder.buildInstr(MOS6502::ADCzpr)
+    Builder.buildInstr(MOS6502::ADCimm)
         .addDef(MOS6502::A)
         .addDef(MOS6502::C, RegState::Dead)
         .addUse(MOS6502::A)
-        .addUse(MOS6502::SPhi)
+        .addImm(Offset >> 8)
         .addUse(MOS6502::C);
     copyPhysRegNoPreserve(Builder, Dst, MOS6502::A);
     break;
   }
 
-  case MOS6502::Addrss:
-  case MOS6502::Addrhs: {
-    unsigned LoOpcode = MI.getOpcode() == MOS6502::Addrss ? MOS6502::AddrLoss
-                                                          : MOS6502::AddrLohs;
-    unsigned HiOpcode = MI.getOpcode() == MOS6502::Addrss ? MOS6502::AddrHiss
-                                                          : MOS6502::AddrHihs;
-
+  case MOS6502::Addrstk: {
     Register Dst = MI.getOperand(0).getReg();
-    const MachineOperand &Offset = MI.getOperand(1);
+    Register Base = MI.getOperand(1).getReg();
+    const MachineOperand &Offset = MI.getOperand(2);
     auto End = Builder.getInsertPt();
-    auto Lo = Builder.buildInstr(LoOpcode)
+    auto Lo = Builder.buildInstr(MOS6502::AddrLostk)
                   .addDef(TRI.getSubReg(Dst, MOS6502::sublo))
                   .addDef(MOS6502::C)
+                  .addUse(Base)
                   .add(Offset);
-    auto Hi = Builder.buildInstr(HiOpcode)
+    auto Hi = Builder.buildInstr(MOS6502::AddrHistk)
                   .addDef(TRI.getSubReg(Dst, MOS6502::subhi))
-                  .add(Offset);
+                  .addUse(Base)
+                  .add(Offset)
+                  .addUse(MOS6502::C);
     Builder.setInsertPt(Builder.getMBB(), Lo);
     expandPostRAPseudoNoPreserve(Builder);
     Builder.setInsertPt(Builder.getMBB(), Hi);
@@ -588,55 +585,66 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     break;
   }
 
-  case MOS6502::AddrLohs: {
-    int64_t OffsetImm = MI.getOperand(2).getImm();
-    assert(0 <= OffsetImm && OffsetImm < 256);
-    auto Offset = static_cast<uint8_t>(OffsetImm);
+  case MOS6502::LDstk:
+  case MOS6502::STstk: {
+    Register Loc = MI.getOperand(0).getReg();
+    Register Base = MI.getOperand(1).getReg();
+    int64_t Offset = MI.getOperand(2).getImm();
+    assert(0 <= Offset && Offset < 256);
 
-    Builder.buildInstr(MOS6502::TSX);
-    if (!Offset) {
-      copyPhysRegNoPreserve(Builder, MI.getOperand(0).getReg(), MOS6502::X);
-      break;
-    }
+    bool IsLoad = MI.getOpcode() == MOS6502::LDstk;
 
-    copyPhysRegNoPreserve(Builder, MOS6502::A, MOS6502::X);
-    Builder.buildInstr(MOS6502::LDCimm).addDef(MOS6502::C).addImm(0);
-    Builder.buildInstr(MOS6502::ADCimm)
-        .addDef(MOS6502::A)
-        .addDef(MOS6502::C)
-        .addUse(MOS6502::A)
-        .addImm(Offset)
-        .addUse(MOS6502::C);
-    copyPhysRegNoPreserve(Builder, MI.getOperand(0).getReg(), MOS6502::A);
-    break;
-  }
+    if (MOS6502::ZP_PTRRegClass.contains(Loc)) {
+      auto Lo = Builder.buildInstr(MI.getOpcode())
+                    .addReg(TRI.getSubReg(Loc, MOS6502::sublo),
+                            getDefRegState(IsLoad))
+                    .addUse(Base)
+                    .addImm(Offset);
+      Builder.buildInstr(MI.getOpcode())
+          .addReg(TRI.getSubReg(Loc, MOS6502::subhi), getDefRegState(IsLoad))
+          .addUse(Base)
+          .addImm(Offset + 1);
+      Builder.setInsertPt(Builder.getMBB(), Lo);
+      expandPostRAPseudoNoPreserve(Builder);
+      expandPostRAPseudoNoPreserve(Builder);
+    } else {
+      if (Base == MOS6502::S) {
+        Register Tmp;
+        if (IsLoad) {
+          Tmp = Loc;
+          if (!MOS6502::GPRRegClass.contains(Tmp))
+            Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
+        } else
+          Tmp = MOS6502::A;
 
-  case MOS6502::AddrHihs: {
-    int64_t OffsetImm = MI.getOperand(1).getImm();
-    assert(0 <= OffsetImm && OffsetImm < 256);
-    auto Offset = static_cast<uint8_t>(OffsetImm);
+        Builder.buildInstr(MOS6502::TSX);
+        if (!IsLoad)
+          copyPhysRegNoPreserve(Builder, Tmp, Loc);
+        auto Access =
+            Builder.buildInstr(IsLoad ? MOS6502::LDidx : MOS6502::STidx)
+                .addReg(Tmp, getDefRegState(IsLoad))
+                .addImm(0x100 + Offset)
+                .addReg(MOS6502::X);
+        if (IsLoad)
+          copyPhysRegNoPreserve(Builder, Loc, Tmp);
 
-    Register Dst = MI.getOperand(0).getReg();
-
-    if (!Offset) {
-      if (MOS6502::GPRRegClass.contains(Dst))
-        Builder.buildInstr(MOS6502::LDimm).addDef(Dst).addImm(1);
-      else {
-        Register Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
-        Builder.buildInstr(MOS6502::LDimm).addDef(Tmp).addImm(1);
-        copyPhysRegNoPreserve(Builder, Dst, Tmp);
+        auto End = Builder.getInsertPt();
+        Builder.setInsertPt(Builder.getMBB(), Access);
+        expandPostRAPseudoNoPreserve(Builder);
+        Builder.setInsertPt(Builder.getMBB(), End);
+      } else {
+        assert(Base == MOS6502::SP);
+        Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(Offset);
+        if (!IsLoad)
+          copyPhysRegNoPreserve(Builder, MOS6502::A, Loc);
+        Builder.buildInstr(IsLoad ? MOS6502::LDyindirr : MOS6502::STyindirr)
+            .addReg(MOS6502::A, getDefRegState(IsLoad))
+            .addUse(Base)
+            .addUse(MOS6502::Y);
+        if (IsLoad)
+          copyPhysRegNoPreserve(Builder, Loc, MOS6502::A);
       }
-      break;
     }
-
-    Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(1);
-    Builder.buildInstr(MOS6502::ADCimm)
-        .addDef(MOS6502::A)
-        .addDef(MOS6502::C, RegState::Dead)
-        .addUse(MOS6502::A)
-        .addImm(0)
-        .addUse(MOS6502::C);
-    copyPhysRegNoPreserve(Builder, Dst, MOS6502::A);
     break;
   }
 
@@ -674,37 +682,6 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
         .add(MI.getOperand(0))
         .add(MI.getOperand(1));
     break;
-
-  case MOS6502::LDhs: {
-    Register Dst = MI.getOperand(0).getReg();
-    Register Tmp = Dst;
-    if (!MOS6502::GPRRegClass.contains(Tmp))
-      Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
-
-    Builder.buildInstr(MOS6502::TSX);
-    auto Ld = Builder.buildInstr(MOS6502::LDidx)
-                  .addDef(Tmp)
-                  .addImm(0x100 + MI.getOperand(1).getImm())
-                  .addReg(MOS6502::X);
-    copyPhysRegNoPreserve(Builder, Dst, Tmp);
-    auto End = Builder.getInsertPt();
-    Builder.setInsertPt(Builder.getMBB(), Ld);
-    expandPostRAPseudoNoPreserve(Builder);
-    Builder.setInsertPt(Builder.getMBB(), End);
-    break;
-  }
-
-  case MOS6502::SThs: {
-    Register Src = MI.getOperand(0).getReg();
-    copyPhysRegNoPreserve(Builder, MOS6502::A, Src);
-
-    Builder.buildInstr(MOS6502::TSX);
-    Builder.buildInstr(MOS6502::STidx)
-        .addUse(MOS6502::A)
-        .addImm(0x100 + MI.getOperand(1).getImm())
-        .addReg(MOS6502::X);
-    break;
-  }
 
   case MOS6502::Push: {
     Register Src = MI.getOperand(0).getReg();
@@ -753,12 +730,15 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   MachineBasicBlock &MBB = Builder.getMBB();
   const TargetRegisterInfo &TRI =
       *MBB.getParent()->getSubtarget().getRegisterInfo();
+  BitVector Reserved = TRI.getReservedRegs(*MBB.getParent());
 
   // Returns the locations modified by the given instruction.
   const auto GetWrites = [&](MachineInstr &MI) {
     SparseBitVector<> Writes;
     for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < TRI.getNumRegs();
          ++Reg) {
+      if (Reserved.test(Reg))
+        continue;
       if (MI.definesRegister(Reg, &TRI))
         Writes.set(Reg);
     }
@@ -768,6 +748,8 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   SparseBitVector<> MaybeLive;
   for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < TRI.getNumRegs();
        ++Reg) {
+    if (Reserved.test(Reg))
+      continue;
     if (isMaybeLive(Builder, Reg))
       MaybeLive.set(Reg);
   }
