@@ -19,14 +19,6 @@ generalizing each and filling out the compiler until it reaches MVP.
 ## Risk Factors
 
 <dl>
-  <dt>Far stack access</dt>
-  <dd>
-    Can the compiler access locals that are more than 256 bytes above the stack pointer?
-    How about parameters? The only available indirect addressing mode has at most 256 byte
-    offsets, so virtual frame registers are required for both. Can these be scavenged if
-    necessary? How do we avoid redundant calculation of these frame registers?
-  </dd>
-
   <dt>Stack frame elision</dt>
   <dd>
     Can non-recursive functions be detected reliably enough for stack frame
@@ -35,6 +27,19 @@ generalizing each and filling out the compiler until it reaches MVP.
     optimization decrease the burden on this analysis?
   </dd>
   
+  <dt>Indirect calls</dt>
+  <dd>
+    The 6502 has no indirect JSR instruction. Likely the best way to synthesize
+    one is by JSR-ing to an indirect JMP instruction. Can such an instruction be
+    synthesized? What would the basic-block layout of such a sequence be?
+  </dd>
+
+  <dt>Variable arguments</dt>
+  <dd>
+    What is the variable-length argument calling convention? Can iteration through the
+    arguments be made efficient? How efficient can printf be made?
+  </dd>
+
   <dt>PostRA pseudo scheduling</dt>
   <dd>
     Post-register-allocation pseudo-instructions cannot report their full side-effect profile, since
@@ -53,9 +58,18 @@ generalizing each and filling out the compiler until it reaches MVP.
     the static stack frame of the callee. However, this would make non-recursion
     part of the ABI of the function, so this would likely only be possible for
     internal functions. If the parameters cannot be elided, can the locals still be?
-    How about outgoing parameters to recursive callees?
+    How about outgoing parameters to recursive callees? Does this work with
+    function pointers and/or variable argument lists?
   </dd>
   
+  <dt>Jump Tables</dt>
+  <dd>
+    Jump tables allow dense portions of switch statements to be efficient
+    executed. These should almost certainly be implemented using the RTS trick.
+    This requires decrementing the block addresses in the table; can this be
+    done in LLVM?
+  </dd>
+
   <dt>PostRA pseudo scavenging</dt>
   <dd>
     PostRA pseudo save/restore logic tightly wraps the affected region. If the register scavenger were
@@ -557,4 +571,4 @@ TODO:
 
 </details>
 
-Updated January 24, 2021.
+Updated February 3, 2021.
