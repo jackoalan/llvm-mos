@@ -26,6 +26,13 @@ generalizing each and filling out the compiler until it reaches MVP.
     them from appearing to possibly call main()? To what degree does link-time
     optimization decrease the burden on this analysis?
   </dd>
+
+  <dt>Stack parameter passing</dt>
+  <dd>
+    What are the mechanics for passing parameters and return values on the stack?
+    What mechanisms does LLVM provide for including callee argument space into the
+    caller stack? What are call setup and destroy pseudoinstructions? Do we need them?
+  </dd>
   
   <dt>Indirect calls</dt>
   <dd>
@@ -49,17 +56,6 @@ generalizing each and filling out the compiler until it reaches MVP.
     It's unlikely that we'd be able to rely on the existing scheduler for this though, since the pseudos
     will behave as advertised by emitting save/restore code. At no point do they exhibit their real
     side-effect profile.
-  </dd>
-  
-  <dt>Parameter stack elision</dt>
-  <dd>
-    Can stack for incoming parameters be elided for nonrecursive functions?
-    Ideally, the caller of such a function would place arguments directly into
-    the static stack frame of the callee. However, this would make non-recursion
-    part of the ABI of the function, so this would likely only be possible for
-    internal functions. If the parameters cannot be elided, can the locals still be?
-    How about outgoing parameters to recursive callees? Does this work with
-    function pointers and/or variable argument lists?
   </dd>
   
   <dt>Jump Tables</dt>
@@ -571,4 +567,4 @@ TODO:
 
 </details>
 
-Updated February 3, 2021.
+Updated February 4, 2021.
