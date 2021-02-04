@@ -124,12 +124,6 @@ def Push : Pseudo {
 
 // Soft stack
 
-// The soft stack is usually accessed via the LDindirimm and STindirimm pseudos.
-// The base address of these pseudos will either be a virtual base pointer, a
-// frame pointer, or the stack pointer, depending on the situation. Virtual base
-// pointers are needed to allow stack access beyond the first 256 bytes, since
-// there's no efficient 16-bit indexed addressing mode.
-
 // Add $bytes bytes to SP, saving the result back in SP. A negative argument
 // decreases SP.
 def IncSP : Pseudo {

@@ -76,7 +76,7 @@ let isPressureFineGrained = true in {
 def ZP : MOS6502RegClass<[i8], 8, (add SPlo, SPhi, (sequence "ZP_%u", 0, 253))>;
 def ZP_PTR : MOS6502RegClass<[i16], 8, (add SP, (sequence "ZP_PTR_%u", 0, 126))>;
 
-def Stack : MOS6502RegClass<[i16], 8, (add S, ZP_PTR)> {
+def Stack : MOS6502RegClass<[i8, i16], 8, (add S, X, ZP_PTR)> {
   let isAllocatable = false;
 }
 

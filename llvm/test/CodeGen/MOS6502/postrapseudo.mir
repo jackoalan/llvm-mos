@@ -162,9 +162,50 @@ body: |
 # CHECK:      TSX
 # CHECK-NEXT: LDAidx 258, $x
 # CHECK-NEXT: $zp_0 = STzpr $a
-# CHECK-NEXT: TSX
 # CHECK-NEXT: LDAidx 259, $x
 # CHECK-NEXT: $zp_1 = STzpr $a
+...
+---
+name: ldptr_far
+# CHECK-LABEL: name: ldptr_far
+body: |
+  bb.0.entry:
+    $zp_ptr_1 = LDstk $sp, 258
+    RTS
+# CHECK:      $a = LDzpr $splo
+# CHECK-NEXT: $zp_0 = STzpr $a
+# CHECK-NEXT: $a = LDzpr $sphi
+# CHECK-NEXT: $c = LDCimm 0
+# CHECK-NEXT: $a, dead $c = ADCimm $a, 1, $c
+# CHECK-NEXT: $zp_1 = STzpr $a
+# CHECK-NEXT: $y = LDimm 2
+# CHECK-NEXT: $a = LDyindirr $zp_ptr_0, $y
+# CHECK-NEXT: $zp_2 = STzpr $a
+# CHECK-NEXT: $y = LDimm 3
+# CHECK-NEXT: $a = LDyindirr $zp_ptr_0, $y
+# CHECK-NEXT: $zp_3 = STzpr $a
+# CHECK-NEXT: RTS
+...
+---
+name: ldptr_far_1
+# CHECK-LABEL: name: ldptr_far_1
+body: |
+  bb.0.entry:
+    $zp_ptr_0 = LDstk $sp, 258
+    RTS
+# CHECK:      $a = LDzpr $splo
+# CHECK-NEXT: $zp_2 = STzpr $a
+# CHECK-NEXT: $a = LDzpr $sphi
+# CHECK-NEXT: $c = LDCimm 0
+# CHECK-NEXT: $a, dead $c = ADCimm $a, 1, $c
+# CHECK-NEXT: $zp_3 = STzpr $a
+# CHECK-NEXT: $y = LDimm 2
+# CHECK-NEXT: $a = LDyindirr $zp_ptr_1, $y
+# CHECK-NEXT: $zp_0 = STzpr $a
+# CHECK-NEXT: $y = LDimm 3
+# CHECK-NEXT: $a = LDyindirr $zp_ptr_1, $y
+# CHECK-NEXT: $zp_1 = STzpr $a
+# CHECK-NEXT: RTS
 ...
 ---
 name: incsp

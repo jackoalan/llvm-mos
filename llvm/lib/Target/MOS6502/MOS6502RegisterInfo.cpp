@@ -89,10 +89,10 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
 
   assert(!SPAdj);
 
-  MachineOperand &Op = MI->getOperand(FIOperandNum);
+  int Idx = MI->getOperand(FIOperandNum).getIndex();
 
   int64_t StackSize;
-  auto StackID = MFI.getStackID(Op.getIndex());
+  auto StackID = MFI.getStackID(Idx);
   if (StackID == TargetStackID::Hard) {
     StackSize = TFL.hsSize(MFI);
   } else {
@@ -100,15 +100,11 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
     StackSize = MFI.getStackSize();
   }
 
-  unsigned Offset = StackSize + MFI.getObjectOffset(Op.getIndex());
-  if (!StackID && Offset >= 256)
-    report_fatal_error("16-bit SP offsets not yet implemented.");
-
   MI->getOperand(FIOperandNum)
       .ChangeToRegister(StackID ? MOS6502::S : MOS6502::SP,
                         /*isDef=*/false);
-  assert(MI->getOperand(FIOperandNum+1).isImm());
-  MI->getOperand(FIOperandNum + 1).setImm(Offset);
+  assert(MI->getOperand(FIOperandNum + 1).isImm());
+  MI->getOperand(FIOperandNum + 1).setImm(StackSize + MFI.getObjectOffset(Idx));
 }
 
 Register

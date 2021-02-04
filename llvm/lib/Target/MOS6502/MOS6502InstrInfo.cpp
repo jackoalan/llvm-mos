@@ -3,6 +3,7 @@
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "MOS6502RegisterInfo.h"
 
+#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/SparseBitVector.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
@@ -38,9 +39,12 @@ bool isMaybeLive(MachineIRBuilder &Builder, Register Reg) {
 // containing reserved registers or CSRs.
 Register trivialScavenge(MachineIRBuilder &Builder,
                          const TargetRegisterClass &RegClass) {
-  for (Register Reg : RegClass)
+  for (Register Reg : RegClass) {
+    if (Builder.getMRI()->isReserved(Reg))
+      continue;
     if (!isMaybeLive(Builder, Reg))
       return Reg;
+  }
   return *RegClass.begin();
 }
 
@@ -493,9 +497,8 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     if (Base == MOS6502::S) {
       Builder.buildInstr(MOS6502::TSX);
       Src = MOS6502::X;
-    } else {
-      assert(Base == MOS6502::SP);
-      Src = MOS6502::SPlo;
+    } else if (MOS6502::ZP_PTRRegClass.contains(Base)) {
+      Src = TRI.getSubReg(Base, MOS6502::sublo);
     }
 
     if (!Offset) {
@@ -524,29 +527,26 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     auto Offset = static_cast<uint16_t>(OffsetImm);
 
     if (!Offset) {
-      if (Base == MOS6502::S) {
-        if (MOS6502::GPRRegClass.contains(Dst))
-          Builder.buildInstr(MOS6502::LDimm).addDef(Dst).addImm(1);
-        else {
-          Register Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
-          Builder.buildInstr(MOS6502::LDimm).addDef(Tmp).addImm(1);
-          copyPhysRegNoPreserve(Builder, Dst, Tmp);
-        }
+      if (MOS6502::ZP_PTRRegClass.contains(Base)) {
+        copyPhysRegNoPreserve(Builder, Dst,
+                              TRI.getSubReg(Base, MOS6502::subhi));
       } else {
-        assert(Base == MOS6502::SP);
-        copyPhysRegNoPreserve(Builder, Dst, MOS6502::SPhi);
+        Register Tmp = Dst;
+        if (!MOS6502::GPRRegClass.contains(Tmp))
+          Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
+        Builder.buildInstr(MOS6502::LDimm).addDef(Tmp).addImm(1);
+        copyPhysRegNoPreserve(Builder, Dst, Tmp);
       }
       break;
     }
 
-    if (Base == MOS6502::S) {
-      // The stack page begins at 0x0100
-      Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(1);
-    } else {
-      assert(Base == MOS6502::SP);
+    if (MOS6502::ZP_PTRRegClass.contains(Base)) {
       Builder.buildInstr(MOS6502::LDzpr)
           .addDef(MOS6502::A)
-          .addUse(MOS6502::SPhi);
+          .addUse(TRI.getSubReg(Base, MOS6502::subhi));
+    } else {
+      // The stack page begins at 0x0100
+      Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::A).addImm(1);
     }
 
     // AddrLostk won't reset the carry if it has a zero offset.
@@ -590,11 +590,40 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     Register Loc = MI.getOperand(0).getReg();
     Register Base = MI.getOperand(1).getReg();
     int64_t Offset = MI.getOperand(2).getImm();
-    assert(0 <= Offset && Offset < 256);
+    assert(0 <= Offset && Offset < 65536);
 
     bool IsLoad = MI.getOpcode() == MOS6502::LDstk;
 
+     if (MOS6502::ZP_PTRRegClass.contains(Base) && Offset >= 256) {
+      // FIXME: Have this find a register other than Loc, if it's available.
+      // Really feeling the pains of not using VRegs for this.
+      Register Tmp = trivialScavenge(Builder, MOS6502::ZP_PTRRegClass);
+
+      // Guarantee that Tmp is different than Loc, even if it requires
+      // save/restore.
+      if (TRI.isSubRegisterEq(Loc, Tmp)) {
+        Tmp =
+          Tmp == MOS6502::ZP_PTR_0 ? MOS6502::ZP_PTR_1 : MOS6502::ZP_PTR_0;
+      }
+
+      // Move the high byte of the offset into the base address.
+      auto Addr = Builder.buildInstr(MOS6502::Addrstk)
+        .addDef(Tmp)
+        .addUse(Base)
+        .addImm(Offset & 0xFF00);
+      Builder.setInsertPt(Builder.getMBB(), Addr);
+      expandPostRAPseudoNoPreserve(Builder);
+
+      Base = Tmp;
+      Offset &= 0xFF;
+    }
+
     if (MOS6502::ZP_PTRRegClass.contains(Loc)) {
+      if (Base == MOS6502::S) {
+        Builder.buildInstr(MOS6502::TSX);
+        Base = MOS6502::X;
+      }
+
       auto Lo = Builder.buildInstr(MI.getOpcode())
                     .addReg(TRI.getSubReg(Loc, MOS6502::sublo),
                             getDefRegState(IsLoad))
@@ -608,32 +637,7 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
       expandPostRAPseudoNoPreserve(Builder);
       expandPostRAPseudoNoPreserve(Builder);
     } else {
-      if (Base == MOS6502::S) {
-        Register Tmp;
-        if (IsLoad) {
-          Tmp = Loc;
-          if (!MOS6502::GPRRegClass.contains(Tmp))
-            Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
-        } else
-          Tmp = MOS6502::A;
-
-        Builder.buildInstr(MOS6502::TSX);
-        if (!IsLoad)
-          copyPhysRegNoPreserve(Builder, Tmp, Loc);
-        auto Access =
-            Builder.buildInstr(IsLoad ? MOS6502::LDidx : MOS6502::STidx)
-                .addReg(Tmp, getDefRegState(IsLoad))
-                .addImm(0x100 + Offset)
-                .addReg(MOS6502::X);
-        if (IsLoad)
-          copyPhysRegNoPreserve(Builder, Loc, Tmp);
-
-        auto End = Builder.getInsertPt();
-        Builder.setInsertPt(Builder.getMBB(), Access);
-        expandPostRAPseudoNoPreserve(Builder);
-        Builder.setInsertPt(Builder.getMBB(), End);
-      } else {
-        assert(Base == MOS6502::SP);
+      if (MOS6502::ZP_PTRRegClass.contains(Base)) {
         Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(Offset);
         if (!IsLoad)
           copyPhysRegNoPreserve(Builder, MOS6502::A, Loc);
@@ -643,6 +647,34 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
             .addUse(MOS6502::Y);
         if (IsLoad)
           copyPhysRegNoPreserve(Builder, Loc, MOS6502::A);
+      } else {
+        Register Tmp;
+        if (IsLoad) {
+          Tmp = Loc;
+          if (!MOS6502::GPRRegClass.contains(Tmp))
+            Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
+        } else
+          Tmp = MOS6502::A;
+
+        if (Base == MOS6502::S) {
+          Builder.buildInstr(MOS6502::TSX);
+          Base = MOS6502::X;
+        }
+        assert(Base == MOS6502::X);
+        if (!IsLoad)
+          copyPhysRegNoPreserve(Builder, Tmp, Loc);
+        auto Access =
+            Builder.buildInstr(IsLoad ? MOS6502::LDidx : MOS6502::STidx)
+                .addReg(Tmp, getDefRegState(IsLoad))
+                .addImm(0x100 + Offset)
+                .addReg(Base);
+        if (IsLoad)
+          copyPhysRegNoPreserve(Builder, Loc, Tmp);
+
+        auto End = Builder.getInsertPt();
+        Builder.setInsertPt(Builder.getMBB(), Access);
+        expandPostRAPseudoNoPreserve(Builder);
+        Builder.setInsertPt(Builder.getMBB(), End);
       }
     }
     break;
@@ -854,8 +886,8 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Builder.buildInstr(MOS6502::PHA);
     Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::A).addUse(MOS6502::ZP_2);
     Builder.buildInstr(MOS6502::STabs)
-      .addUse(MOS6502::A)
-      .addExternalSymbol("_SaveZPlo");
+        .addUse(MOS6502::A)
+        .addExternalSymbol("_SaveZPlo");
     Builder.buildInstr(MOS6502::PLA);
     Builder.buildInstr(MOS6502::PLP);
   }
@@ -865,8 +897,8 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Builder.buildInstr(MOS6502::PHA);
     Builder.buildInstr(MOS6502::LDzpr).addDef(MOS6502::A).addUse(MOS6502::ZP_3);
     Builder.buildInstr(MOS6502::STabs)
-      .addUse(MOS6502::A)
-      .addExternalSymbol("_SaveZPhi");
+        .addUse(MOS6502::A)
+        .addExternalSymbol("_SaveZPhi");
     Builder.buildInstr(MOS6502::PLA);
     Builder.buildInstr(MOS6502::PLP);
   }
@@ -944,8 +976,8 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Builder.buildInstr(MOS6502::PHP);
     Builder.buildInstr(MOS6502::PHA);
     Builder.buildInstr(MOS6502::LDabs)
-      .addDef(MOS6502::A)
-      .addExternalSymbol("_SaveZPlo");
+        .addDef(MOS6502::A)
+        .addExternalSymbol("_SaveZPlo");
     Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_2).addUse(MOS6502::A);
     Builder.buildInstr(MOS6502::PLA);
     Builder.buildInstr(MOS6502::PLP);
@@ -954,8 +986,8 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
     Builder.buildInstr(MOS6502::PHP);
     Builder.buildInstr(MOS6502::PHA);
     Builder.buildInstr(MOS6502::LDabs)
-      .addDef(MOS6502::A)
-      .addExternalSymbol("_SaveZPhi");
+        .addDef(MOS6502::A)
+        .addExternalSymbol("_SaveZPhi");
     Builder.buildInstr(MOS6502::STzpr).addDef(MOS6502::ZP_3).addUse(MOS6502::A);
     Builder.buildInstr(MOS6502::PLA);
     Builder.buildInstr(MOS6502::PLP);
