@@ -13,13 +13,7 @@ class Instr : Instruction {
 
 // Pseudoinstructions lower to a sequence of real 6502 instructions. Which
 // sequence of instructions they expand to usually depends on the register
-// allocation of their operands. These allow instruction selection and
-// generation to proceed without baking in hard determinations on which register
-// is used to store the operations. This is particularly important on the 6502,
-// where register classes commonly only contain one register, which would leave
-// the register allocator with nothing to do. The instruction selector isn't
-// really fit to pick up the slack; it knows nothing of live ranges, conflict
-// matrices, or spltting/spilling techniques.
+// allocation of their operands.
 //
 // Unfortunately, it's often the case that the registers internally
 // used/clobbered by these instruction sequences depends on the register
@@ -133,6 +127,32 @@ def IncSP : Pseudo {
   let Defs = [];
 }
 
+// Miscellaneous pseudoinstructions
+
+// $dst = *(addr + (unsigned char)idx);
+// Sets NZ to undefined value, since expansion may clobber.
+def LDidx : Pseudo {
+  dag InOperandList = (ins i16imm:$addr, XY:$idx);
+  dag OutOperandList = (outs GPR:$dst);
+
+  let isReMaterializable = true;
+  let mayLoad = true;
+}
+
+// Version of LDimm that promises not to overwrite NZ. This allows
+// rematerializing LDimm with a possible PHP/PLP instead of spilling/loading the
+// constant on the stack. The spill is very expensive, and would need to
+// PHP/PLP anyways, so rematerialization is strictly better in this case.
+def LDimm_preserve : Pseudo {
+  dag InOperandList = (ins i8imm:$val);
+  dag OutOperandList = (outs GPR:$dst);
+
+  let Defs = [];
+
+  let isMoveImm = true;
+  let isReMaterializable = true;
+}
+
 // Regular Instructions
 
 def ADCimm : Instr {
@@ -210,20 +230,6 @@ def LDCimm : Instr {
   let isAsCheapAsAMove = true;
 }
 
-// Version of LDimm that promises not to overwrite NZ. This allows
-// rematerializing LDimm with a possible PHP/PLP instead of spilling/loading the
-// constant on the stack. The spill is very expensive, and would need to
-// PHP/PLP anyways, so rematerialization is strictly better in this case.
-def LDimm_preserve : Pseudo {
-  dag InOperandList = (ins i8imm:$val);
-  dag OutOperandList = (outs GPR:$dst);
-
-  let Defs = [];
-
-  let isMoveImm = true;
-  let isReMaterializable = true;
-}
-
 def LDimm : Instr {
   dag InOperandList = (ins i8imm:$val);
   dag OutOperandList = (outs GPR:$dst);
@@ -249,16 +255,6 @@ def LDabs : Instr {
   dag OutOperandList = (outs GPR:$dst);
 
   let AsmString = "LD$dst\t$src";
-
-  let isReMaterializable = true;
-  let mayLoad = true;
-}
-
-// $dst = *(addr + (unsigned char)idx);
-// Sets NZ to undefined value, since expansion may clobber.
-def LDidx : Pseudo {
-  dag InOperandList = (ins i16imm:$addr, XY:$idx);
-  dag OutOperandList = (outs GPR:$dst);
 
   let isReMaterializable = true;
   let mayLoad = true;
@@ -302,7 +298,7 @@ def LDYidx : Instr {
   let mayLoad = true;
 }
 
-def LDyindirr : Pseudo {
+def LDyindirr : Instr {
   dag InOperandList = (ins ZP_PTR:$addr, Yc:$offset);
   dag OutOperandList = (outs Ac:$dst);
 
@@ -430,7 +426,7 @@ def STidx : Instr {
   let mayStore = true;
 }
 
-def STyindirr : Pseudo {
+def STyindirr : Instr {
   dag InOperandList = (ins Ac:$src, ZP_PTR:$addr, Yc:$offset);
   dag OutOperandList = (outs);
 
