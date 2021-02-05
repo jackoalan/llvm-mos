@@ -47,17 +47,6 @@ generalizing each and filling out the compiler until it reaches MVP.
     arguments be made efficient? How efficient can printf be made?
   </dd>
 
-  <dt>PostRA pseudo scheduling</dt>
-  <dd>
-    Post-register-allocation pseudo-instructions cannot report their full side-effect profile, since
-    their implementation will wildly differ depending on where the register allocator places their
-    inputs and outputs. Once register allocation occurs, their side effect profiles will be known,
-    and they might be reschedulable to locations where they don't interfere with live registers.
-    It's unlikely that we'd be able to rely on the existing scheduler for this though, since the pseudos
-    will behave as advertised by emitting save/restore code. At no point do they exhibit their real
-    side-effect profile.
-  </dd>
-  
   <dt>Jump Tables</dt>
   <dd>
     Jump tables allow dense portions of switch statements to be efficient
@@ -66,11 +55,12 @@ generalizing each and filling out the compiler until it reaches MVP.
     done in LLVM?
   </dd>
 
-  <dt>PostRA pseudo scavenging</dt>
+  <dt>Variable sized stack objects</dt>
   <dd>
-    PostRA pseudo save/restore logic tightly wraps the affected region. If the register scavenger were
-    used instead, then live registers could be spilled around broad regions, preventing redundant saves
-    and restores from ever being emitted.
+    Variable sized stack objects (C99 variable length arrays, alloca) require the use of a soft
+    stack and the maintenance of a frame pointer. How can this be combined with non-recursive
+    stack frame elision? Is it possible to have only the variable-length part of the frame on
+    the soft stack, while the rest is allocated statically?
   </dd>
   
   <dt>Multibyte operations</dt>
@@ -83,13 +73,23 @@ generalizing each and filling out the compiler until it reaches MVP.
     of these alternatives need to be studied, and enough examples constructed to suggest that
     it's possible to fill in the rest.
   </dd>
-  
-  <dt>Variable sized stack objects</dt>
+
+  <dt>PostRA pseudo scheduling</dt>
   <dd>
-    Variable sized stack objects (C99 variable length arrays, alloca) require the use of a soft
-    stack and the maintenance of a frame pointer. How can this be combined with non-recursive
-    stack frame elision? Is it possible to have only the variable-length part of the frame on
-    the soft stack, while the rest is allocated statically?
+    Post-register-allocation pseudo-instructions cannot report their full side-effect profile, since
+    their implementation will wildly differ depending on where the register allocator places their
+    inputs and outputs. Once register allocation occurs, their side effect profiles will be known,
+    and they might be reschedulable to locations where they don't interfere with live registers.
+    It's unlikely that we'd be able to rely on the existing scheduler for this though, since the pseudos
+    will behave as advertised by emitting save/restore code. At no point do they exhibit their real
+    side-effect profile.
+  </dd>
+  
+  <dt>PostRA pseudo scavenging</dt>
+  <dd>
+    PostRA pseudo save/restore logic tightly wraps the affected region. If the register scavenger were
+    used instead, then live registers could be spilled around broad regions, preventing redundant saves
+    and restores from ever being emitted.
   </dd>
 </dl>
 
