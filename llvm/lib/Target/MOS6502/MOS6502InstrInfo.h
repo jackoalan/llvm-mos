@@ -69,6 +69,9 @@ public:
   std::pair<unsigned, unsigned>
   decomposeMachineOperandsTargetFlags(unsigned TF) const override;
 
+  ArrayRef<std::pair<int, const char *>>
+  getSerializableTargetIndices() const override;
+
   ArrayRef<std::pair<unsigned, const char *>>
   getSerializableDirectMachineOperandTargetFlags() const override;
 
@@ -98,6 +101,10 @@ private:
 };
 
 namespace MOS6502 {
+
+enum TargetIndex {
+  TI_STATIC_STACK,
+};
 
 enum TOF {
   MO_NO_FLAGS = 0,

@@ -22,6 +22,9 @@ public:
 
   // Computes the size of the hard stack.
   uint64_t hsSize(const MachineFrameInfo &MFI) const;
+
+  // Computes the size of the static stack.
+  uint64_t staticSize(const MachineFrameInfo &MFI) const;
 };
 
 } // namespace llvm

@@ -26,6 +26,17 @@ void MOS6502FrameLowering::processFunctionBeforeFrameFinalized(
     MachineFunction &MF, RegScavenger *RS) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
 
+  // Assign all locals to static stack in non-recursive functions.
+  if (MF.getFunction().doesNotRecurse()) {
+    int64_t Offset = 0;
+    for (int Idx = 0, End = MFI.getObjectIndexEnd(); Idx < End; ++Idx) {
+      MFI.setStackID(Idx, TargetStackID::NoAlloc);
+      MFI.setObjectOffset(Idx, Offset);
+      Offset += MFI.getObjectSize(Idx);  // Static stack grows up.
+    }
+    return;
+  }
+
   // Targeted value of S at end of prologue, with S=0 on entry.
   int S = 0;
 
@@ -286,6 +297,14 @@ uint64_t MOS6502FrameLowering::hsSize(const MachineFrameInfo &MFI) const {
   uint64_t Size = 0;
   for (int i = 0, e = MFI.getObjectIndexEnd(); i < e; ++i)
     if (MFI.getStackID(i) == TargetStackID::Hard)
+      Size += MFI.getObjectSize(i);
+  return Size;
+}
+
+uint64_t MOS6502FrameLowering::staticSize(const MachineFrameInfo &MFI) const {
+  uint64_t Size = 0;
+  for (int i = 0, e = MFI.getObjectIndexEnd(); i < e; ++i)
+    if (MFI.getStackID(i) == TargetStackID::NoAlloc)
       Size += MFI.getObjectSize(i);
   return Size;
 }

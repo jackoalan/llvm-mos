@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -491,15 +492,31 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     assert(0 <= OffsetImm && OffsetImm < 65536);
     auto Offset = static_cast<uint16_t>(OffsetImm);
 
-    Offset = Offset & 0xFF;
-
     Register Src;
-    if (Base == MOS6502::S) {
-      Builder.buildInstr(MOS6502::TSX);
-      Src = MOS6502::X;
-    } else if (MOS6502::ZP_PTRRegClass.contains(Base)) {
-      Src = TRI.getSubReg(Base, MOS6502::sublo);
+    switch (Base) {
+    case MOS6502::Static: {
+      Src = Dst;
+      if (!MOS6502::GPRRegClass.contains(Src))
+        Src = trivialScavenge(Builder, MOS6502::GPRRegClass);
+      Builder.buildInstr(MOS6502::LDimm)
+          .addDef(Src)
+          .addTargetIndex(MOS6502::TI_STATIC_STACK, Offset, MOS6502::MO_LO);
+      Offset = 0;
+      break;
     }
+    case MOS6502::S:
+      Builder.buildInstr(MOS6502::TSX);
+      LLVM_FALLTHROUGH;
+    case MOS6502::X:
+      Src = MOS6502::X;
+      break;
+    default:
+      assert(MOS6502::ZP_PTRRegClass.contains(Base));
+      Src = TRI.getSubReg(Base, MOS6502::sublo);
+      break;
+    }
+
+    Offset &= 0xFF;
 
     if (!Offset) {
       copyPhysRegNoPreserve(Builder, Dst, Src);
@@ -525,6 +542,17 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     int64_t OffsetImm = MI.getOperand(2).getImm();
     assert(0 <= OffsetImm && OffsetImm < 65536);
     auto Offset = static_cast<uint16_t>(OffsetImm);
+
+    if (Base == MOS6502::Static) {
+      Register Tmp = Dst;
+      if (!MOS6502::GPRRegClass.contains(Tmp))
+        Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
+      Builder.buildInstr(MOS6502::LDimm)
+          .addDef(Tmp)
+          .addTargetIndex(MOS6502::TI_STATIC_STACK, Offset, MOS6502::MO_HI);
+      copyPhysRegNoPreserve(Builder, Dst, Tmp);
+      break;
+    }
 
     if (!Offset) {
       if (MOS6502::ZP_PTRRegClass.contains(Base)) {
@@ -594,7 +622,7 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
 
     bool IsLoad = MI.getOpcode() == MOS6502::LDstk;
 
-     if (MOS6502::ZP_PTRRegClass.contains(Base) && Offset >= 256) {
+    if (MOS6502::ZP_PTRRegClass.contains(Base) && Offset >= 256) {
       // FIXME: Have this find a register other than Loc, if it's available.
       // Really feeling the pains of not using VRegs for this.
       Register Tmp = trivialScavenge(Builder, MOS6502::ZP_PTRRegClass);
@@ -602,15 +630,14 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
       // Guarantee that Tmp is different than Loc, even if it requires
       // save/restore.
       if (TRI.isSubRegisterEq(Loc, Tmp)) {
-        Tmp =
-          Tmp == MOS6502::ZP_PTR_0 ? MOS6502::ZP_PTR_1 : MOS6502::ZP_PTR_0;
+        Tmp = Tmp == MOS6502::ZP_PTR_0 ? MOS6502::ZP_PTR_1 : MOS6502::ZP_PTR_0;
       }
 
       // Move the high byte of the offset into the base address.
       auto Addr = Builder.buildInstr(MOS6502::Addrstk)
-        .addDef(Tmp)
-        .addUse(Base)
-        .addImm(Offset & 0xFF00);
+                      .addDef(Tmp)
+                      .addUse(Base)
+                      .addImm(Offset & 0xFF00);
       Builder.setInsertPt(Builder.getMBB(), Addr);
       expandPostRAPseudoNoPreserve(Builder);
 
@@ -637,7 +664,18 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
       expandPostRAPseudoNoPreserve(Builder);
       expandPostRAPseudoNoPreserve(Builder);
     } else {
-      if (MOS6502::ZP_PTRRegClass.contains(Base)) {
+      if (Base == MOS6502::Static) {
+        Register Tmp = Loc;
+        if (!MOS6502::GPRRegClass.contains(Tmp))
+          Tmp = trivialScavenge(Builder, MOS6502::GPRRegClass);
+        if (!IsLoad)
+          copyPhysRegNoPreserve(Builder, Tmp, Loc);
+        Builder.buildInstr(IsLoad ? MOS6502::LDabs : MOS6502::STabs)
+          .addReg(MOS6502::A, getDefRegState(IsLoad))
+          .addTargetIndex(MOS6502::TI_STATIC_STACK, Offset);
+        if (IsLoad)
+          copyPhysRegNoPreserve(Builder, Loc, MOS6502::A);
+      } else if (MOS6502::ZP_PTRRegClass.contains(Base)) {
         Builder.buildInstr(MOS6502::LDimm).addDef(MOS6502::Y).addImm(Offset);
         if (!IsLoad)
           copyPhysRegNoPreserve(Builder, MOS6502::A, Loc);
@@ -748,6 +786,13 @@ bool MOS6502InstrInfo::reverseBranchCondition(
 std::pair<unsigned, unsigned>
 MOS6502InstrInfo::decomposeMachineOperandsTargetFlags(unsigned TF) const {
   return std::make_pair(TF, 0u);
+}
+
+ArrayRef<std::pair<int, const char *>>
+MOS6502InstrInfo::getSerializableTargetIndices() const {
+  static const std::pair<int, const char *> Flags[] = {
+      {MOS6502::TI_STATIC_STACK, "mos6502-static-stack"}};
+  return Flags;
 }
 
 ArrayRef<std::pair<unsigned, const char *>>

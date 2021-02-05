@@ -4,6 +4,7 @@
 #include "MOS6502InstrInfo.h"
 #include "MOS6502Subtarget.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -92,17 +93,27 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
   int Idx = MI->getOperand(FIOperandNum).getIndex();
 
   int64_t StackSize;
-  auto StackID = MFI.getStackID(Idx);
-  if (StackID == TargetStackID::Hard) {
-    StackSize = TFL.hsSize(MFI);
-  } else {
-    assert(!StackID);
+  Register Base;
+  switch (MFI.getStackID(Idx)) {
+  default:
+    llvm_unreachable("Unexpected Stack ID");
+  case TargetStackID::Default:
     StackSize = MFI.getStackSize();
+    Base = MOS6502::SP;
+    break;
+  case TargetStackID::Hard:
+    StackSize = TFL.hsSize(MFI);
+    Base = MOS6502::S;
+    break;
+  case TargetStackID::NoAlloc:
+    Base = MOS6502::Static;
+    // Static stack grows up, so its offsets are positive.
+    // Zeroing this allows the offsets through unchanged.
+    StackSize = 0;
+    break;
   }
 
-  MI->getOperand(FIOperandNum)
-      .ChangeToRegister(StackID ? MOS6502::S : MOS6502::SP,
-                        /*isDef=*/false);
+  MI->getOperand(FIOperandNum).ChangeToRegister(Base, /*isDef=*/false);
   assert(MI->getOperand(FIOperandNum + 1).isImm());
   MI->getOperand(FIOperandNum + 1).setImm(StackSize + MFI.getObjectOffset(Idx));
 }
