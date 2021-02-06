@@ -85,13 +85,7 @@ generalizing each and filling out the compiler until it reaches MVP.
   </dd>
 </dl>
 
-## Current Working Example
-
-Code generation for the following example is currently being tuned. Once the
-assembly quality is acceptable, this section will be updated with a new example
-that exercises different aspects of code generation.
-
-### Stack usage
+## Stack
 
 The C stack is coming along:
 - The 6502 hard stack and a virtual 16-bit soft stack are together used as the C stack.
@@ -115,7 +109,7 @@ by examining the call graph. Functions that cannot simultaneously be active
 can have overlapping static stack locations, as would be the case if a real
 hard or soft stack were used.
 
-### Zero page usage
+## Zero page
 
 The number of zero-page memory location can be specified using the
 `--num-zp-ptrs` compiler flag. This determines the number of consecutive
@@ -140,7 +134,7 @@ actually accessed are emitted. It's up to the C runtime environment to actually
 allocate memory behind these symbols; they're considered external to every C
 module.
 
-### Memory usage
+## Memory
 
 The compiler currently requires 6 absolute memory locations for emergency saving
 and restoring: `__SaveA`, `__SaveX`, `__SaveY`, `__SaveP`, `__SaveZPlo`, and
