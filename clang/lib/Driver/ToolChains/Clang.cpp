@@ -1936,6 +1936,11 @@ void Clang::AddMOS6502TargetArgs(const ArgList &Args,
   CmdArgs.push_back("-phi-node-folding-threshold=0");
   CmdArgs.push_back("-mllvm");
   CmdArgs.push_back("-two-entry-phi-node-folding-threshold=0");
+
+  // The 6502 has no alignment requirements, so this simplifies the ASM backend
+  // and saves space.
+  CmdArgs.push_back("-mllvm");
+  CmdArgs.push_back("-align-large-globals=false");
 }
 
 void Clang::AddPPCTargetArgs(const ArgList &Args,

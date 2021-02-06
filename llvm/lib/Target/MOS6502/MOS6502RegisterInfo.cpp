@@ -53,6 +53,7 @@ MOS6502RegisterInfo::MOS6502RegisterInfo()
   Reserved.set(MOS6502::SPlo);
   Reserved.set(MOS6502::SPhi);
   Reserved.set(MOS6502::S);
+  Reserved.set(MOS6502::Static);
 }
 
 const MCPhysReg *
