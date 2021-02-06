@@ -168,11 +168,20 @@ char_stats does not recurse, allowing the array to be allocated statically.
 Excersises static stack, array access, and no-recurse detection.
 
 <details>
-	<summary>char_stats.c</summary>
+	<summary>char_lib.h</summary>
 
 ```C
 __attribute__((leaf)) char next_char();
 __attribute__((leaf)) void report_counts(int counts[256]);
+```
+
+</details>
+
+<details>
+	<summary>char_stats.c</summary>
+
+```C
+#include "char_lib.h"
 
 void char_stats() {
 	int counts[256] = {0};
