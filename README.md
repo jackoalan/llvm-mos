@@ -19,14 +19,6 @@ generalizing each and filling out the compiler until it reaches MVP.
 ## Risk Factors
 
 <dl>
-  <dt>Stack frame elision</dt>
-  <dd>
-    Can non-recursive functions be detected reliably enough for stack frame
-    elision? Can inline assembly and external calls be annotated to prevent
-    them from appearing to possibly call main()? To what degree does link-time
-    optimization decrease the burden on this analysis?
-  </dd>
-
   <dt>Stack parameter passing</dt>
   <dd>
     What are the mechanics for passing parameters and return values on the stack?
@@ -98,6 +90,191 @@ generalizing each and filling out the compiler until it reaches MVP.
 Code generation for the following example is currently being tuned. Once the
 assembly quality is acceptable, this section will be updated with a new example
 that exercises different aspects of code generation.
+
+### Stack usage
+
+The C stack is coming along:
+- The 6502 hard stack and a virtual 16-bit soft stack are together used as the C stack.
+
+- To avoid running out of room, only 4 bytes worth of hard stack are allowed per frame.
+
+- LLVM's stack slot coloring places the most important values in hard stack.
+
+- A whole-program IPO pass detects whether or not functions might be recursive.
+  If not, all stack locations are lowered to static memory locations, since at
+  most one invocation of the function can be active at a time.
+
+- Variable sized stack frames (`alloca`) are not yet supported.
+
+Eventually, local variables in recursive functions that do not live across
+possibly-recursive calls can also be lowered to static memory locations. This
+will require analyzing the live ranges of the slots.
+
+Very eventually, the static stacks of each function can be merged together
+by examining the call graph. Functions that cannot simultaneously be active
+can have overlapping static stack locations, as would be the case if a real
+hard or soft stack were used.
+
+### Zero page usage
+
+The number of zero-page memory location can be specified using the
+`--num-zp-ptrs` compiler flag. This determines the number of consecutive
+two-byte pointer locations the compiler will use when generating code. At least
+one such pointer must be available; otherwise, the compiler would be unable to
+indirectly access memory without self-modifying code.
+
+The first two zero page locations are `__ZP__0` and `__ZP__1`, the next two (if
+available) are `__ZP__2` and `__ZP__3`, and so forth. The compiler makes no
+assumptions about the absolute arrangement of these pairs in memory, only that
+the two bytes in each pair are consecutive. The compiler presently has no way to
+use zero page locations that are neither the high nor the low byte of a pair.
+
+One 2-byte pointer register is always reserved by the compiler as a soft stack;
+it's low and high bytes are the external symbols `__SPlo` and `__SPhi`,
+respectively. This location is not included in the count given to
+`--num-zp-ptrs`.
+
+At the end of code generation, references to the zero page registers are lowered
+to abstract symbols to placed in the zero page by the linker. Only registers
+actually accessed are emitted. It's up to the C runtime environment to actually
+allocate memory behind these symbols; they're considered external to every C
+module.
+
+### Memory usage
+
+The compiler currently requires 6 absolute memory locations for emergency saving
+and restoring: `__SaveA`, `__SaveX`, `__SaveY`, `__SaveP`, `__SaveZPlo`, and
+`__SaveZPhi`. These locations are considered external to the generated assembly,
+and they must be defined somewhere by the C runtime for the generated output to
+be correct.
+
+Right now, these locations are used quite naively. A more sophisticated approach
+would elide many of them to pushes and pulls, and instruction reordering to
+adjust live ranges should eliminate most of the rest. Use of these locations
+should become increasingly rare, but it appears there will always be situations
+that cannot be completely handled using the hard stack, since generalized push
+and pull pseudoinstructions may themselves require saving live values, and
+push/pull around the pseudos will always interfere with there operation.
+
+Eventually, these locations can be handled like any other de-stackified memory
+locations, as they're guaranteed not to be live across calls. Accordingly, they
+can be lowered to stack indices, which can in turn be lowered to global memory
+locations, with global coloring to reuse those locations where live ranges don't
+interfere. This would remove the requirement for the C runtime to be aware of
+these locations at all. This should also allow assigning them to unused zero
+page locations, which is fewer cycles than push/pull and nearly as dense.
+
+## Examples
+
+### Char stats (Non-recursive)
+
+Routine that collects counts of number of each character seen on the
+Commodore 64. By annotating external routines as "leaf", the compiler can prove
+char_stats does not recurse, allowing the array to be allocated statically.
+Excersises static stack, array access, and no-recurse detection.
+
+<details>
+	<summary>char_stats.c</summary>
+
+```C
+__attribute__((leaf)) char next_char();
+__attribute__((leaf)) void report_counts(int counts[256]);
+
+void char_stats() {
+	int counts[256] = {0};
+	char c;
+	while ((c = next_char())) {
+		counts[c]++;
+	}
+	report_counts(counts);
+}
+```
+
+</details>
+
+<details>
+	<summary>Optimized (-O2/-Os)</summary>
+
+`$ clang --target=mos6502 -S -O2 char_stats.c`
+
+```asm
+.code
+.global	char__stats
+char__stats:
+	LDA	#0
+	LDY	#2
+	LDX	#<char__stats__sstk
+	STX	z:__ZP__0
+	LDX	#>char__stats__sstk
+	STX	z:__ZP__1
+	TAX
+	JSR	memset
+	JMP	LBB0__2
+LBB0__1:
+	ASL	A
+	STA	z:__ZP__0
+	LDA	#0
+	ROL	A
+	STA	z:__ZP__1
+	LDA	#<char__stats__sstk
+	LDX	#>char__stats__sstk
+	CLC
+	ADC	z:__ZP__0
+	STA	z:__ZP__0
+	TXA
+	ADC	z:__ZP__1
+	STA	z:__ZP__1
+	LDY	#0
+	LDA	(__ZP__0),Y
+	CLC
+	ADC	#1
+	STA	(__ZP__0),Y
+	LDY	#1
+	LDA	(__ZP__0),Y
+	ADC	#0
+	STA	(__ZP__0),Y
+LBB0__2:
+	JSR	next__char
+	CMP	#0
+	BNE	LBB0__1
+LBB0__3:
+	LDA	#<char__stats__sstk
+	STA	z:__ZP__0
+	LDA	#>char__stats__sstk
+	STA	z:__ZP__1
+	JSR	report__counts
+	RTS
+
+.bss
+char__stats__sstk:
+	.res	512
+
+.global	__ZP__0
+.global	__ZP__1
+.global	memset
+.global	next__char
+.global	report__counts
+```
+
+Notes:
+
+  - The leaf attribute annotations tell the compiler that the external routines
+    cannot recursively call any external routines in the current module. This
+    will be typical of C library functions. Such annotations are only required
+    for external symbols; the control flow of function definitions can be
+    examined directly otherwise.
+
+  - Accordingly, this allows the compiler to prove that `char_stats` is not
+    recursive. No annotation need be made on this function itself.
+
+  - Because the function cannot recurse, only one invocation could be active at
+    a time. Thus, all its local variables can be allocated to a static memory
+    region. In this case, the region is `__char_stats__stk`.
+
+  - The stack pointer does not need to be adjusted, since no soft or hard stack
+    is used.
+
+</details>
 
 ### Char Stats
 
@@ -268,75 +445,6 @@ The calling convention is presently very barebones:
       should evaluate after the fact of whether using a CSR was worth it, and if
       not, emit spills for all values allocated to the CSR.
 
-### Stack usage
-
-The C stack is coming along:
-- The 6502 hard stack and a virtual 16-bit soft stack are together used as the C stack.
-- To avoid running out of room, only 4 bytes worth of hard stack are allowed per frame.
-- LLVM's stack slot coloring places the most important values in hard stack.
-- Variable sized stack frames (`alloca`) are not yet supported.
-
-Very eventually, a whole-program IPO pass will detect which stack indices are
-live across any calls that might be recursive (either directly or indirectly).
-Only these stack indices need to be stored on an actual stack; all others will
-be lowered to globally static memory locations. Such locations will be globally
-colored: any two "static stack frames" that cannot be simultaneously active can
-share the same color, that is, they may overlap in memory. This combines the
-best qualities of static and stack allocation: a pre-allocated block will be
-presented to the linker, and that block will be no larger than the largest
-possible non-recursive call stack that the program could ever achieve at
-runtime.
-
-### Zero page usage
-
-The number of zero-page memory location can be specified using the
-`--num-zp-ptrs` compiler flag. This determines the number of consecutive
-two-byte pointer locations the compiler will use when generating code. At least
-one such pointer must be available; otherwise, the compiler would be unable to
-indirectly access memory without self-modifying code.
-
-The first two zero page locations are `__ZP__0` and `__ZP__1`, the next two (if
-available) are `__ZP__2` and `__ZP__3`, and so forth. The compiler makes no
-assumptions about the absolute arrangement of these pairs in memory, only that
-the two bytes in each pair are consecutive. The compiler presently has no way to
-use zero page locations that are neither the high nor the low byte of a pair.
-
-One 2-byte pointer register is always reserved by the compiler as a soft stack;
-it's low and high bytes are the external symbols `__SPlo` and `__SPhi`,
-respectively. This location is not included in the count given to
-`--num-zp-ptrs`.
-
-At the end of code generation, references to the zero page registers are lowered
-to abstract symbols to placed in the zero page by the linker. Only registers
-actually accessed are emitted. It's up to the C runtime environment to actually
-allocate memory behind these symbols; they're considered external to every C
-module.
-
-### Memory usage
-
-The compiler currently requires 6 absolute memory locations for emergency saving
-and restoring: `__SaveA`, `__SaveX`, `__SaveY`, `__SaveP`, `__SaveZPlo`, and
-`__SaveZPhi`. These locations are considered external to the generated assembly,
-and they must be defined somewhere by the C runtime for the generated output to
-be correct.
-
-Right now, these locations are used quite naively. A more sophisticated approach
-would elide many of them to pushes and pulls, and instruction reordering to
-adjust live ranges should eliminate most of the rest. Use of these locations
-should become increasingly rare, but it appears there will always be situations
-that cannot be completely handled using the hard stack, since generalized push
-and pull pseudoinstructions may themselves require saving live values, and
-push/pull around the pseudos will always interfere with there operation.
-
-Eventually, these locations can be handled like any other de-stackified memory
-locations, as they're guaranteed not to be live across calls. Accordingly, they
-can be lowered to stack indices, which can in turn be lowered to global memory
-locations, with global coloring to reuse those locations where live ranges don't
-interfere. This would remove the requirement for the C runtime to be aware of
-these locations at all. This should also allow assigning them to unused zero
-page locations, which is fewer cycles than push/pull and nearly as dense.
-
-## Further Examples
 
 ### Hello World
 
@@ -567,4 +675,4 @@ TODO:
 
 </details>
 
-Updated February 4, 2021.
+Updated February 6, 2021.
