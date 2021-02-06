@@ -6,6 +6,7 @@
 #include "MOS6502NoRecurse.h"
 #include "MOS6502PreLegalizerCombiner.h"
 #include "MOS6502PreRegAlloc.h"
+#include "MOS6502StaticStackAlloc.h"
 #include "MOS6502TargetObjectFile.h"
 #include "MOS6502TargetTransformInfo.h"
 #include "TargetInfo/MOS6502TargetInfo.h"
@@ -33,6 +34,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502Target() {
   initializeMOS6502NoRecursePass(PR);
   initializeMOS6502PreRegAllocPass(PR);
   initializeMOS6502PreLegalizerCombinerPass(PR);
+  initializeMOS6502StaticStackAllocPass(PR);
 }
 
 static const char Layout[] =
@@ -105,6 +107,7 @@ public:
   bool addGlobalInstructionSelect() override;
   void addMachineSSAOptimization() override;
   void addPreRegAlloc() override;
+  void addPreSched2() override;
   void addPreEmitPass() override;
 
   ScheduleDAGInstrs *
@@ -160,6 +163,10 @@ void MOS6502PassConfig::addMachineSSAOptimization() {
 
 void MOS6502PassConfig::addPreRegAlloc() {
   addPass(createMOS6502PreRegAlloc());
+}
+
+void MOS6502PassConfig::addPreSched2() {
+  addPass(createMOS6502StaticStackAllocPass());
 }
 
 void MOS6502PassConfig::addPreEmitPass() { addPass(&BranchRelaxationPassID); }
