@@ -25,7 +25,7 @@ generalizing each and filling out the compiler until it reaches MVP.
     What mechanisms does LLVM provide for including callee argument space into the
     caller stack? What are call setup and destroy pseudoinstructions? Do we need them?
   </dd>
-  
+
   <dt>Indirect calls</dt>
   <dd>
     The 6502 has no indirect JSR instruction. Likely the best way to synthesize
@@ -53,6 +53,54 @@ generalizing each and filling out the compiler until it reaches MVP.
     stack and the maintenance of a frame pointer. How can this be combined with non-recursive
     stack frame elision? Is it possible to have only the variable-length part of the frame on
     the soft stack, while the rest is allocated statically?
+  </dd>
+
+  <dt>Interrupt Handlers</dt>
+  <dd>
+    There are two likely cases for C interrupt handlers. First, the handler is
+    called directly from an interrupt vector. In this case, most likely only P
+    was saved, and this by the interrupt itself. Any caller-saved registers that
+    might be used by the handler or any of its transitive callees must be saved
+    by the handler. A C interrupt handler may alternatively be called as the
+    slow part of a two-part interrupt handler. In this case, some of the
+    registers may already have been be saved, and they will automatically be
+    restored when the C handler returns. A mechanism should be provided to
+    specify in C which registers have already been saved by the context.
+
+    In the absence of perfect IPO register use analysis, all caller-saved registers
+    will need to be saved if the handler is not a leaf (very likely). This sets
+    up a tradeoff between having a large number of caller-saved ZP registers and
+    efficient interrupt handling.
+
+    The traditional hand-written ASM way of handling this is to reserve a region
+    of memory and zero page for interrupt handler use. That way, the handler can
+    be guaranteed to only conflict with the interrupted routine on A, X, Y, and
+    P. This requires ensuring that the set routines used in interrupt handlers
+    are totally disjoint from the rest of the program. In C, this can be done
+    quite easily: just place them in a different translation unit. Then, this
+    translation can be reserved a region of the ZP register space. To do so,
+    another flag should be added to offset the ZP register region used by a
+    translation unit. The user would then specify as an annotation on the interrupt
+    handler that all ZP registers have "already been saved" by the context.
+
+    Otherwise, the user can reduce the number of ZP registers used and allow them
+    to be saved with each interrupt. This would allow free mixing of interrupt
+    and non-interrupt code in the traditional C style. Thus the user can pick
+    the tradeoff.
+
+    Another problem is that all routines callable by an interrupt handler will
+    appear to be possibly recursive, since the compiler cannot assume that the
+    rountines of the interrupt handler cannot be themselves interrupted by the
+    same handler. This may even be common for slow parts of interrupt handlers:
+    the recursion provides a sort of buffering to allow rapid-fire interrupts to
+    gradually clear out once the incoming interrupt volume dies down.
+
+    This actually does seem like a nice place for a norecurse attribute, since
+    some interrupts do manipulate the hardware specifically to ensure that further
+    interrupts do not occur during their handling. Thus, it would be natural for
+    the developer to mark those routines as norecurse. This would also
+    potentially be handy for fixing overly-conservative recursion analysis
+    issues as a last resort.
   </dd>
   
   <dt>Multibyte operations</dt>
@@ -679,4 +727,4 @@ TODO:
 
 </details>
 
-Updated February 8, 2021.
+Updated February 9, 2021.
