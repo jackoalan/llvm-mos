@@ -66,12 +66,16 @@ generalizing each and filling out the compiler until it reaches MVP.
     registers may already have been be saved, and they will automatically be
     restored when the C handler returns. A mechanism should be provided to
     specify in C which registers have already been saved by the context.
+  </dd>
 
+  <dd>
     In the absence of perfect IPO register use analysis, all caller-saved registers
     will need to be saved if the handler is not a leaf (very likely). This sets
     up a tradeoff between having a large number of caller-saved ZP registers and
     efficient interrupt handling.
+  </dd>
 
+  <dd>
     The traditional hand-written ASM way of handling this is to reserve a region
     of memory and zero page for interrupt handler use. That way, the handler can
     be guaranteed to only conflict with the interrupted routine on A, X, Y, and
@@ -82,19 +86,25 @@ generalizing each and filling out the compiler until it reaches MVP.
     another flag should be added to offset the ZP register region used by a
     translation unit. The user would then specify as an annotation on the interrupt
     handler that all ZP registers have "already been saved" by the context.
+  </dd>
 
+  <dd>
     Otherwise, the user can reduce the number of ZP registers used and allow them
     to be saved with each interrupt. This would allow free mixing of interrupt
     and non-interrupt code in the traditional C style. Thus the user can pick
     the tradeoff.
+  </dd>
 
+  <dd>
     Another problem is that all routines callable by an interrupt handler will
     appear to be possibly recursive, since the compiler cannot assume that the
     rountines of the interrupt handler cannot be themselves interrupted by the
     same handler. This may even be common for slow parts of interrupt handlers:
     the recursion provides a sort of buffering to allow rapid-fire interrupts to
     gradually clear out once the incoming interrupt volume dies down.
+  </dd>
 
+  <dd>
     This actually does seem like a nice place for a norecurse attribute, since
     some interrupts do manipulate the hardware specifically to ensure that further
     interrupts do not occur during their handling. Thus, it would be natural for
