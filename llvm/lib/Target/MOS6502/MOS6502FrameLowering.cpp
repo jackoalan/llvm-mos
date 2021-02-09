@@ -94,6 +94,8 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
     // For now, this is basic-block only.
     if (MI->isTerminator())
       break;
+    if (MI->isCall())
+      break;
 
     bool NeedsCorrectS = false;
     unsigned Idx;
@@ -205,6 +207,9 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
   // allow folding loads together with the Pull that decreases the stack pointer.
   for (; MI != MBB.rend(); ++MI) {
     LLVM_DEBUG(dbgs() << *MI);
+
+    if (MI->isCall())
+      break;
 
     bool IsPush = false;
     bool NeedsCorrectS = false;
