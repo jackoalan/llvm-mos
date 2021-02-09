@@ -421,10 +421,11 @@ TODO:
 
 ### Calling convention
 
-The calling convention is presently very barebones:
-- Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`.
+The calling convention is coming along:
+- Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`, then
+  each available ZP register, from `ZP_0` to `ZP_253`.
 - Pointer arguments/return values are passed in successively increasing pairs
-  of ZP locations.
+  of ZP locations (ZP pointer regisers).
 - The compiler bails if the arguments/return value don't fit.
 - All compiler-used ZP locations, all registers, and all flags are caller-saved.
   - Use of most physical registers/flags are mandatory for certain operations,
@@ -678,4 +679,4 @@ TODO:
 
 </details>
 
-Updated February 6, 2021.
+Updated February 8, 2021.
