@@ -173,6 +173,14 @@ public:
       assignValueToAddress(Arg.Regs[0], Addr, Size, MPO, VA);
     }
 
+    /// An overload which takes an ArgInfo and a part index. By default, fails.
+    virtual bool assignValueToAddress(const ArgInfo &Arg, unsigned PartIdx,
+                                      Register Addr, uint64_t Size,
+                                      MachinePointerInfo &MPO,
+                                      CCValAssign &VA) {
+      return false;
+    }
+
     /// Handle custom values, which may be passed into one or more of \p VAs.
     /// \return The number of \p VAs that have been assigned after the first
     ///         one, and which should therefore be skipped from further
