@@ -47,9 +47,11 @@ LBB0__1:                                ; %if.end.preheader
 	PHA
 	JSR	____udivqi3
 	JSR	print__int
-	PLA
+	TSX
+	LDA	257,X
 	LDX	#10
 	JSR	____umodqi3
+	PLA
 LBB0__2:                                ; %if.then
 	CLC
 	ADC	#48

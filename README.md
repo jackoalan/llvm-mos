@@ -687,9 +687,11 @@ print__int:                             ; @print_int
 	PHA                                     ; 1-byte Folded Spill
 	JSR	____udivqi3
 	JSR	print__int
-	PLA                                     ; 1-byte Folded Reload
 	LDX	#10
+    TSX
+    LDA 257,X
 	JSR	____umodqi3
+	PLA
 LBB0__2:                                ; %if.then
 	CLC
 	ADC	#48
