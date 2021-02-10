@@ -124,7 +124,24 @@ def IncSP : Pseudo {
   dag InOperandList = (ins i16imm:$bytes);
   dag OutOperandList = (outs);
 
-  let Defs = [];
+  let Uses = [SP];
+  let Defs = [SP];
+}
+
+def ADJCALLSTACKDOWN : Pseudo {
+  dag InOperandList = (ins i16imm:$bytes, i16imm:$prior);
+  dag OutOperandList = (outs);
+
+  let Uses = [SP];
+  let Defs = [SP];
+}
+
+def ADJCALLSTACKUP : Pseudo {
+  dag InOperandList = (ins i16imm:$bytes, i16imm:$prior);
+  dag OutOperandList = (outs);
+
+  let Uses = [SP];
+  let Defs = [SP];
 }
 
 // Miscellaneous pseudoinstructions

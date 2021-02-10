@@ -25,6 +25,11 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 
   BitVector Reserved;
 
+  // Cache the SP register vreg if we need it more than once in this call site.
+  Register SPReg = 0;
+
+  uint64_t StackSize = 0;
+
   MOS6502OutgoingValueHandler(MachineIRBuilder &MIRBuilder,
                               MachineInstrBuilder &MIB,
                               MachineRegisterInfo &MRI, CCAssignFn *AssignFn)
@@ -34,7 +39,20 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
-    report_fatal_error("Not yet implemented.");
+    assert(0 <= Offset && Offset < 65536);
+    MachineFunction &MF = MIRBuilder.getMF();
+    LLT p0 = LLT::pointer(0, 16);
+    LLT s16 = LLT::scalar(16);
+
+    if (!SPReg)
+      SPReg = MIRBuilder.buildCopy(p0, Register(MOS6502::SP)).getReg(0);
+
+    auto OffsetReg = MIRBuilder.buildConstant(s16, Offset);
+
+    auto AddrReg = MIRBuilder.buildPtrAdd(p0, SPReg, OffsetReg);
+
+    MPO = MachinePointerInfo::getStack(MF, Offset);
+    return AddrReg.getReg(0);
   }
 
   void assignValueToReg(Register ValVReg, Register PhysReg,
@@ -54,7 +72,17 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 
   void assignValueToAddress(Register ValVReg, Register Addr, uint64_t Size,
                             MachinePointerInfo &MPO, CCValAssign &VA) override {
-    report_fatal_error("Not yet implemented.");
+    MachineFunction &MF = MIRBuilder.getMF();
+    auto MMO = MF.getMachineMemOperand(MPO, MachineMemOperand::MOStore, Size,
+                                       inferAlignFromPtrInfo(MF, MPO));
+    MIRBuilder.buildStore(ValVReg, Addr, *MMO);
+  }
+
+  bool assignValueToAddress(const CallLowering::ArgInfo &Arg, unsigned PartIdx,
+                            Register Addr, uint64_t Size,
+                            MachinePointerInfo &MPO, CCValAssign &VA) override {
+    assignValueToAddress(Arg.Regs[PartIdx], Addr, Size, MPO, VA);
+    return true;
   }
 
   bool assignArg(unsigned ValNo, MVT ValVT, MVT LocVT,
@@ -63,7 +91,9 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
                  CCState &State) override {
     for (Register R : Reserved.set_bits())
       State.AllocateReg(R);
-    return AssignFn(ValNo, ValVT, LocVT, LocInfo, Flags, State);
+    bool Res = AssignFn(ValNo, ValVT, LocVT, LocInfo, Flags, State);
+    StackSize = State.getNextStackOffset();
+    return Res;
   }
 };
 
@@ -80,7 +110,11 @@ struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
 
   Register getStackAddress(uint64_t Size, int64_t Offset,
                            MachinePointerInfo &MPO) override {
-    report_fatal_error("Not yet implemented.");
+    auto &MFI = MIRBuilder.getMF().getFrameInfo();
+    int FI = MFI.CreateFixedObject(Size, Offset, true);
+    MPO = MachinePointerInfo::getFixedStack(MIRBuilder.getMF(), FI);
+    auto AddrReg = MIRBuilder.buildFrameIndex(LLT::pointer(0, 16), FI);
+    return AddrReg.getReg(0);
   }
 
   void assignValueToReg(Register ValVReg, Register PhysReg,
@@ -98,9 +132,20 @@ struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
     MIRBuilder.buildCopy(ValVReg, PhysReg);
   }
 
-  void assignValueToAddress(Register ValVReg, Register Addr, uint64_t Size,
+  void assignValueToAddress(Register ValVReg, Register Addr, uint64_t MemSize,
                             MachinePointerInfo &MPO, CCValAssign &VA) override {
-    report_fatal_error("Not yet implemented.");
+    MachineFunction &MF = MIRBuilder.getMF();
+    auto MMO = MF.getMachineMemOperand(
+        MPO, MachineMemOperand::MOLoad | MachineMemOperand::MOInvariant,
+        MemSize, inferAlignFromPtrInfo(MF, MPO));
+    MIRBuilder.buildLoad(ValVReg, Addr, *MMO);
+  }
+
+  bool assignValueToAddress(const CallLowering::ArgInfo &Arg, unsigned PartIdx,
+                            Register Addr, uint64_t Size,
+                            MachinePointerInfo &MPO, CCValAssign &VA) override {
+    assignValueToAddress(Arg.Regs[PartIdx], Addr, Size, MPO, VA);
+    return true;
   }
 
   bool assignArg(unsigned ValNo, MVT ValVT, MVT LocVT,
@@ -213,6 +258,8 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   const DataLayout &DL = MF.getDataLayout();
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
 
+  auto CallSeqStart = MIRBuilder.buildInstr(MOS6502::ADJCALLSTACKDOWN);
+
   auto Call = MIRBuilder.buildInstrNoInsert(MOS6502::JSR)
                   .add(Info.Callee)
                   .addRegMask(TRI.getCallPreservedMask(
@@ -238,18 +285,22 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   MIRBuilder.insertInstr(Call);
 
   // If the return value is void, there's nothing to do.
-  if (Info.OrigRet.Ty->isVoidTy()) {
-    assert(InArgs.empty());
-    // Success.
-    return true;
+  if (!Info.OrigRet.Ty->isVoidTy()) {
+    // Invoke TableGen compatibility layer for return value.
+    const auto MakeLive = [&](Register PhysReg) {
+      Call.addDef(PhysReg, RegState::Implicit);
+    };
+    MOS6502IncomingValueHandler RetHandler(MIRBuilder, MRI, CC_MOS6502,
+                                           MakeLive);
+    if (!handleAssignments(MIRBuilder, InArgs, RetHandler))
+      return false;
   }
 
-  // Invoke TableGen compatibility layer for return value.
-  const auto MakeLive = [&](Register PhysReg) {
-    Call.addDef(PhysReg, RegState::Implicit);
-  };
-  MOS6502IncomingValueHandler RetHandler(MIRBuilder, MRI, CC_MOS6502, MakeLive);
-  return handleAssignments(MIRBuilder, InArgs, RetHandler);
+  CallSeqStart.addImm(ArgsHandler.StackSize).addImm(0);
+  MIRBuilder.buildInstr(MOS6502::ADJCALLSTACKUP)
+      .addImm(ArgsHandler.StackSize)
+      .addImm(0);
+  return true;
 }
 
 void MOS6502CallLowering::splitToValueTypes(const ArgInfo &OrigArg,

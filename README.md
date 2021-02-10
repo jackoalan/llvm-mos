@@ -19,13 +19,6 @@ generalizing each and filling out the compiler until it reaches MVP.
 ## Risk Factors
 
 <dl>
-  <dt>Stack parameter passing</dt>
-  <dd>
-    What are the mechanics for passing parameters and return values on the stack?
-    What mechanisms does LLVM provide for including callee argument space into the
-    caller stack? What are call setup and destroy pseudoinstructions? Do we need them?
-  </dd>
-
   <dt>Indirect calls</dt>
   <dd>
     The 6502 has no indirect JSR instruction. Likely the best way to synthesize
@@ -143,6 +136,31 @@ generalizing each and filling out the compiler until it reaches MVP.
   </dd>
 </dl>
 
+## Calling convention
+
+The calling convention is nearly finished:
+
+- Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`, then
+  each available ZP register, from `ZP_0` to `ZP_253`.
+
+- Pointer arguments/return values are passed in successively increasing pairs
+  of ZP locations (ZP pointer regisers).
+
+- Once the above locations are exhausted, the remainder are placed on the
+  soft stack.
+
+- Aggregate types (structs, arrays, etc.) are passed by pointer. The pointer
+  is managed entirely by the caller, and may or may not be on the soft stack.
+  The callee is free to write to the memory; the caller must consider the
+  memory overwritten by the call.
+
+- Aggregate types are returned by a pointer passed as an implicit first
+  argument. The resulting function returns void.
+
+- All compiler-used ZP locations, all registers, and all flags are caller-saved.
+
+- Variable argument lists are not yet supported.
+
 ## Stack
 
 The C stack is coming along:
@@ -153,8 +171,11 @@ The C stack is coming along:
 - LLVM's stack slot coloring places the most important values in hard stack.
 
 - A whole-program IPO pass detects whether or not functions might be recursive.
-  If not, all stack locations are lowered to static memory locations, since at
-  most one invocation of the function can be active at a time.
+  - All local stack locations of nonrecursie functions are lowered to static
+    memory locations, since at most one invocation can be active at a time.
+  - Nonrecursive callers may still end up placing outgoing arguments on the
+    soft stack, since the callee may or may not be recursive. Recursiveness is
+    not part of the ABI.
 
 - Variable sized stack frames (`alloca`) are not yet supported.
 
@@ -474,39 +495,6 @@ TODO:
   - `LDY #1` can be replaced with `INY`, saving a byte.
 
 </details>
-
-## Generated code characteristics
-
-### Calling convention
-
-The calling convention is coming along:
-- Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`, then
-  each available ZP register, from `ZP_0` to `ZP_253`.
-- Pointer arguments/return values are passed in successively increasing pairs
-  of ZP locations (ZP pointer regisers).
-- The compiler bails if the arguments/return value don't fit.
-- All compiler-used ZP locations, all registers, and all flags are caller-saved.
-  - Use of most physical registers/flags are mandatory for certain operations,
-    so functions would be forced to save/restore them if they were callee saved,
-    even if they held values not live across calls. This should be the usual
-    case: since there are so few, live ranges should be short.
-  - TODO: Up to four ZP locations should be callee-saved; that way the compiler
-    can amortize save/restore cost of different values to the prolog/epilog. A
-    single callee saved reg may be able to keep a dozen different values live
-    across calls if their live ranges don't interfere, all for the cost of one
-    `PHA;PLA`. Doing this with caller-saved regs would in the worst cast require
-    one `PHA/PLA` per call site.
-    - It turns out doing this will require some hefty modfifications to LLVM's
-      greedy register allocator. The allocator *really* likes registers; it'll
-      prefer a CSR over spilling unless one of two very specific conditions are
-      met. For the 6502, a spill/reload may just be a `PHA/PLA` pair, while
-      saving a CSR would require from : `LDA csr; PHA; ...; PLA; STA csr`, to,
-      if A and NZ need to be saved: `PHP; PHA; LDA csr; PHA; ...; PLA; PLA; STA
-      csr; PLP`. This also doesn't count additional cost if the CSR needs to be
-      loaded to a GPR for use. Thus using CSR's should be situational; regalloc
-      should evaluate after the fact of whether using a CSR was worth it, and if
-      not, emit spills for all values allocated to the CSR.
-
 
 ### Hello World
 

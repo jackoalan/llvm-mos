@@ -226,7 +226,7 @@ name: incsp
 # CHECK-LABEL: name: incsp
 body: |
   bb.0.entry:
-    IncSP -1234
+    IncSP -1234, implicit $sp, implicit-def $sp
     RTS
 # CHECK:      $c = LDCimm 0
 # CHECK-NEXT: $a = LDimm 46
@@ -241,7 +241,7 @@ name: incsp_hi_only
 # CHECK-LABEL: name: incsp
 body: |
   bb.0.entry:
-    IncSP -512
+    IncSP -512, implicit $sp, implicit-def $sp
     RTS
 # CHECK:      $c = LDCimm 0 
 # CHECK-NEXT: $a = LDimm 254

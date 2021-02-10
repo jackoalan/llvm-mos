@@ -51,6 +51,10 @@ Register trivialScavenge(MachineIRBuilder &Builder,
 
 } // namespace
 
+MOS6502InstrInfo::MOS6502InstrInfo()
+    : MOS6502GenInstrInfo(/*CFSetupOpcode=*/MOS6502::ADJCALLSTACKDOWN,
+                          /*CFDestroyOpcode=*/MOS6502::ADJCALLSTACKUP) {}
+
 bool MOS6502InstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI,
                                                          AAResults *AA) const {
   switch (MI.getOpcode()) {

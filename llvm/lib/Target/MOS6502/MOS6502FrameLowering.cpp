@@ -30,6 +30,9 @@ void MOS6502FrameLowering::processFunctionBeforeFrameFinalized(
   if (MF.getFunction().doesNotRecurse()) {
     int64_t Offset = 0;
     for (int Idx = 0, End = MFI.getObjectIndexEnd(); Idx < End; ++Idx) {
+      if (MFI.isDeadObjectIndex(Idx))
+        continue;
+
       MFI.setStackID(Idx, TargetStackID::NoAlloc);
       MFI.setObjectOffset(Idx, Offset);
       Offset += MFI.getObjectSize(Idx);  // Static stack grows up.
@@ -43,6 +46,8 @@ void MOS6502FrameLowering::processFunctionBeforeFrameFinalized(
   // Extract out as many values as will fit onto the hard stack.
   for (int i = 0, e = MFI.getObjectIndexEnd(); i < e && S > -4; ++i) {
     int64_t Size = MFI.getObjectSize(i);
+    if (MFI.isDeadObjectIndex(i))
+      continue;
     if (S - Size < -4)
       continue;
     MFI.setStackID(i, TargetStackID::Hard);
@@ -51,6 +56,20 @@ void MOS6502FrameLowering::processFunctionBeforeFrameFinalized(
     MFI.setObjectOffset(i, S + 1);
     MFI.setStackSize(MFI.getStackSize() - Size);
   }
+}
+
+MachineBasicBlock::iterator MOS6502FrameLowering::eliminateCallFramePseudoInstr(
+    MachineFunction &MF, MachineBasicBlock &MBB,
+    MachineBasicBlock::iterator MI) const {
+  if (hasReservedCallFrame(MF))
+    return MBB.erase(MI);
+
+  const auto &TII = *MF.getSubtarget().getInstrInfo();
+  if (MI->getOpcode() == TII.getCallFrameSetupOpcode())
+    MI->getOperand(0).setImm(-MI->getOperand(0).getImm());
+  MI->setDesc(TII.get(MOS6502::IncSP));
+  MI->RemoveOperand(1);
+  return MI;
 }
 
 void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,

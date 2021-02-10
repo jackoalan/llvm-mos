@@ -11,6 +11,8 @@ namespace llvm {
 
 class MOS6502InstrInfo : public MOS6502GenInstrInfo {
 public:
+  MOS6502InstrInfo();
+
   bool isReallyTriviallyReMaterializable(const MachineInstr &MI,
                                          AAResults *AA) const override;
 
