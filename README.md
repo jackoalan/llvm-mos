@@ -10,131 +10,37 @@ implementation until the compiler produces very, very good assembly.
 The compiler can compile a few simple example programs for the C64 in both
 speed- and size-optimized modes. The compiler is intentionally not very general
 at the moment: stray slightly from the examples, and you'll almost certainly
-encounter "not yet implemented" errors. The examples/milestones are chosen to
-exercise different aspects of code generation, with riskier aspects first.
-Once the remaining tasks are more or less mechanical, the compiler will be known
-to have "good bones." At that point, work will move from section to section,
-generalizing each and filling out the compiler until it reaches MVP.
+encounter "not yet implemented" errors.
 
-## Risk Factors
+## Milestones
 
-<dl>
-  <dt>Indirect calls</dt>
-  <dd>
-    The 6502 has no indirect JSR instruction. Likely the best way to synthesize
-    one is by JSR-ing to an indirect JMP instruction. Can such an instruction be
-    synthesized? What would the basic-block layout of such a sequence be?
-  </dd>
+### De-risk
 
-  <dt>Variable arguments</dt>
-  <dd>
-    What is the variable-length argument calling convention? Can iteration through the
-    arguments be made efficient? How efficient can printf be made?
-  </dd>
+The compiler is currently being "de-risked." Any aspects of efficient code
+generation where solutions may require significant rewrites later are being
+handled first. The goal of this phase is to do as many rewrites as possible
+up-front, while the codebase is small.
 
-  <dt>Jump Tables</dt>
-  <dd>
-    Jump tables allow dense portions of switch statements to be efficient
-    executed. These should almost certainly be implemented using the RTS trick.
-    This requires decrementing the block addresses in the table; can this be
-    done in LLVM?
-  </dd>
+### Presumed C99 Compatibility
 
-  <dt>Variable sized stack objects</dt>
-  <dd>
-    Variable sized stack objects (C99 variable length arrays, alloca) require the use of a soft
-    stack and the maintenance of a frame pointer. How can this be combined with non-recursive
-    stack frame elision? Is it possible to have only the variable-length part of the frame on
-    the soft stack, while the rest is allocated statically?
-  </dd>
+Once the overall architecture starts to settle down, the project will march
+towards presumed C99 compatibility as quickly as possible. The quality of
+generated code will be pretty bad in a lot of cases, but it should always
+be clear how to make it better without a complete rewrite. Otherwise, the
+project will return to the derisk phase.
 
-  <dt>Interrupt Handlers</dt>
-  <dd>
-    There are two likely cases for C interrupt handlers. First, the handler is
-    called directly from an interrupt vector. In this case, most likely only P
-    was saved, and this by the interrupt itself. Any caller-saved registers that
-    might be used by the handler or any of its transitive callees must be saved
-    by the handler. A C interrupt handler may alternatively be called as the
-    slow part of a two-part interrupt handler. In this case, some of the
-    registers may already have been be saved, and they will automatically be
-    restored when the C handler returns. A mechanism should be provided to
-    specify in C which registers have already been saved by the context.
-  </dd>
+### Passing C99 LLVM Test Suite
 
-  <dd>
-    In the absence of perfect IPO register use analysis, all caller-saved registers
-    will need to be saved if the handler is not a leaf (very likely). This sets
-    up a tradeoff between having a large number of caller-saved ZP registers and
-    efficient interrupt handling.
-  </dd>
+At this point, minimum library support needed for the LLVM test suite will be written.
+Some 6502 simulator will need to be chosen, and the test suite run against it. Any
+discovered issues preventing C99 compatibility will be fixed. Only tests relevant
+for a freestanding implementation will be run.
 
-  <dd>
-    The traditional hand-written ASM way of handling this is to reserve a region
-    of memory and zero page for interrupt handler use. That way, the handler can
-    be guaranteed to only conflict with the interrupted routine on A, X, Y, and
-    P. This requires ensuring that the set routines used in interrupt handlers
-    are totally disjoint from the rest of the program. In C, this can be done
-    quite easily: just place them in a different translation unit. Then, this
-    translation can be reserved a region of the ZP register space. To do so,
-    another flag should be added to offset the ZP register region used by a
-    translation unit. The user would then specify as an annotation on the interrupt
-    handler that all ZP registers have "already been saved" by the context.
-  </dd>
+### Optimization
 
-  <dd>
-    Otherwise, the user can reduce the number of ZP registers used and allow them
-    to be saved with each interrupt. This would allow free mixing of interrupt
-    and non-interrupt code in the traditional C style. Thus the user can pick
-    the tradeoff.
-  </dd>
-
-  <dd>
-    Another problem is that all routines callable by an interrupt handler will
-    appear to be possibly recursive, since the compiler cannot assume that the
-    rountines of the interrupt handler cannot be themselves interrupted by the
-    same handler. This may even be common for slow parts of interrupt handlers:
-    the recursion provides a sort of buffering to allow rapid-fire interrupts to
-    gradually clear out once the incoming interrupt volume dies down.
-  </dd>
-
-  <dd>
-    This actually does seem like a nice place for a norecurse attribute, since
-    some interrupts do manipulate the hardware specifically to ensure that further
-    interrupts do not occur during their handling. Thus, it would be natural for
-    the developer to mark those routines as norecurse. This would also
-    potentially be handy for fixing overly-conservative recursion analysis
-    issues as a last resort.
-  </dd>
-  
-  <dt>Multibyte operations</dt>
-  <dd>
-    Beyond simple ADC, multibyte operations on the 6502 can look drastically different
-    depending on how they are implemented. For example, >> 8 a 16-bit int
-    by 8 would be a simple copy of the high byte to the low byte and a clear of the high byte,
-    while shifting it by one would be a pair of LSR/ROR. Multibyte comparisons can work either
-    from the high byte to the low byte, or from the low byte to the high byte. The efficiencies
-    of these alternatives need to be studied, and enough examples constructed to suggest that
-    it's possible to fill in the rest.
-  </dd>
-
-  <dt>PostRA pseudo scheduling</dt>
-  <dd>
-    Post-register-allocation pseudo-instructions cannot report their full side-effect profile, since
-    their implementation will wildly differ depending on where the register allocator places their
-    inputs and outputs. Once register allocation occurs, their side effect profiles will be known,
-    and they might be reschedulable to locations where they don't interfere with live registers.
-    It's unlikely that we'd be able to rely on the existing scheduler for this though, since the pseudos
-    will behave as advertised by emitting save/restore code. At no point do they exhibit their real
-    side-effect profile.
-  </dd>
-  
-  <dt>PostRA pseudo scavenging</dt>
-  <dd>
-    PostRA pseudo save/restore logic tightly wraps the affected region. If the register scavenger were
-    used instead, then live registers could be spilled around broad regions, preventing redundant saves
-    and restores from ever being emitted.
-  </dd>
-</dl>
+At this point, optimization opportunities will be implemented, from greatest
+to smallest impact. Once the big obvious opportunities are exhausted, LLVM's
+benchmark suite will be used to prioritize and implement minor optimizations.
 
 ## Calling convention
 
@@ -727,4 +633,4 @@ TODO:
 
 </details>
 
-Updated February 9, 2021.
+Updated February 11, 2021.
