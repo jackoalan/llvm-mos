@@ -49,9 +49,9 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   // Scalar Operations
 
-  getActionDefinitionsBuilder(G_MERGE_VALUES).legalFor({{s16, s8}});
+  getActionDefinitionsBuilder(G_MERGE_VALUES).legalForCartesianProduct({s16, p}, {s8});
 
-  getActionDefinitionsBuilder(G_UNMERGE_VALUES).legalFor({{s8, s16}});
+  getActionDefinitionsBuilder(G_UNMERGE_VALUES).legalForCartesianProduct({s8}, {s16, p});
 
   // Integer Operations
 

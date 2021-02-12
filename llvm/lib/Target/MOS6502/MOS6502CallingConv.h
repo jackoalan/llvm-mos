@@ -11,9 +11,9 @@ bool CC_MOS6502(unsigned ValNo, MVT ValVT, MVT LocVT,
                 CCValAssign::LocInfo LocInfo, ISD::ArgFlagsTy ArgFlags,
                 CCState &State);
 
-bool RetCC_MOS6502(unsigned ValNo, MVT ValVT, MVT LocVT,
-                   CCValAssign::LocInfo LocInfo, ISD::ArgFlagsTy ArgFlags,
-                   CCState &State);
+bool CC_MOS6502_VarArgs(unsigned ValNo, MVT ValVT, MVT LocVT,
+                        CCValAssign::LocInfo LocInfo, ISD::ArgFlagsTy ArgFlags,
+                        CCState &State);
 
 } // namespace llvm
 

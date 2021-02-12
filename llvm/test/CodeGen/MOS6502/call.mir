@@ -103,6 +103,7 @@
     ; CHECK:      %0:_(p0) = COPY $zp_ptr_0
     ; CHECK-NEXT: %1:_(p0) = COPY $zp_ptr_1
   }
+
   define i8 @struct(i8 %first, %twobyte %second) {
   ; CHECK-LABEL: name: struct
   entry:
@@ -115,5 +116,37 @@
     ; CHECK-NEXT: %2:_(s8) = COPY $y
     ; CHECK-NEXT: $a = COPY %2
     ; CHECK-NEXT: RTS implicit $a
+  }
+
+  declare void @varargs(i8 %a, ...)
+
+  define void @varargs_call() {
+  ; CHECK-LABEL: name: varargs_call
+  entry:
+    call void (i8, ...) @varargs(i8 1, i16 2, i16 3)
+    ret void
+    ; CHECK:      %0:_(s8) = G_CONSTANT i8 1
+    ; CHECK-NEXT: %1:_(s16) = G_CONSTANT i16 2
+    ; CHECK-NEXT: %2:_(s16) = G_CONSTANT i16 3
+    ; CHECK-NEXT: ADJCALLSTACKDOWN 4, 0
+    ; CHECK-NEXT: %3:_(s8), %4:_(s8) = G_UNMERGE_VALUES %1
+    ; CHECK-NEXT: %5:_(s8), %6:_(s8) = G_UNMERGE_VALUES %2
+    ; CHECK-NEXT: $a = COPY %0
+    ; CHECK-NEXT: %7:_(p0) = COPY $sp
+    ; CHECK-NEXT: %8:_(s16) = G_CONSTANT i16 0
+    ; CHECK-NEXT: %9:_(p0) = G_PTR_ADD %7, %8(s16)
+    ; CHECK-NEXT: G_STORE %3(s8), %9(p0) :: (store 1 into stack)
+    ; CHECK-NEXT: %10:_(s16) = G_CONSTANT i16 1
+    ; CHECK-NEXT: %11:_(p0) = G_PTR_ADD %7, %10(s16)
+    ; CHECK-NEXT: G_STORE %4(s8), %11(p0) :: (store 1 into stack + 1)
+    ; CHECK-NEXT: %12:_(s16) = G_CONSTANT i16 2
+    ; CHECK-NEXT: %13:_(p0) = G_PTR_ADD %7, %12(s16)
+    ; CHECK-NEXT: G_STORE %5(s8), %13(p0) :: (store 1 into stack + 2)
+    ; CHECK-NEXT: %14:_(s16) = G_CONSTANT i16 3
+    ; CHECK-NEXT: %15:_(p0) = G_PTR_ADD %7, %14(s16)
+    ; CHECK-NEXT: G_STORE %6(s8), %15(p0) :: (store 1 into stack + 3)
+    ; CHECK-NEXT: JSR @varargs, mos6502_noregs, implicit $a
+    ; CHECK-NEXT: ADJCALLSTACKUP 4, 0, implicit-def $sp, implicit $sp
+    ; CHECK-NEXT: RTS
   }
 ...

@@ -54,6 +54,10 @@ let Entry = 1 in {
       ZP_253,
     ]>>,
     CCIfType<[i8], CCAssignToStack<1, 1>>,
+  ]>;
+
+  def CC_MOS6502_VarArgs : CallingConv<[
+    CCIfType<[i8], CCAssignToStack<1, 1>>,
     // Larger types are split to bytes before assignment.
   ]>;
 }

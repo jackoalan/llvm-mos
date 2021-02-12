@@ -3,6 +3,7 @@
 #include "MOS6502CallingConv.h"
 
 #include "llvm/CodeGen/Analysis.h"
+#include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
@@ -20,6 +21,8 @@ using namespace llvm;
 namespace {
 
 struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
+  CCAssignFn *AssignFnVarArg;
+
   // The instruction causing control flow to leave the current function.
   MachineInstrBuilder &MIB;
 
@@ -32,8 +35,10 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 
   MOS6502OutgoingValueHandler(MachineIRBuilder &MIRBuilder,
                               MachineInstrBuilder &MIB,
-                              MachineRegisterInfo &MRI, CCAssignFn *AssignFn)
-      : OutgoingValueHandler(MIRBuilder, MRI, AssignFn), MIB(MIB) {
+                              MachineRegisterInfo &MRI, CCAssignFn *AssignFn,
+                              CCAssignFn *AssignFnVarArg)
+      : OutgoingValueHandler(MIRBuilder, MRI, AssignFn),
+        AssignFnVarArg(AssignFnVarArg), MIB(MIB) {
     Reserved = MRI.getTargetRegisterInfo()->getReservedRegs(MIRBuilder.getMF());
   }
 
@@ -91,7 +96,11 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
                  CCState &State) override {
     for (Register R : Reserved.set_bits())
       State.AllocateReg(R);
-    bool Res = AssignFn(ValNo, ValVT, LocVT, LocInfo, Flags, State);
+    bool Res;
+    if (Info.IsFixed)
+      Res = AssignFn(ValNo, ValVT, LocVT, LocInfo, Flags, State);
+    else
+      Res = AssignFnVarArg(ValNo, ValVT, LocVT, LocInfo, Flags, State);
     StackSize = State.getNextStackOffset();
     return Res;
   }
@@ -203,7 +212,8 @@ bool MOS6502CallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
 
     // Invoke TableGen compatibility layer. The return instruction will be
     // annotated with implicit uses of any live variables out of the function.
-    MOS6502OutgoingValueHandler Handler(MIRBuilder, Return, MRI, CC_MOS6502);
+    MOS6502OutgoingValueHandler Handler(MIRBuilder, Return, MRI, CC_MOS6502,
+                                        CC_MOS6502_VarArgs);
     if (!handleAssignments(MIRBuilder, Args, Handler))
       return false;
   }
@@ -249,9 +259,7 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   if (!Info.Callee.isGlobal() && !Info.Callee.isSymbol())
     report_fatal_error("Callee type not yet implemented.");
   if (Info.IsMustTailCall)
-    report_fatal_error("Musttail calls not yet implemented.");
-  if (Info.IsVarArg)
-    report_fatal_error("Vararg calls not yet implemented.");
+    report_fatal_error("Musttail calls not supported.");
 
   MachineFunction &MF = MIRBuilder.getMF();
   MachineRegisterInfo &MRI = MF.getRegInfo();
@@ -277,7 +285,8 @@ bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   // Invoke TableGen compatibility layer for outgoing arguments. The call
   // instruction will be annotated with implicit uses of any live variables out
   // of the function.
-  MOS6502OutgoingValueHandler ArgsHandler(MIRBuilder, Call, MRI, CC_MOS6502);
+  MOS6502OutgoingValueHandler ArgsHandler(MIRBuilder, Call, MRI, CC_MOS6502,
+                                          CC_MOS6502_VarArgs);
   if (!handleAssignments(MIRBuilder, OutArgs, ArgsHandler))
     return false;
 
