@@ -187,18 +187,26 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
     return true;
   }
 
-  const auto HasOnlyLoadStoreUses = [&]() {
-    for (MachineInstr &MI : MRI.use_nodbg_instructions(Result.getReg()))
-      switch (MI.getOpcode()) {
+  const auto CanFoldIntoUses = [&]() {
+    for (MachineInstr &UseMI : MRI.use_nodbg_instructions(Result.getReg()))
+      switch (UseMI.getOpcode()) {
       default:
         return false;
       case G_LOAD:
       case G_STORE:
+      case G_PHI:
+        break;
+      case G_PTR_ADD:
+        // The instruction combiner can merge together G_PTR_ADD chains of
+        // constant offsets.
+        if (!ConstOffset || !getConstantVRegValWithLookThrough(
+                                UseMI.getOperand(2).getReg(), MRI))
+          return false;
         break;
       }
     return true;
   };
-  if (HasOnlyLoadStoreUses()) {
+  if (CanFoldIntoUses()) {
     // Adds of zero-extended values can instead use the legal 8-bit version of
     // G_PTR_ADD, with the goal of selecting indexed addressing modes.
     MachineInstr *ZExtOffset = getOpcodeDef(G_ZEXT, Offset.getReg(), MRI);

@@ -5,8 +5,8 @@ set(LLVM_TARGET_DEFINITIONS MOS6502.td)
 tablegen(LLVM MOS6502GenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM MOS6502GenCallingConv.inc -gen-callingconv)
 tablegen(LLVM MOS6502GenGlobalISel.inc -gen-global-isel)
-tablegen(LLVM MOS6502GenPreLegalizeGICombiner.inc -gen-global-isel-combiner
-  -combiners="MOS6502PreLegalizerCombinerHelper")
+tablegen(LLVM MOS6502GenGICombiner.inc -gen-global-isel-combiner
+  -combiners="MOS6502CombinerHelper")
 tablegen(LLVM MOS6502GenInstrInfo.inc -gen-instr-info)
 tablegen(LLVM MOS6502GenRegisterBank.inc -gen-register-bank)
 tablegen(LLVM MOS6502GenRegisterInfo.inc -gen-register-info)
@@ -28,7 +28,7 @@ add_llvm_target(MOS6502CodeGen
   MOS6502MachineScheduler.cpp
   MOS6502MCInstLower.cpp
   MOS6502NoRecurse.cpp
-  MOS6502PreLegalizerCombiner.cpp
+  MOS6502Combiner.cpp
   MOS6502PreRegAlloc.cpp
   MOS6502RegisterBankInfo.cpp
   MOS6502RegisterInfo.cpp

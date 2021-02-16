@@ -1,4 +1,4 @@
-#include "MOS6502PreLegalizerCombiner.h"
+#include "MOS6502Combiner.h"
 
 #include "MOS6502.h"
 
@@ -19,32 +19,31 @@
 
 using namespace llvm;
 
-class MOS6502PreLegalizerCombinerHelperState {
+class MOS6502CombinerHelperState {
 protected:
   CombinerHelper &Helper;
 
 public:
-  MOS6502PreLegalizerCombinerHelperState(CombinerHelper &Helper)
-      : Helper(Helper) {}
+  MOS6502CombinerHelperState(CombinerHelper &Helper) : Helper(Helper) {}
 };
 
-#define MOS6502PRELEGALIZERCOMBINERHELPER_GENCOMBINERHELPER_DEPS
-#include "MOS6502GenPreLegalizeGICombiner.inc"
-#undef MOS6502PRELEGALIZERCOMBINERHELPER_GENCOMBINERHELPER_DEPS
+#define MOS6502COMBINERHELPER_GENCOMBINERHELPER_DEPS
+#include "MOS6502GenGICombiner.inc"
+#undef MOS6502COMBINERHELPER_GENCOMBINERHELPER_DEPS
 
 namespace {
-#define MOS6502PRELEGALIZERCOMBINERHELPER_GENCOMBINERHELPER_H
-#include "MOS6502GenPreLegalizeGICombiner.inc"
-#undef MOS6502PRELEGALIZERCOMBINERHELPER_GENCOMBINERHELPER_H
+#define MOS6502COMBINERHELPER_GENCOMBINERHELPER_H
+#include "MOS6502GenGICombiner.inc"
+#undef MOS6502COMBINERHELPER_GENCOMBINERHELPER_H
 
-class MOS6502PreLegalizerCombinerInfo : public CombinerInfo {
+class MOS6502CombinerInfo : public CombinerInfo {
   GISelKnownBits *KB;
   MachineDominatorTree *MDT;
-  MOS6502GenPreLegalizerCombinerHelperRuleConfig GeneratedRuleCfg;
+  MOS6502GenCombinerHelperRuleConfig GeneratedRuleCfg;
 
 public:
-  MOS6502PreLegalizerCombinerInfo(bool EnableOpt, bool OptSize, bool MinSize,
-                                  GISelKnownBits *KB, MachineDominatorTree *MDT)
+  MOS6502CombinerInfo(bool EnableOpt, bool OptSize, bool MinSize,
+                      GISelKnownBits *KB, MachineDominatorTree *MDT)
       : CombinerInfo(/*AllowIllegalOps*/ true, /*ShouldLegalizeIllegal*/ false,
                      /*LegalizerInfo*/ nullptr, EnableOpt, OptSize, MinSize),
         KB(KB), MDT(MDT) {
@@ -56,30 +55,27 @@ public:
                        MachineIRBuilder &B) const override;
 };
 
-bool MOS6502PreLegalizerCombinerInfo::combine(GISelChangeObserver &Observer,
-                                              MachineInstr &MI,
-                                              MachineIRBuilder &B) const {
+bool MOS6502CombinerInfo::combine(GISelChangeObserver &Observer,
+                                  MachineInstr &MI, MachineIRBuilder &B) const {
   CombinerHelper Helper(Observer, B, KB, MDT);
-  MOS6502GenPreLegalizerCombinerHelper Generated(GeneratedRuleCfg, Helper);
+  MOS6502GenCombinerHelper Generated(GeneratedRuleCfg, Helper);
   return Generated.tryCombineAll(Observer, MI, B);
 }
 
-#define MOS6502PRELEGALIZERCOMBINERHELPER_GENCOMBINERHELPER_CPP
-#include "MOS6502GenPreLegalizeGICombiner.inc"
-#undef MOS6502PRELEGALIZERCOMBINERHELPER_GENCOMBINERHELPER_CPP
+#define MOS6502COMBINERHELPER_GENCOMBINERHELPER_CPP
+#include "MOS6502GenGICombiner.inc"
+#undef MOS6502COMBINERHELPER_GENCOMBINERHELPER_CPP
 
 // Pass boilerplate
 // ================
 
-class MOS6502PreLegalizerCombiner : public MachineFunctionPass {
+class MOS6502Combiner : public MachineFunctionPass {
 public:
   static char ID;
 
-  MOS6502PreLegalizerCombiner();
+  MOS6502Combiner();
 
-  StringRef getPassName() const override {
-    return "MOS6502PreLegalizerCombiner";
-  }
+  StringRef getPassName() const override { return "MOS6502Combiner"; }
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
@@ -87,7 +83,7 @@ public:
 };
 } // end anonymous namespace
 
-void MOS6502PreLegalizerCombiner::getAnalysisUsage(AnalysisUsage &AU) const {
+void MOS6502Combiner::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<TargetPassConfig>();
   AU.setPreservesCFG();
   getSelectionDAGFallbackAnalysisUsage(AU);
@@ -98,12 +94,11 @@ void MOS6502PreLegalizerCombiner::getAnalysisUsage(AnalysisUsage &AU) const {
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
-MOS6502PreLegalizerCombiner::MOS6502PreLegalizerCombiner()
-    : MachineFunctionPass(ID) {
-  initializeMOS6502PreLegalizerCombinerPass(*PassRegistry::getPassRegistry());
+MOS6502Combiner::MOS6502Combiner() : MachineFunctionPass(ID) {
+  initializeMOS6502CombinerPass(*PassRegistry::getPassRegistry());
 }
 
-bool MOS6502PreLegalizerCombiner::runOnMachineFunction(MachineFunction &MF) {
+bool MOS6502Combiner::runOnMachineFunction(MachineFunction &MF) {
   if (MF.getProperties().hasProperty(
           MachineFunctionProperties::Property::FailedISel))
     return false;
@@ -113,24 +108,20 @@ bool MOS6502PreLegalizerCombiner::runOnMachineFunction(MachineFunction &MF) {
       MF.getTarget().getOptLevel() != CodeGenOpt::None && !skipFunction(F);
   GISelKnownBits *KB = &getAnalysis<GISelKnownBitsAnalysis>().get(MF);
   MachineDominatorTree *MDT = &getAnalysis<MachineDominatorTree>();
-  MOS6502PreLegalizerCombinerInfo PCInfo(EnableOpt, F.hasOptSize(),
-                                         F.hasMinSize(), KB, MDT);
+  MOS6502CombinerInfo PCInfo(EnableOpt, F.hasOptSize(), F.hasMinSize(), KB,
+                             MDT);
   Combiner C(PCInfo, TPC);
   return C.combineMachineInstrs(MF, /*CSEInfo*/ nullptr);
 }
 
-char MOS6502PreLegalizerCombiner::ID = 0;
-INITIALIZE_PASS_BEGIN(MOS6502PreLegalizerCombiner, DEBUG_TYPE,
-                      "Combine MOS6502 machine instrs before legalization",
-                      false, false)
+char MOS6502Combiner::ID = 0;
+INITIALIZE_PASS_BEGIN(MOS6502Combiner, DEBUG_TYPE,
+                      "Combine MOS6502 machine instrs", false, false)
 INITIALIZE_PASS_DEPENDENCY(TargetPassConfig)
 INITIALIZE_PASS_DEPENDENCY(GISelKnownBitsAnalysis)
-INITIALIZE_PASS_END(MOS6502PreLegalizerCombiner, DEBUG_TYPE,
-                    "Combine MOS6502 machine instrs before legalization", false,
-                    false)
+INITIALIZE_PASS_END(MOS6502Combiner, DEBUG_TYPE,
+                    "Combine MOS6502 machine instrs", false, false)
 
 namespace llvm {
-FunctionPass *createMOS6502PreLegalizerCombiner() {
-  return new MOS6502PreLegalizerCombiner;
-}
+FunctionPass *createMOS6502Combiner() { return new MOS6502Combiner; }
 } // namespace llvm

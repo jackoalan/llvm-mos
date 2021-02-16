@@ -1,10 +1,10 @@
 #include "MOS6502TargetMachine.h"
 
 #include "MOS6502.h"
+#include "MOS6502Combiner.h"
 #include "MOS6502IndexIVPass.h"
 #include "MOS6502MachineScheduler.h"
 #include "MOS6502NoRecurse.h"
-#include "MOS6502PreLegalizerCombiner.h"
 #include "MOS6502PreRegAlloc.h"
 #include "MOS6502StaticStackAlloc.h"
 #include "MOS6502TargetObjectFile.h"
@@ -30,10 +30,10 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeMOS6502Target() {
   RegisterTargetMachine<MOS6502TargetMachine> X(getTheMOS6502Target());
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializeGlobalISel(PR);
+  initializeMOS6502CombinerPass(PR);
   initializeMOS6502IndexIVPass(PR);
   initializeMOS6502NoRecursePass(PR);
   initializeMOS6502PreRegAllocPass(PR);
-  initializeMOS6502PreLegalizerCombinerPass(PR);
   initializeMOS6502StaticStackAllocPass(PR);
 }
 
@@ -133,7 +133,7 @@ bool MOS6502PassConfig::addIRTranslator() {
 }
 
 void MOS6502PassConfig::addPreLegalizeMachineIR() {
-  addPass(createMOS6502PreLegalizerCombiner());
+  addPass(createMOS6502Combiner());
 }
 
 bool MOS6502PassConfig::addLegalizeMachineIR() {
@@ -144,6 +144,11 @@ bool MOS6502PassConfig::addLegalizeMachineIR() {
 bool MOS6502PassConfig::addRegBankSelect() {
   addPass(new RegBankSelect());
   return false;
+}
+
+void MOS6502PassConfig::addPreGlobalInstructionSelect() {
+  addPass(createMOS6502Combiner());
+  addPass(new Localizer());
 }
 
 bool MOS6502PassConfig::addGlobalInstructionSelect() {
@@ -170,10 +175,6 @@ void MOS6502PassConfig::addPreSched2() {
 }
 
 void MOS6502PassConfig::addPreEmitPass() { addPass(&BranchRelaxationPassID); }
-
-void MOS6502PassConfig::addPreGlobalInstructionSelect() {
-  addPass(new Localizer);
-}
 
 ScheduleDAGInstrs *
 MOS6502PassConfig::createMachineScheduler(MachineSchedContext *C) const {

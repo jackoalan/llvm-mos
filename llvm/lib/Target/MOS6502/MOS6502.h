@@ -5,10 +5,10 @@
 
 namespace llvm {
 
+void initializeMOS6502CombinerPass(PassRegistry &);
 void initializeMOS6502IndexIVPass(PassRegistry &);
 void initializeMOS6502NoRecursePass(PassRegistry &);
 void initializeMOS6502PreRegAllocPass(PassRegistry &);
-void initializeMOS6502PreLegalizerCombinerPass(PassRegistry &);
 void initializeMOS6502StaticStackAllocPass(PassRegistry &);
 
 } // namespace llvm
