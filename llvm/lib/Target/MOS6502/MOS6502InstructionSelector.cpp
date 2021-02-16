@@ -323,7 +323,7 @@ bool MOS6502InstructionSelector::selectGlobalValue(MachineInstr &MI) {
   if (!constrainSelectedInstRegOperands(*HiImm, TII, TRI, RBI))
     return false;
   composePtr(Builder, Dst, Lo, Hi);
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -413,7 +413,7 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
                     .cloneMemRefs(MI);
     if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
       return false;
-    MI.removeFromParent();
+    MI.eraseFromParent();
     return true;
   }
 
@@ -433,7 +433,7 @@ bool MOS6502InstructionSelector::selectLoad(MachineInstr &MI) {
   if (!constrainSelectedInstRegOperands(*Load, TII, TRI, RBI))
     return false;
 
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -449,7 +449,7 @@ bool MOS6502InstructionSelector::selectLshO(MachineInstr &MI) {
       Builder.buildInstr(MOS6502::ASL).addDef(Dst).addDef(CarryOut).addUse(Src);
   if (!constrainSelectedInstRegOperands(*Asl, TII, TRI, RBI))
     return false;
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -469,7 +469,7 @@ bool MOS6502InstructionSelector::selectLshE(MachineInstr &MI) {
                  .addUse(CarryIn);
   if (!constrainSelectedInstRegOperands(*Rol, TII, TRI, RBI))
     return false;
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -482,7 +482,7 @@ bool MOS6502InstructionSelector::selectMergeValues(MachineInstr &MI) {
 
   MachineIRBuilder Builder(MI);
   composePtr(Builder, Dst, Lo, Hi);
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -495,7 +495,7 @@ bool MOS6502InstructionSelector::selectPhi(MachineInstr &MI) {
   for (MachineOperand &Op : MI.operands())
     Phi.add(Op);
   constrainGenericOp(*Phi);
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -526,7 +526,7 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
                      .cloneMemRefs(MI);
     if (!constrainSelectedInstRegOperands(*Store, TII, TRI, RBI))
       return false;
-    MI.removeFromParent();
+    MI.eraseFromParent();
     return true;
   }
 
@@ -546,7 +546,7 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
   if (!constrainSelectedInstRegOperands(*Store, TII, TRI, RBI))
     return false;
 
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -582,7 +582,7 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &MI) {
   if (!constrainSelectedInstRegOperands(*Add, TII, TRI, RBI))
     return false;
 
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -603,7 +603,7 @@ bool MOS6502InstructionSelector::selectUnMergeValues(MachineInstr &MI) {
                     .addDef(Hi)
                     .addUse(Src, 0, MOS6502::subhi);
   constrainGenericOp(*HiCopy);
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 

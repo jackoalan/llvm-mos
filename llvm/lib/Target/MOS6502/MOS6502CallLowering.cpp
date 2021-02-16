@@ -1,6 +1,7 @@
 #include "MOS6502CallLowering.h"
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
 #include "MOS6502CallingConv.h"
+#include "MOS6502MachineFunctionInfo.h"
 
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/CallingConvLower.h"
@@ -109,6 +110,7 @@ struct MOS6502OutgoingValueHandler : CallLowering::OutgoingValueHandler {
 struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
   std::function<void(Register Reg)> MakeLive;
   BitVector Reserved;
+  uint64_t StackSize = 0;
 
   MOS6502IncomingValueHandler(MachineIRBuilder &MIRBuilder,
                               MachineRegisterInfo &MRI, CCAssignFn *AssignFn,
@@ -163,7 +165,9 @@ struct MOS6502IncomingValueHandler : CallLowering::IncomingValueHandler {
                  CCState &State) override {
     for (Register R : Reserved.set_bits())
       State.AllocateReg(R);
-    return AssignFn(ValNo, ValVT, LocVT, LocInfo, Flags, State);
+    bool Res = AssignFn(ValNo, ValVT, LocVT, LocInfo, Flags, State);
+    StackSize = State.getNextStackOffset();
+    return Res;
   }
 };
 
@@ -251,7 +255,16 @@ bool MOS6502CallLowering::lowerFormalArguments(
     MIRBuilder.getMBB().addLiveIn(PhysReg);
   };
   MOS6502IncomingValueHandler Handler(MIRBuilder, MRI, CC_MOS6502, MakeLive);
-  return handleAssignments(MIRBuilder, SplitArgs, Handler);
+  if (!handleAssignments(MIRBuilder, SplitArgs, Handler))
+    return false;
+
+  if (F.isVarArg()) {
+    auto *FuncInfo = MF.getInfo<MOS6502FunctionInfo>();
+    FuncInfo->setVarArgsStackIndex(MF.getFrameInfo().CreateFixedObject(
+        1, Handler.StackSize, /*IsImmutable=*/true));
+  }
+
+  return true;
 }
 
 bool MOS6502CallLowering::lowerCall(MachineIRBuilder &MIRBuilder,

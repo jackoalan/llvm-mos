@@ -1,6 +1,7 @@
 #include "MOS6502LegalizerInfo.h"
 
 #include "MCTargetDesc/MOS6502MCTargetDesc.h"
+#include "MOS6502MachineFunctionInfo.h"
 
 #include "llvm/CodeGen/GlobalISel/LegalizerHelper.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
@@ -182,7 +183,7 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
         .add(Result)
         .addGlobalAddress(Op.getGlobal(),
                           Op.getOffset() + ConstOffset->Value.getSExtValue());
-    MI.removeFromParent();
+    MI.eraseFromParent();
     return true;
   }
 
@@ -212,7 +213,7 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
   Register PtrVal = Builder.buildPtrToInt(s16, MI.getOperand(1)).getReg(0);
   Register Sum = Builder.buildAdd(s16, PtrVal, MI.getOperand(2)).getReg(0);
   Builder.buildIntToPtr(MI.getOperand(0), Sum);
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -261,7 +262,7 @@ bool MOS6502LegalizerInfo::legalizeShl(LegalizerHelper &Helper,
     Carry = NewCarry;
   }
   Builder.buildMerge(Dst, Parts);
-  MI.removeFromParent();
+  MI.eraseFromParent();
 
   return true;
 }
@@ -274,7 +275,8 @@ bool MOS6502LegalizerInfo::legalizeStore(LegalizerHelper &Helper,
   assert(MI.getOpcode() == G_STORE);
 
   MachineIRBuilder &Builder = Helper.MIRBuilder;
-  Register Tmp = Builder.buildPtrToInt(LLT::scalar(16), MI.getOperand(0)).getReg(0);
+  Register Tmp =
+      Builder.buildPtrToInt(LLT::scalar(16), MI.getOperand(0)).getReg(0);
   Helper.Observer.changingInstr(MI);
   MI.getOperand(0).setReg(Tmp);
   Helper.Observer.changedInstr(MI);
@@ -292,7 +294,7 @@ bool MOS6502LegalizerInfo::legalizeUAddO(LegalizerHelper &Helper,
   auto CarryIn = Builder.buildConstant(LLT::scalar(1), 0).getReg(0);
   Builder.buildUAdde(MI.getOperand(0), MI.getOperand(1), MI.getOperand(2),
                      MI.getOperand(3), CarryIn);
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -330,7 +332,7 @@ bool MOS6502LegalizerInfo::legalizeVAArg(LegalizerHelper &Helper,
       MF.getMachineMemOperand(MachinePointerInfo::getUnknownStack(MF),
                               MachineMemOperand::MOStore, 2, Align());
   Builder.buildStore(NextAddr, VaListPtr, *AddrStoreMMO);
-  MI.removeFromParent();
+  MI.eraseFromParent();
   return true;
 }
 
@@ -342,5 +344,12 @@ bool MOS6502LegalizerInfo::legalizeVAStart(LegalizerHelper &Helper,
   assert(MI.getOpcode() == G_VASTART);
 
   MachineIRBuilder &Builder = Helper.MIRBuilder;
-  return false;
+  auto *FuncInfo = Builder.getMF().getInfo<MOS6502FunctionInfo>();
+  Register Addr = Builder
+                      .buildFrameIndex(LLT::pointer(0, 16),
+                                       FuncInfo->getVarArgsStackIndex())
+                      .getReg(0);
+  Builder.buildStore(Addr, MI.getOperand(0), **MI.memoperands_begin());
+  MI.eraseFromParent();
+  return true;
 }
