@@ -187,25 +187,38 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
     return true;
   }
 
-  // Adds of zero-extended values can instead use the legal 8-bit version of
-  // G_PTR_ADD, with the goal of selecting indexed addressing modes.
-  MachineInstr *ZExtOffset = getOpcodeDef(G_ZEXT, Offset.getReg(), MRI);
-  if (ZExtOffset) {
-    Helper.Observer.changingInstr(MI);
-    Offset.setReg(ZExtOffset->getOperand(1).getReg());
-    Helper.Observer.changedInstr(MI);
+  const auto HasOnlyLoadStoreUses = [&]() {
+    for (MachineInstr &MI : MRI.use_nodbg_instructions(Result.getReg()))
+      switch (MI.getOpcode()) {
+      default:
+        return false;
+      case G_LOAD:
+      case G_STORE:
+        break;
+      }
     return true;
-  }
+  };
+  if (HasOnlyLoadStoreUses()) {
+    // Adds of zero-extended values can instead use the legal 8-bit version of
+    // G_PTR_ADD, with the goal of selecting indexed addressing modes.
+    MachineInstr *ZExtOffset = getOpcodeDef(G_ZEXT, Offset.getReg(), MRI);
+    if (ZExtOffset) {
+      Helper.Observer.changingInstr(MI);
+      Offset.setReg(ZExtOffset->getOperand(1).getReg());
+      Helper.Observer.changedInstr(MI);
+      return true;
+    }
 
-  // Similarly for values that fit in 8-bit unsigned constants.
-  if (ConstOffset && ConstOffset->Value.isNonNegative() &&
-      ConstOffset->Value.getActiveBits() <= 8) {
-    auto Const =
-        Builder.buildConstant(LLT::scalar(8), ConstOffset->Value.trunc(8));
-    Helper.Observer.changingInstr(MI);
-    Offset.setReg(Const.getReg(0));
-    Helper.Observer.changedInstr(MI);
-    return true;
+    // Similarly for values that fit in 8-bit unsigned constants.
+    if (ConstOffset && ConstOffset->Value.isNonNegative() &&
+        ConstOffset->Value.getActiveBits() <= 8) {
+      auto Const =
+          Builder.buildConstant(LLT::scalar(8), ConstOffset->Value.trunc(8));
+      Helper.Observer.changingInstr(MI);
+      Offset.setReg(Const.getReg(0));
+      Helper.Observer.changedInstr(MI);
+      return true;
+    }
   }
 
   // Generalized pointer additions must be lowered to 16-bit integer arithmetic.
