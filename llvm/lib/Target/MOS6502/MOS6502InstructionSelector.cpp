@@ -60,6 +60,7 @@ private:
   bool selectIntToPtr(MachineInstr &MI);
   bool selectMergeValues(MachineInstr &MI);
   bool selectPhi(MachineInstr &MI);
+  bool selectPtrAdd(MachineInstr &MI);
   bool selectPtrToInt(MachineInstr &MI);
   bool selectStore(MachineInstr &MI);
   bool selectUAddE(MachineInstr &MI);
@@ -158,6 +159,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &MI) {
     return selectMergeValues(MI);
   case MOS6502::G_PHI:
     return selectPhi(MI);
+  case MOS6502::G_PTR_ADD:
+    return selectPtrAdd(MI);
   case MOS6502::G_PTRTOINT:
     return selectPtrToInt(MI);
   case MOS6502::G_STORE:
@@ -495,6 +498,60 @@ bool MOS6502InstructionSelector::selectPhi(MachineInstr &MI) {
   for (MachineOperand &Op : MI.operands())
     Phi.add(Op);
   constrainGenericOp(*Phi);
+  MI.eraseFromParent();
+  return true;
+}
+
+bool MOS6502InstructionSelector::selectPtrAdd(MachineInstr &MI) {
+  assert(MI.getOpcode() == MOS6502::G_PTR_ADD);
+
+  Register Dst = MI.getOperand(0).getReg();
+  Register Base = MI.getOperand(1).getReg();
+  Register Offset = MI.getOperand(2).getReg();
+
+  MachineIRBuilder Builder(MI);
+
+  // All legal G_PTR_ADDs have a constant 8-bit offset, but the address still
+  // may need to be materialized if used outside of a G_LOAD or G_STORE context.
+  // Reaching this function indicates that this is the case, since otherwise the
+  // G_PTR_ADD would have been removed already, since all uses have already been
+  // selected.
+  auto ConstOffset =
+      getConstantVRegValWithLookThrough(Offset, *Builder.getMRI());
+  if (!ConstOffset)
+    return false;
+
+  LLT s1 = LLT::scalar(1);
+  LLT s8 = LLT::scalar(8);
+
+  auto BaseLoCopy = Builder.buildCopy(&MOS6502::AcRegClass, Base);
+  BaseLoCopy->getOperand(1).setSubReg(MOS6502::sublo);
+  Register BaseLo = BaseLoCopy.getReg(0);
+
+  auto BaseHiCopy = Builder.buildCopy(&MOS6502::AcRegClass, Base);
+  BaseHiCopy->getOperand(1).setSubReg(MOS6502::subhi);
+  Register BaseHi = BaseHiCopy.getReg(0);
+
+  Register Carry =
+      Builder.buildInstr(MOS6502::LDCimm, {s1}, {uint64_t(0)}).getReg(0);
+
+  auto AddLo = Builder.buildInstr(
+      MOS6502::ADCimm, {s8, s1},
+      {BaseLo, ConstOffset->Value.getSExtValue(), Carry});
+  if (!constrainSelectedInstRegOperands(*AddLo, TII, TRI, RBI))
+    return false;
+  Register AddrLo = AddLo.getReg(0);
+  Carry = AddLo.getReg(1);
+
+  auto AddHi = Builder.buildInstr(
+      MOS6502::ADCimm, {s8, s1},
+      {BaseHi, int64_t(0), Carry});
+  if (!constrainSelectedInstRegOperands(*AddHi, TII, TRI, RBI))
+    return false;
+  Register AddrHi = AddHi.getReg(0);
+
+  composePtr(Builder, Dst, AddrLo, AddrHi);
+
   MI.eraseFromParent();
   return true;
 }
