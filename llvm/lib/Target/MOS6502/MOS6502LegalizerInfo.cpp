@@ -187,46 +187,25 @@ bool MOS6502LegalizerInfo::legalizePtrAdd(LegalizerHelper &Helper,
     return true;
   }
 
-  const auto CanFoldIntoUses = [&]() {
-    for (MachineInstr &UseMI : MRI.use_nodbg_instructions(Result.getReg()))
-      switch (UseMI.getOpcode()) {
-      default:
-        return false;
-      case G_LOAD:
-      case G_STORE:
-      case G_PHI:
-        break;
-      case G_PTR_ADD:
-        // The instruction combiner can merge together G_PTR_ADD chains of
-        // constant offsets.
-        if (!ConstOffset || !getConstantVRegValWithLookThrough(
-                                UseMI.getOperand(2).getReg(), MRI))
-          return false;
-        break;
-      }
+  // Adds of zero-extended values can instead use the legal 8-bit version of
+  // G_PTR_ADD, with the goal of selecting indexed addressing modes.
+  MachineInstr *ZExtOffset = getOpcodeDef(G_ZEXT, Offset.getReg(), MRI);
+  if (ZExtOffset) {
+    Helper.Observer.changingInstr(MI);
+    Offset.setReg(ZExtOffset->getOperand(1).getReg());
+    Helper.Observer.changedInstr(MI);
     return true;
-  };
-  if (CanFoldIntoUses()) {
-    // Adds of zero-extended values can instead use the legal 8-bit version of
-    // G_PTR_ADD, with the goal of selecting indexed addressing modes.
-    MachineInstr *ZExtOffset = getOpcodeDef(G_ZEXT, Offset.getReg(), MRI);
-    if (ZExtOffset) {
-      Helper.Observer.changingInstr(MI);
-      Offset.setReg(ZExtOffset->getOperand(1).getReg());
-      Helper.Observer.changedInstr(MI);
-      return true;
-    }
+  }
 
-    // Similarly for values that fit in 8-bit unsigned constants.
-    if (ConstOffset && ConstOffset->Value.isNonNegative() &&
-        ConstOffset->Value.getActiveBits() <= 8) {
-      auto Const =
-          Builder.buildConstant(LLT::scalar(8), ConstOffset->Value.trunc(8));
-      Helper.Observer.changingInstr(MI);
-      Offset.setReg(Const.getReg(0));
-      Helper.Observer.changedInstr(MI);
-      return true;
-    }
+  // Similarly for values that fit in 8-bit unsigned constants.
+  if (ConstOffset && ConstOffset->Value.isNonNegative() &&
+      ConstOffset->Value.getActiveBits() <= 8) {
+    auto Const =
+        Builder.buildConstant(LLT::scalar(8), ConstOffset->Value.trunc(8));
+    Helper.Observer.changingInstr(MI);
+    Offset.setReg(Const.getReg(0));
+    Helper.Observer.changedInstr(MI);
+    return true;
   }
 
   // Generalized pointer additions must be lowered to 16-bit integer arithmetic.
