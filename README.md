@@ -44,8 +44,6 @@ benchmark suite will be used to prioritize and implement minor optimizations.
 
 ## Calling convention
 
-The calling convention is nearly finished:
-
 - Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`, then
   each available ZP register, from `ZP_0` to `ZP_253`.
 
@@ -65,11 +63,18 @@ The calling convention is nearly finished:
 
 - All compiler-used ZP locations, all registers, and all flags are caller-saved.
 
-- Variable argument lists are not yet supported.
+- Variable arguments (those within the ellipses of the argument list) are
+  passed through the stack. Named arguments before the variable arguments are
+  passed as usual: first in registers, then stack. Note that the variable
+  argument and regular calling convention differ; thus, variable argument
+  functions must only be called if prototyped. The C standard requires this,
+  but many platforms do not; their variable argument and regular calling
+  conventions are identical. A notable exception is Apple ARM64.
 
 ## Stack
 
 The C stack is coming along:
+
 - The 6502 hard stack and a virtual 16-bit soft stack are together used as the C stack.
 
 - To avoid running out of room, only 4 bytes worth of hard stack are allowed per frame.
@@ -633,4 +638,4 @@ TODO:
 
 </details>
 
-Updated February 11, 2021.
+Updated February 16, 2021.
