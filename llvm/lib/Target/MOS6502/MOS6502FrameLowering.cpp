@@ -61,12 +61,13 @@ void MOS6502FrameLowering::processFunctionBeforeFrameFinalized(
 MachineBasicBlock::iterator MOS6502FrameLowering::eliminateCallFramePseudoInstr(
     MachineFunction &MF, MachineBasicBlock &MBB,
     MachineBasicBlock::iterator MI) const {
-  if (hasReservedCallFrame(MF))
+  int64_t Offset = MI->getOperand(0).getImm();
+  if (hasReservedCallFrame(MF) || !Offset)
     return MBB.erase(MI);
 
   const auto &TII = *MF.getSubtarget().getInstrInfo();
   if (MI->getOpcode() == TII.getCallFrameSetupOpcode())
-    MI->getOperand(0).setImm(-MI->getOperand(0).getImm());
+    MI->getOperand(0).setImm(-Offset);
   MI->setDesc(TII.get(MOS6502::IncSP));
   MI->RemoveOperand(1);
   return MI;
