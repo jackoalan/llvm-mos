@@ -13,6 +13,8 @@ MOS6502TargetLowering::MOS6502TargetLowering(const TargetMachine &TM,
   addRegisterClass(MVT::i8, &MOS6502::GPRRegClass);
   addRegisterClass(MVT::i16, &MOS6502::ZP_PTRRegClass);
   computeRegisterProperties(STI.getRegisterInfo());
+
+  setStackPointerRegisterToSaveRestore(MOS6502::SP);
 }
 
 MVT MOS6502TargetLowering::getRegisterTypeForCallingConv(LLVMContext &Context,

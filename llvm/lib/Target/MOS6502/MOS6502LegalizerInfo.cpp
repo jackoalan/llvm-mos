@@ -115,6 +115,10 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   getActionDefinitionsBuilder({G_VASTART, G_VAARG}).custom();
 
+  // Other Operations
+
+  getActionDefinitionsBuilder(G_DYN_STACKALLOC).lower();
+
   computeTables();
 }
 
