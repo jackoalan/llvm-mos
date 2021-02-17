@@ -60,7 +60,7 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
 
   // Integer Operations
 
-  getActionDefinitionsBuilder({G_ADD, G_OR, G_XOR})
+  getActionDefinitionsBuilder({G_ADD, G_SUB, G_OR, G_XOR})
       .legalFor({s8})
       .clampScalar(0, s8, s8);
 
@@ -75,8 +75,8 @@ MOS6502LegalizerInfo::MOS6502LegalizerInfo() {
   getActionDefinitionsBuilder(G_PTR_ADD).legalFor({{p, s8}}).customFor(
       {{p, s16}});
 
-  getActionDefinitionsBuilder(G_UADDO).customFor({s8});
-  getActionDefinitionsBuilder(G_UADDE).legalFor({s8});
+  getActionDefinitionsBuilder({G_UADDO, G_USUBO}).customFor({s8});
+  getActionDefinitionsBuilder({G_UADDE, G_USUBE}).legalFor({s8});
 
   // Floating Point Operations
 
@@ -139,7 +139,8 @@ bool MOS6502LegalizerInfo::legalizeCustom(LegalizerHelper &Helper,
   case G_STORE:
     return legalizeStore(Helper, MRI, MI);
   case G_UADDO:
-    return legalizeUAddO(Helper, MRI, MI);
+  case G_USUBO:
+    return legalizeUAddSubO(Helper, MRI, MI);
   case G_VAARG:
     return legalizeVAArg(Helper, MRI, MI);
   case G_VASTART:
@@ -287,17 +288,30 @@ bool MOS6502LegalizerInfo::legalizeStore(LegalizerHelper &Helper,
   return true;
 }
 
-bool MOS6502LegalizerInfo::legalizeUAddO(LegalizerHelper &Helper,
-                                         MachineRegisterInfo &MRI,
-                                         MachineInstr &MI) const {
+bool MOS6502LegalizerInfo::legalizeUAddSubO(LegalizerHelper &Helper,
+                                            MachineRegisterInfo &MRI,
+                                            MachineInstr &MI) const {
   using namespace TargetOpcode;
 
-  assert(MI.getOpcode() == G_UADDO);
+  unsigned Opcode;
+  int64_t CarryInVal;
+  switch (MI.getOpcode()) {
+  default:
+    llvm_unreachable("Unexpected opcode.");
+  case G_UADDO:
+    Opcode = G_UADDE;
+    CarryInVal = 0;
+    break;
+  case G_USUBO:
+    Opcode = G_USUBE;
+    CarryInVal = 1;
+    break;
+  }
 
   MachineIRBuilder &Builder = Helper.MIRBuilder;
-  auto CarryIn = Builder.buildConstant(LLT::scalar(1), 0).getReg(0);
-  Builder.buildUAdde(MI.getOperand(0), MI.getOperand(1), MI.getOperand(2),
-                     MI.getOperand(3), CarryIn);
+  auto CarryIn = Builder.buildConstant(LLT::scalar(1), CarryInVal).getReg(0);
+  Builder.buildInstr(Opcode, {MI.getOperand(0), MI.getOperand(1)},
+                     {MI.getOperand(2), MI.getOperand(3), CarryIn});
   MI.eraseFromParent();
   return true;
 }
