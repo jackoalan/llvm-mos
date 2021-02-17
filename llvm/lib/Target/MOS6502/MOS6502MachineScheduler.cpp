@@ -20,11 +20,6 @@ void MOS6502SchedStrategy::tryCandidate(SchedCandidate &Cand,
     return;
   }
 
-  // Bias PhysReg Defs and copies to their uses and defined respectively.
-  if (tryGreater(biasPhysReg(TryCand.SU, TryCand.AtTop),
-                 biasPhysReg(Cand.SU, Cand.AtTop), TryCand, Cand, PhysReg))
-    return;
-
   // Avoid exceeding the target's limit.
   if (DAG->isTrackingPressure() && tryPressure(TryCand.RPDelta.Excess,
                                                Cand.RPDelta.Excess,
