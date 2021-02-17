@@ -48,7 +48,7 @@ private:
   const MOS6502RegisterInfo &TRI;
   const MOS6502RegisterBankInfo &RBI;
 
-  bool selectAdd(MachineInstr &MI);
+  bool selectAddSub(MachineInstr &MI);
   bool selectCompareBranch(MachineInstr &MI);
   bool selectConstant(MachineInstr &MI);
   bool selectFrameIndex(MachineInstr &MI);
@@ -63,7 +63,7 @@ private:
   bool selectPtrAdd(MachineInstr &MI);
   bool selectPtrToInt(MachineInstr &MI);
   bool selectStore(MachineInstr &MI);
-  bool selectUAddE(MachineInstr &MI);
+  bool selectUAddSubE(MachineInstr &MI);
   bool selectUnMergeValues(MachineInstr &MI);
 
   void buildCopy(MachineIRBuilder &Builder, Register Dst, Register Src);
@@ -136,7 +136,8 @@ bool MOS6502InstructionSelector::select(MachineInstr &MI) {
   default:
     return false;
   case MOS6502::G_ADD:
-    return selectAdd(MI);
+  case MOS6502::G_SUB:
+    return selectAddSub(MI);
   case MOS6502::G_BRCOND:
     return selectCompareBranch(MI);
   case MOS6502::G_CONSTANT:
@@ -166,21 +167,39 @@ bool MOS6502InstructionSelector::select(MachineInstr &MI) {
   case MOS6502::G_STORE:
     return selectStore(MI);
   case MOS6502::G_UADDE:
-    return selectUAddE(MI);
+  case MOS6502::G_USUBE:
+    return selectUAddSubE(MI);
   case MOS6502::G_UNMERGE_VALUES:
     return selectUnMergeValues(MI);
   }
 }
 
-bool MOS6502InstructionSelector::selectAdd(MachineInstr &MI) {
+bool MOS6502InstructionSelector::selectAddSub(MachineInstr &MI) {
   MachineIRBuilder Builder(MI);
+
+  unsigned Opcode;
+  int64_t CarryInVal;
+  switch (MI.getOpcode()) {
+  default:
+    llvm_unreachable("Unexpected opcode.");
+  case MOS6502::G_ADD:
+    Opcode = MOS6502::G_UADDE;
+    CarryInVal = 0;
+    break;
+  case MOS6502::G_SUB:
+    Opcode = MOS6502::G_USUBE;
+    CarryInVal = 1;
+    break;
+  }
+
   Register CarryIn =
       Builder.getMRI()->createGenericVirtualRegister(LLT::scalar(1));
-  Builder.buildInstr(MOS6502::LDCimm).addDef(CarryIn).addImm(0);
-  auto Add = Builder.buildUAdde(MI.getOperand(0), LLT::scalar(1),
-                                MI.getOperand(1), MI.getOperand(2), CarryIn);
+  Builder.buildInstr(MOS6502::LDCimm).addDef(CarryIn).addImm(CarryInVal);
+  auto Instr =
+      Builder.buildInstr(Opcode, {MI.getOperand(0), LLT::scalar(1)},
+                         {MI.getOperand(1), MI.getOperand(2), CarryIn});
   MI.eraseFromParent();
-  if (!selectUAddE(*Add))
+  if (!selectUAddSubE(*Instr))
     return false;
   return true;
 }
@@ -535,17 +554,16 @@ bool MOS6502InstructionSelector::selectPtrAdd(MachineInstr &MI) {
   Register Carry =
       Builder.buildInstr(MOS6502::LDCimm, {s1}, {uint64_t(0)}).getReg(0);
 
-  auto AddLo = Builder.buildInstr(
-      MOS6502::ADCimm, {s8, s1},
-      {BaseLo, ConstOffset->Value.getSExtValue(), Carry});
+  auto AddLo =
+      Builder.buildInstr(MOS6502::ADCimm, {s8, s1},
+                         {BaseLo, ConstOffset->Value.getSExtValue(), Carry});
   if (!constrainSelectedInstRegOperands(*AddLo, TII, TRI, RBI))
     return false;
   Register AddrLo = AddLo.getReg(0);
   Carry = AddLo.getReg(1);
 
-  auto AddHi = Builder.buildInstr(
-      MOS6502::ADCimm, {s8, s1},
-      {BaseHi, int64_t(0), Carry});
+  auto AddHi = Builder.buildInstr(MOS6502::ADCimm, {s8, s1},
+                                  {BaseHi, int64_t(0), Carry});
   if (!constrainSelectedInstRegOperands(*AddHi, TII, TRI, RBI))
     return false;
   Register AddrHi = AddHi.getReg(0);
@@ -607,10 +625,23 @@ bool MOS6502InstructionSelector::selectStore(MachineInstr &MI) {
   return true;
 }
 
-bool MOS6502InstructionSelector::selectUAddE(MachineInstr &MI) {
-  assert(MI.getOpcode() == MOS6502::G_UADDE);
+bool MOS6502InstructionSelector::selectUAddSubE(MachineInstr &MI) {
+  unsigned ImmOpcode;
+  unsigned ZPOpcode;
+  switch (MI.getOpcode()) {
+  default:
+    llvm_unreachable("Unexpected opcode.");
+  case MOS6502::G_UADDE:
+    ImmOpcode = MOS6502::ADCimm;
+    ZPOpcode = MOS6502::ADCzpr;
+    break;
+  case MOS6502::G_USUBE:
+    ImmOpcode = MOS6502::SBCimm;
+    ZPOpcode = MOS6502::SBCzpr;
+    break;
+  }
 
-  Register Sum = MI.getOperand(0).getReg();
+  Register Result = MI.getOperand(0).getReg();
   Register CarryOut = MI.getOperand(1).getReg();
   Register L = MI.getOperand(2).getReg();
   Register R = MI.getOperand(3).getReg();
@@ -619,24 +650,24 @@ bool MOS6502InstructionSelector::selectUAddE(MachineInstr &MI) {
   MachineIRBuilder Builder(MI);
 
   auto RConst = getConstantVRegValWithLookThrough(R, *Builder.getMRI());
-  MachineInstrBuilder Add;
+  MachineInstrBuilder Instr;
   if (RConst) {
     assert(RConst->Value.getBitWidth() == 8);
-    Add = Builder.buildInstr(MOS6502::ADCimm)
-              .addDef(Sum)
+    Instr = Builder.buildInstr(ImmOpcode)
+              .addDef(Result)
               .addDef(CarryOut)
               .addUse(L)
               .addImm(RConst->Value.getZExtValue())
               .addUse(CarryIn);
   } else {
-    Add = Builder.buildInstr(MOS6502::ADCzpr)
-              .addDef(Sum)
+    Instr = Builder.buildInstr(ZPOpcode)
+              .addDef(Result)
               .addDef(CarryOut)
               .addUse(L)
               .addUse(R)
               .addUse(CarryIn);
   }
-  if (!constrainSelectedInstRegOperands(*Add, TII, TRI, RBI))
+  if (!constrainSelectedInstRegOperands(*Instr, TII, TRI, RBI))
     return false;
 
   MI.eraseFromParent();

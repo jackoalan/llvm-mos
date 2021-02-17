@@ -338,6 +338,32 @@ def ROL : Instr {
   let isReMaterializable = true;
 }
 
+def SBCimm : Instr {
+  dag InOperandList = (ins Ac:$l, i8imm:$r, Cc:$carryin);
+  dag OutOperandList = (outs Ac:$dst, Cc:$carryout);
+  let Constraints = "$dst = $l, $carryout = $carryin";
+
+  let Defs = [NZ];
+
+  let AsmString = "SBC\t#$r";
+
+  let isReMaterializable = true;
+}
+
+def SBCzpr : Instr {
+  dag InOperandList = (ins Ac:$l, ZP:$r, Cc:$carryin);
+  dag OutOperandList = (outs Ac:$dst, Cc:$carryout);
+  // Don't give the carries a tied constraint, since having two tied operands
+  // inhibits commutation of $l and $r.
+  let Constraints = "$dst = $l";
+
+  let Defs = [NZ];
+
+  let AsmString = "SBC\tz:$r";
+
+  let isReMaterializable = true;
+}
+
 def TA_ : Instr {
   dag InOperandList = (ins);
   dag OutOperandList = (outs XY:$dst);
