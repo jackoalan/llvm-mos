@@ -254,6 +254,7 @@ def LDimm : Instr {
   let AsmString = "LD$dst\t#$val";
   let Pattern = [(set GPR:$dst, imm:$val)];
 
+  let isAsCheapAsAMove = true;
   let isMoveImm = true;
   let isReMaterializable = true;
 }

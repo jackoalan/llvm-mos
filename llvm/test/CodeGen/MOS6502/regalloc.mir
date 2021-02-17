@@ -9,7 +9,7 @@ body: |
   bb.0.entry:
     liveins: $a
     %0:gpr = COPY $a
-    JSR &fn, mos6502_noregs
+    JSR &fn, mos6502_csr
     $a = COPY %0
     RTS implicit $a
 # CHECK:      STstk $a, %stack.0, 0 :: (store 1 into %stack.0)
@@ -26,7 +26,7 @@ body: |
   bb.0.entry:
     liveins: $a
     %0:gpr = LDimm 42, implicit-def $nz
-    JSR &fn, mos6502_noregs
+    JSR &fn, mos6502_csr
     $a = COPY %0
     RTS implicit $a
 # CHECK: JSR

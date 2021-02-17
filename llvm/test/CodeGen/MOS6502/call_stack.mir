@@ -1,4 +1,4 @@
-# RUN: llc -run-pass=irtranslator -verify-machineinstrs -num-zp-ptrs=1 -o - %s | FileCheck %s
+# RUN: llc -run-pass=irtranslator -verify-machineinstrs -num-zp-ptrs=2 -o - %s | FileCheck %s
 --- |
   target datalayout = "e-p:16:8:8-i16:8:8-i32:8:8-i64:8:8-f32:8:8-f64:8:8-a:8:8-Fi8-n8"
   target triple = "mos6502"
@@ -7,7 +7,7 @@
   ; CHECK-LABEL: name: formal_args_stack
   entry:
   ; CHECK-LABEL: entry:
-    ; CHECK-NEXT: liveins: $a, $x, $y, $zp_0
+    ; CHECK-NEXT: liveins: $a, $x, $y, $zp_0, $zp_1
     ret void
     ; CHECK:      %0:_(s8) = COPY $a
     ; CHECK-NEXT: %1:_(s8) = COPY $x

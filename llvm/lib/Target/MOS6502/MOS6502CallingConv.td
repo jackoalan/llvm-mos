@@ -1,7 +1,8 @@
 let Entry = 1 in {
+  // Note: ZP_PTR_1 and ZP_PTR_3 skipped since they're callee-saved.
   def CC_MOS6502 : CallingConv<[
     CCIfPtr<CCAssignToReg<[
-      ZP_PTR_0, ZP_PTR_1, ZP_PTR_2, ZP_PTR_3, ZP_PTR_4, ZP_PTR_5, ZP_PTR_6,
+      ZP_PTR_0, ZP_PTR_2, ZP_PTR_4, ZP_PTR_5, ZP_PTR_6,
       ZP_PTR_7, ZP_PTR_8, ZP_PTR_9, ZP_PTR_10, ZP_PTR_11, ZP_PTR_12, ZP_PTR_13,
       ZP_PTR_14, ZP_PTR_15, ZP_PTR_16, ZP_PTR_17, ZP_PTR_18, ZP_PTR_19,
       ZP_PTR_20, ZP_PTR_21, ZP_PTR_22, ZP_PTR_23, ZP_PTR_24, ZP_PTR_25,
@@ -24,7 +25,7 @@ let Entry = 1 in {
       ZP_PTR_122, ZP_PTR_123, ZP_PTR_124, ZP_PTR_125, ZP_PTR_126,
     ]>>,
     CCIfType<[i8], CCAssignToReg<[
-      A, X, Y, ZP_0, ZP_1, ZP_2, ZP_3, ZP_4, ZP_5, ZP_6, ZP_7, ZP_8, ZP_9,
+      A, X, Y, ZP_0, ZP_1, ZP_4, ZP_5, ZP_8, ZP_9,
       ZP_10, ZP_11, ZP_12, ZP_13, ZP_14, ZP_15, ZP_16, ZP_17, ZP_18, ZP_19,
       ZP_20, ZP_21, ZP_22, ZP_23, ZP_24, ZP_25, ZP_26, ZP_27, ZP_28, ZP_29,
       ZP_30, ZP_31, ZP_32, ZP_33, ZP_34, ZP_35, ZP_36, ZP_37, ZP_38, ZP_39,
@@ -62,5 +63,5 @@ let Entry = 1 in {
   ]>;
 }
 
-// All registers are caller saved.
-def MOS6502_NoRegs : CalleeSavedRegs<(add)>;
+// All registers are caller saved except ZP_PTR_1 and ZP_PTR_3.
+def MOS6502_CSR : CalleeSavedRegs<(add ZP_2, ZP_3, ZP_6, ZP_7)>;

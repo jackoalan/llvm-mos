@@ -74,13 +74,13 @@ attributes #5 = { nocallback nounwind optsize }
 .global	char__stats                     ; -- Begin function char_stats
 char__stats:                            ; @char_stats
 ; %bb.0:                                ; %entry
+	LDX	#0
+	LDA	#<char__stats__sstk
+	STA	z:__ZP__0
+	LDA	#>char__stats__sstk
+	STA	z:__ZP__1
 	LDA	#0
 	LDY	#2
-	LDX	#<char__stats__sstk
-	STX	z:__ZP__0
-	LDX	#>char__stats__sstk
-	STX	z:__ZP__1
-	TAX
 	JSR	memset
 LBB0__1:                                ; %while.body
                                         ; =>This Inner Loop Header: Depth=1

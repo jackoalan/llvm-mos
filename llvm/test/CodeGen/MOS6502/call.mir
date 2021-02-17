@@ -68,7 +68,7 @@
     %0 = call i8 @ret_i8()
     ret void
     ; CHECK:      ADJCALLSTACKDOWN 0
-    ; CHECK-NEXT: JSR @ret_i8, mos6502_noregs, implicit-def $a
+    ; CHECK-NEXT: JSR @ret_i8, mos6502_csr, implicit-def $a
     ; CHECK-NEXT: %0:_(s8) = COPY $a
     ; CHECK-NEXT: ADJCALLSTACKUP 0
     ; CHECK-NEXT: RTS
@@ -89,7 +89,7 @@
     ; CHECK-NEXT: $x = COPY %1
     ; CHECK-NEXT: $y = COPY %2
     ; CHECK-NEXT: $zp_0 = COPY %3
-    ; CHECK-NEXT: JSR @formal_args_i8, mos6502_noregs, implicit $a, implicit $x, implicit $y, implicit $zp_0
+    ; CHECK-NEXT: JSR @formal_args_i8, mos6502_csr, implicit $a, implicit $x, implicit $y, implicit $zp_0
     ; CHECK-NEXT: ADJCALLSTACKUP 0
     ; CHECK-NEXT: RTS
 
@@ -98,10 +98,10 @@
   ; CHECK-LABEL: name: ptr
   entry:
   ; CHECK-LABEL: entry:
-    ; CHECK-NEXT: liveins: $zp_ptr_0, $zp_ptr_1
+    ; CHECK-NEXT: liveins: $zp_ptr_0, $zp_ptr_2
     ret void
     ; CHECK:      %0:_(p0) = COPY $zp_ptr_0
-    ; CHECK-NEXT: %1:_(p0) = COPY $zp_ptr_1
+    ; CHECK-NEXT: %1:_(p0) = COPY $zp_ptr_2
   }
 
   define i8 @struct(i8 %first, %twobyte %second) {
@@ -145,7 +145,7 @@
     ; CHECK-NEXT: %14:_(s16) = G_CONSTANT i16 3
     ; CHECK-NEXT: %15:_(p0) = G_PTR_ADD %7, %14(s16)
     ; CHECK-NEXT: G_STORE %6(s8), %15(p0) :: (store 1 into stack + 3)
-    ; CHECK-NEXT: JSR @varargs, mos6502_noregs, implicit $a
+    ; CHECK-NEXT: JSR @varargs, mos6502_csr, implicit $a
     ; CHECK-NEXT: ADJCALLSTACKUP 4, 0, implicit-def $sp, implicit $sp
     ; CHECK-NEXT: RTS
   }

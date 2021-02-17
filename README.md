@@ -61,7 +61,8 @@ benchmark suite will be used to prioritize and implement minor optimizations.
 - Aggregate types are returned by a pointer passed as an implicit first
   argument. The resulting function returns void.
 
-- All compiler-used ZP locations, all registers, and all flags are caller-saved.
+- ZP_PTR_1 and ZP_PTR_3 (and subregisters) are callee-saved. All other
+  ZP locations, registers, and flags are caller-saved.
 
 - Variable arguments (those within the ellipses of the argument list) are
   passed through the stack. Named arguments before the variable arguments are
@@ -194,15 +195,14 @@ void char_stats() {
 .code
 .global	char__stats
 char__stats:
+	LDX	#0
+	LDA	#<char__stats__sstk
+	STA	z:__ZP__0
+	LDA	#>char__stats__sstk
+	STA	z:__ZP__1
 	LDA	#0
 	LDY	#2
-	LDX	#<char__stats__sstk
-	STX	z:__ZP__0
-	LDX	#>char__stats__sstk
-	STX	z:__ZP__1
-	TAX
 	JSR	memset
-	JMP	LBB0__2
 LBB0__1:
 	ASL	A
 	STA	z:__ZP__0
@@ -306,15 +306,14 @@ char__stats:
 	LDA	#254
 	ADC	z:__SPhi
 	STA	z:__SPhi
+	LDX	#0
+	LDA	z:__SPlo
+	STA	z:__ZP__0
+	LDA	z:__SPhi
+	STA	z:__ZP__1
 	LDA	#0
 	LDY	#2
-	LDX	z:__SPlo
-	STX	z:__ZP__0
-	LDX	z:__SPhi
-	STX	z:__ZP__1
-	TAX
 	JSR	memset
-	JMP	LBB0__2
 LBB0__1:
 	ASL	A
 	STA	z:__ZP__0
@@ -582,8 +581,8 @@ print__int:                             ; @print_int
 	CMP	#10
 	BMI	LBB0__2
 ; %bb.1:                                ; %if.end.preheader
-	LDX	#10
 	PHA                                     ; 1-byte Folded Spill
+	LDX	#10
 	JSR	____udivqi3
 	JSR	print__int
 	LDX	#10
@@ -638,4 +637,4 @@ TODO:
 
 </details>
 
-Updated February 16, 2021.
+Updated February 17, 2021.

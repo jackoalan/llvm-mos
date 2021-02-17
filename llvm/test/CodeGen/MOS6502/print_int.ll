@@ -43,8 +43,8 @@ print__int:                             ; @print_int
 	CMP	#10
 	BMI	LBB0__2
 LBB0__1:                                ; %if.end.preheader
-	LDX	#10
 	PHA
+	LDX	#10
 	JSR	____udivqi3
 	JSR	print__int
 	TSX

@@ -37,8 +37,8 @@ MOS6502RegisterInfo::MOS6502RegisterInfo()
     ZPSymbolNames[Reg] += getName(R);
   }
 
-  if (NumZPPtrs <= 0)
-    report_fatal_error("At least one zero-page pointer must be available.");
+  if (NumZPPtrs <= 1)
+    report_fatal_error("At least two zero-page pointers must be available.");
   if (NumZPPtrs > 127)
     report_fatal_error("More than 127 zero-page pointers cannot be available.");
 
@@ -58,18 +58,24 @@ MOS6502RegisterInfo::MOS6502RegisterInfo()
 
 const MCPhysReg *
 MOS6502RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  return MOS6502_NoRegs_SaveList;
+  return MOS6502_CSR_SaveList;
 }
 
 const uint32_t *
 MOS6502RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
                                           CallingConv::ID) const {
-  return MOS6502_NoRegs_RegMask;
+  return MOS6502_CSR_RegMask;
 }
 
 BitVector
 MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   return Reserved;
+}
+
+unsigned MOS6502RegisterInfo::getCSRFirstUseCost() const {
+  // A CSR save/restore is about 2.53 times more expensive than a hard stack load.
+  // This with a denominator of 2^14 gives approximately 41506.
+  return 41506;
 }
 
 const TargetRegisterClass *
