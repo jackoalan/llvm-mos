@@ -30,7 +30,7 @@ void MOS6502FrameLowering::processFunctionBeforeFrameFinalized(
   if (MF.getFunction().doesNotRecurse()) {
     int64_t Offset = 0;
     for (int Idx = 0, End = MFI.getObjectIndexEnd(); Idx < End; ++Idx) {
-      if (MFI.isDeadObjectIndex(Idx))
+      if (MFI.isDeadObjectIndex(Idx) || MFI.isVariableSizedObjectIndex(Idx))
         continue;
 
       MFI.setStackID(Idx, TargetStackID::NoAlloc);
@@ -44,16 +44,16 @@ void MOS6502FrameLowering::processFunctionBeforeFrameFinalized(
   int S = 0;
 
   // Extract out as many values as will fit onto the hard stack.
-  for (int i = 0, e = MFI.getObjectIndexEnd(); i < e && S > -4; ++i) {
-    int64_t Size = MFI.getObjectSize(i);
-    if (MFI.isDeadObjectIndex(i))
+  for (int Idx = 0, End = MFI.getObjectIndexEnd(); Idx < End && S > -4; ++Idx) {
+    int64_t Size = MFI.getObjectSize(Idx);
+    if (MFI.isDeadObjectIndex(Idx) || MFI.isVariableSizedObjectIndex(Idx))
       continue;
     if (S - Size < -4)
       continue;
-    MFI.setStackID(i, TargetStackID::Hard);
+    MFI.setStackID(Idx, TargetStackID::Hard);
     S -= Size;
     // S points one byte below the real top of the stack.
-    MFI.setObjectOffset(i, S + 1);
+    MFI.setObjectOffset(Idx, S + 1);
     MFI.setStackSize(MFI.getStackSize() - Size);
   }
 }
@@ -312,9 +312,7 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
 
 bool MOS6502FrameLowering::hasFP(const MachineFunction &MF) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  if (MFI.isFrameAddressTaken() || MFI.hasVarSizedObjects())
-    report_fatal_error("Frame pointer not yet supported.");
-  return false;
+  return MFI.isFrameAddressTaken() || MFI.hasVarSizedObjects();
 }
 
 uint64_t MOS6502FrameLowering::hsSize(const MachineFrameInfo &MFI) const {
