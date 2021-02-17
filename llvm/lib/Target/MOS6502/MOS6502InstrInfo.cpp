@@ -842,14 +842,14 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   MachineBasicBlock &MBB = Builder.getMBB();
   const TargetRegisterInfo &TRI =
       *MBB.getParent()->getSubtarget().getRegisterInfo();
-  BitVector Reserved = TRI.getReservedRegs(*MBB.getParent());
+  const MachineRegisterInfo &MRI = *Builder.getMRI();
 
   // Returns the locations modified by the given instruction.
   const auto GetWrites = [&](MachineInstr &MI) {
     SparseBitVector<> Writes;
     for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < TRI.getNumRegs();
          ++Reg) {
-      if (Reserved.test(Reg))
+      if (MRI.isReserved(Reg))
         continue;
       if (MI.definesRegister(Reg, &TRI))
         Writes.set(Reg);
@@ -860,7 +860,7 @@ void MOS6502InstrInfo::preserveAroundPseudoExpansion(
   SparseBitVector<> MaybeLive;
   for (unsigned Reg = MCRegister::FirstPhysicalReg; Reg < TRI.getNumRegs();
        ++Reg) {
-    if (Reserved.test(Reg))
+    if (MRI.isReserved(Reg))
       continue;
     if (isMaybeLive(Builder, Reg))
       MaybeLive.set(Reg);
