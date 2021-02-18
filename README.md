@@ -599,7 +599,11 @@ print__int:                             ; @print_int
     TSX
     LDA 257,X
 	JSR	____umodqi3
+	STA	__SaveA
 	PLA
+	PHP
+	LDA	__SaveA
+	PLP
 LBB0__2:                                ; %if.then
 	CLC
 	ADC	#48
@@ -647,4 +651,4 @@ TODO:
 
 </details>
 
-Updated February 17, 2021.
+Updated February 18, 2021.
