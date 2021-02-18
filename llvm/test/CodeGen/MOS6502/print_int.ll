@@ -51,7 +51,11 @@ LBB0__1:                                ; %if.end.preheader
 	LDA	257,X
 	LDX	#10
 	JSR	____umodqi3
+	STA	__SaveA
 	PLA
+	PHP
+	LDA	__SaveA
+	PLP
 LBB0__2:                                ; %if.then
 	CLC
 	ADC	#48
@@ -62,3 +66,4 @@ LBB0__2:                                ; %if.then
                                         ; -- End function
 .global	____udivqi3
 .global	____umodqi3
+.global	__SaveA

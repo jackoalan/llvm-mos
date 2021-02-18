@@ -35,7 +35,7 @@ void MOS6502FrameLowering::processFunctionBeforeFrameFinalized(
 
       MFI.setStackID(Idx, TargetStackID::NoAlloc);
       MFI.setObjectOffset(Idx, Offset);
-      Offset += MFI.getObjectSize(Idx);  // Static stack grows up.
+      Offset += MFI.getObjectSize(Idx); // Static stack grows up.
     }
     return;
   }
@@ -105,7 +105,8 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
     // decreased. This is still at least as efficient as increasing S using X
     // and/or A.
     for (; S > NewS; --S) {
-      auto Push = Builder.buildInstr(MOS6502::Push).addUse(MOS6502::A, RegState::Undef);
+      auto Push =
+          Builder.buildInstr(MOS6502::Push).addUse(MOS6502::A, RegState::Undef);
       LLVM_DEBUG(dbgs() << *Push);
     }
   };
@@ -139,7 +140,6 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
       break;
     }
 
-
     // Soft stack operations don't interact with the hard stack.
     if (MFI.getStackID(Idx) != TargetStackID::Hard)
       continue;
@@ -168,9 +168,11 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
     if (MOS6502::ZP_PTRRegClass.contains(Src)) {
       // The high byte is pushed first, since it should have the higher memory
       // location (towards the bottom of the stack).
-      auto Push = Builder.buildInstr(MOS6502::Push).addUse(TRI.getSubReg(Src, MOS6502::subhi));
+      auto Push = Builder.buildInstr(MOS6502::Push)
+                      .addUse(TRI.getSubReg(Src, MOS6502::subhi));
       LLVM_DEBUG(dbgs() << *Push);
-      Push = Builder.buildInstr(MOS6502::Push).addUse(TRI.getSubReg(Src, MOS6502::sublo));
+      Push = Builder.buildInstr(MOS6502::Push)
+                 .addUse(TRI.getSubReg(Src, MOS6502::sublo));
       LLVM_DEBUG(dbgs() << *Push);
     } else {
       auto Push = Builder.buildInstr(MOS6502::Push).add(MI->getOperand(0));
@@ -222,13 +224,14 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
     LLVM_DEBUG(dbgs() << "Pulling until S=" << NewS << "\n");
 
     for (; S > NewS; --S) {
-      auto Pull = Builder.buildInstr(MOS6502::Pull).addDef(MOS6502::A, RegState::Dead);
+      auto Pull = Builder.buildInstr(MOS6502::PullPreserve);
       LLVM_DEBUG(dbgs() << *Pull);
     }
   };
 
   // Defer pulling from the stack to as early as possible. Hopefully, this will
-  // allow folding loads together with the Pull that decreases the stack pointer.
+  // allow folding loads together with the Pull that decreases the stack
+  // pointer.
   for (; MI != MBB.rend(); ++MI) {
     LLVM_DEBUG(dbgs() << *MI);
 
@@ -294,9 +297,11 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
     if (MOS6502::ZP_PTRRegClass.contains(Dst)) {
       // The low byte is pulled first, since it has the lower memory location
       // (towards the top of the stack).
-      auto Pull = Builder.buildInstr(MOS6502::Pull).addDef(TRI.getSubReg(Dst, MOS6502::sublo));
+      auto Pull = Builder.buildInstr(MOS6502::Pull)
+                      .addDef(TRI.getSubReg(Dst, MOS6502::sublo));
       LLVM_DEBUG(dbgs() << *Pull);
-      Pull = Builder.buildInstr(MOS6502::Pull).addDef(TRI.getSubReg(Dst, MOS6502::subhi));
+      Pull = Builder.buildInstr(MOS6502::Pull)
+                 .addDef(TRI.getSubReg(Dst, MOS6502::subhi));
       LLVM_DEBUG(dbgs() << *Pull);
     } else {
       auto Pull = Builder.buildInstr(MOS6502::Pull).add(MI->getOperand(0));

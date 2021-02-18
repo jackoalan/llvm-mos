@@ -492,6 +492,10 @@ bool MOS6502InstrInfo::expandPostRAPseudoNoPreserve(
     copyPhysRegNoPreserve(Builder, Dest, MOS6502::A);
     break;
   }
+  case MOS6502::PullPreserve: {
+    Builder.buildInstr(MOS6502::PLA);
+    break;
+  }
   }
 
   if (Changed) {

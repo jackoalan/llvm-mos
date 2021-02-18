@@ -41,9 +41,9 @@ body:             |
 # CHECK-NEXT:  $a = AddrHistk $s, 3, $c
 # CHECK-NEXT:  $zp_ptr_0 = Addrstk $s, 3
 # CHECK-NEXT:  $a = LDstk $s, 3 :: (load 1 from %stack.1)
-# CHECK-NEXT:  dead $a = Pull
+# CHECK-NEXT:  PullPreserve
 # CHECK-NEXT:  $a = Pull
-# CHECK-NEXT:  dead $a = Pull
+# CHECK-NEXT:  PullPreserve
 # CHECK-NEXT:  $a = Pull
 # CHECK-NEXT:  IncSP 1
 # CHECK-NEXT:  RTS
@@ -74,8 +74,8 @@ body: |
 # CHECK-NEXT:  Push undef $a
 # CHECK-NEXT:  $zp_ptr_0 = LDstk $s, 1
 # CHECK-NEXT:  STstk $zp_ptr_0, $s, 1
-# CHECK-NEXT:  dead $a = Pull
-# CHECK-NEXT:  dead $a = Pull
+# CHECK-NEXT:  PullPreserve
+# CHECK-NEXT:  PullPreserve
 # CHECK-NEXT:  $zp_0 = Pull
 # CHECK-NEXT:  $zp_1 = Pull
 # CHECK-NEXT:  IncSP 2
@@ -99,5 +99,5 @@ body:             |
 # CHECK-LABEL: bb.0.entry:
 # CHECK:       $a = IMPLICIT_DEF
 # CHECK-NEXT:  Push undef $a
-# CHECK-NEXT:  dead $a = Pull
+# CHECK-NEXT:  PullPreserve
 ...

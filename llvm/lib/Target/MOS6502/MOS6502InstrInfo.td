@@ -107,6 +107,16 @@ def Pull : Pseudo {
   let mayLoad = true;
 }
 
+// Same as pull, but preserving the value in the A register if live.
+def PullPreserve : Pseudo {
+  dag InOperandList = (ins);
+  dag OutOperandList = (outs);
+
+  let Defs = [];
+
+  let mayLoad = true;
+}
+
 def Push : Pseudo {
   dag InOperandList = (ins Anyi8:$src);
   dag OutOperandList = (outs);
