@@ -325,6 +325,17 @@ bool MOS6502FrameLowering::hasFP(const MachineFunction &MF) const {
   return MFI.isFrameAddressTaken() || MFI.hasVarSizedObjects();
 }
 
+bool MOS6502FrameLowering::isSupportedStackID(TargetStackID::Value ID) const {
+  switch (ID) {
+  default:
+    return false;
+  case TargetStackID::Default:
+  case TargetStackID::NoAlloc:
+  case TargetStackID::Hard:
+    return true;
+  }
+}
+
 uint64_t MOS6502FrameLowering::hsSize(const MachineFrameInfo &MFI) const {
   uint64_t Size = 0;
   for (int i = 0, e = MFI.getObjectIndexEnd(); i < e; ++i)
