@@ -84,6 +84,8 @@ void MOS6502FrameLowering::emitPrologue(MachineFunction &MF,
   if (MFI.getStackSize()) {
     MachineIRBuilder Builder(MBB, MI);
     Builder.buildInstr(MOS6502::IncSP).addImm(-MFI.getStackSize());
+    if (hasFP(MF))
+      Builder.buildCopy(MOS6502::ZP_PTR_1, Register(MOS6502::SP));
   }
 
   uint64_t HsSize = hsSize(MFI);
@@ -195,6 +197,8 @@ void MOS6502FrameLowering::emitEpilogue(MachineFunction &MF,
   // If soft stack is used, increase the soft stack pointer SP.
   if (MFI.getStackSize()) {
     MachineIRBuilder Builder(MBB, End);
+    if (hasFP(MF))
+      Builder.buildCopy(MOS6502::SP, Register(MOS6502::ZP_PTR_1));
     Builder.buildInstr(MOS6502::IncSP).addImm(MFI.getStackSize());
     --End;
   }

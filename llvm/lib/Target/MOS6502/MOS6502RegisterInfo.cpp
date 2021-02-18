@@ -69,6 +69,13 @@ MOS6502RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
 
 BitVector
 MOS6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
+  const TargetFrameLowering *TFI = getFrameLowering(MF);
+  BitVector Reserved = this->Reserved;
+  if (TFI->hasFP(MF)) {
+    Reserved.set(MOS6502::ZP_PTR_1);
+    Reserved.set(MOS6502::ZP_2);
+    Reserved.set(MOS6502::ZP_3);
+  }
   return Reserved;
 }
 
@@ -106,7 +113,7 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
     llvm_unreachable("Unexpected Stack ID");
   case TargetStackID::Default:
     StackSize = MFI.getStackSize();
-    Base = MOS6502::SP;
+    Base = getFrameRegister(MF);
     break;
   case TargetStackID::Hard:
     StackSize = TFL.hsSize(MFI);
@@ -127,7 +134,8 @@ void MOS6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
 
 Register
 MOS6502RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  report_fatal_error("Not yet implemented.");
+  const TargetFrameLowering *TFI = getFrameLowering(MF);
+  return TFI->hasFP(MF) ? MOS6502::ZP_PTR_1 : MOS6502::SP;
 }
 
 bool MOS6502RegisterInfo::shouldCoalesce(
