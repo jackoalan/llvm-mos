@@ -44,11 +44,13 @@ benchmark suite will be used to prioritize and implement minor optimizations.
 
 ## Calling convention
 
-- Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`, then
-  each available ZP register, from `ZP_0` to `ZP_253`.
+- Non-pointer arguments/return values are passed in `A`, then `X`, then `Y`,
+  then each available ZP register, from `ZP_0` to `ZP_253`. `ZP_2`, `ZP_3`,
+  `ZP_6`, and `ZP_7` are skipped, since they are callee-saved.
 
 - Pointer arguments/return values are passed in successively increasing pairs
-  of ZP locations (ZP pointer regisers).
+  of ZP locations (ZP pointer regisers). `ZP_PTR_1` and `ZP_PTR_3` are skipped,
+  since they are callee-saved.
 
 - Once the above locations are exhausted, the remainder are placed on the
   soft stack.
@@ -61,8 +63,12 @@ benchmark suite will be used to prioritize and implement minor optimizations.
 - Aggregate types are returned by a pointer passed as an implicit first
   argument. The resulting function returns void.
 
-- ZP_PTR_1 and ZP_PTR_3 (and subregisters) are callee-saved. All other
-  ZP locations, registers, and flags are caller-saved.
+- ZP_PTR_1 and ZP_PTR_3 (and subregisters) are callee-saved. All other ZP
+  locations, registers, and flags are caller-saved. The gap between the
+  callee-saved registers balances beteen caller- and callee-saved registers if
+  very little of the zero page is available. It's not use having more than
+  two, since at most 4 bytes of hard stack is allowed per frame, and spilling
+  zero page registers to the soft stack isn't worthwhile.
 
 - Variable arguments (those within the ellipses of the argument list) are
   passed through the stack. Named arguments before the variable arguments are
