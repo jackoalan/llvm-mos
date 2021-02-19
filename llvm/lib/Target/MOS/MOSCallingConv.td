@@ -9,14 +9,70 @@
 // This describes the calling conventions for MOS architecture.
 //===----------------------------------------------------------------------===//
 
-//===----------------------------------------------------------------------===//
-// MOS Return Value Calling Convention
-//===----------------------------------------------------------------------===//
+let Entry = 1 in {
+  // Note: ZP_PTR_1 and ZP_PTR_3 skipped since they're callee-saved.
+  def CC_MOS : CallingConv<[
+    CCIfPtr<CCAssignToReg<[
+      ZP_PTR_0, ZP_PTR_2, ZP_PTR_4, ZP_PTR_5, ZP_PTR_6,
+      ZP_PTR_7, ZP_PTR_8, ZP_PTR_9, ZP_PTR_10, ZP_PTR_11, ZP_PTR_12, ZP_PTR_13,
+      ZP_PTR_14, ZP_PTR_15, ZP_PTR_16, ZP_PTR_17, ZP_PTR_18, ZP_PTR_19,
+      ZP_PTR_20, ZP_PTR_21, ZP_PTR_22, ZP_PTR_23, ZP_PTR_24, ZP_PTR_25,
+      ZP_PTR_26, ZP_PTR_27, ZP_PTR_28, ZP_PTR_29, ZP_PTR_30, ZP_PTR_31,
+      ZP_PTR_32, ZP_PTR_33, ZP_PTR_34, ZP_PTR_35, ZP_PTR_36, ZP_PTR_37,
+      ZP_PTR_38, ZP_PTR_39, ZP_PTR_40, ZP_PTR_41, ZP_PTR_42, ZP_PTR_43,
+      ZP_PTR_44, ZP_PTR_45, ZP_PTR_46, ZP_PTR_47, ZP_PTR_48, ZP_PTR_49,
+      ZP_PTR_50, ZP_PTR_51, ZP_PTR_52, ZP_PTR_53, ZP_PTR_54, ZP_PTR_55,
+      ZP_PTR_56, ZP_PTR_57, ZP_PTR_58, ZP_PTR_59, ZP_PTR_60, ZP_PTR_61,
+      ZP_PTR_62, ZP_PTR_63, ZP_PTR_64, ZP_PTR_65, ZP_PTR_66, ZP_PTR_67,
+      ZP_PTR_68, ZP_PTR_69, ZP_PTR_70, ZP_PTR_71, ZP_PTR_72, ZP_PTR_73,
+      ZP_PTR_74, ZP_PTR_75, ZP_PTR_76, ZP_PTR_77, ZP_PTR_78, ZP_PTR_79,
+      ZP_PTR_80, ZP_PTR_81, ZP_PTR_82, ZP_PTR_83, ZP_PTR_84, ZP_PTR_85,
+      ZP_PTR_86, ZP_PTR_87, ZP_PTR_88, ZP_PTR_89, ZP_PTR_90, ZP_PTR_91,
+      ZP_PTR_92, ZP_PTR_93, ZP_PTR_94, ZP_PTR_95, ZP_PTR_96, ZP_PTR_97,
+      ZP_PTR_98, ZP_PTR_99, ZP_PTR_100, ZP_PTR_101, ZP_PTR_102, ZP_PTR_103,
+      ZP_PTR_104, ZP_PTR_105, ZP_PTR_106, ZP_PTR_107, ZP_PTR_108, ZP_PTR_109,
+      ZP_PTR_110, ZP_PTR_111, ZP_PTR_112, ZP_PTR_113, ZP_PTR_114, ZP_PTR_115,
+      ZP_PTR_116, ZP_PTR_117, ZP_PTR_118, ZP_PTR_119, ZP_PTR_120, ZP_PTR_121,
+      ZP_PTR_122, ZP_PTR_123, ZP_PTR_124, ZP_PTR_125, ZP_PTR_126,
+    ]>>,
+    CCIfType<[i8], CCAssignToReg<[
+      A, X, Y, ZP_0, ZP_1, ZP_4, ZP_5, ZP_8, ZP_9,
+      ZP_10, ZP_11, ZP_12, ZP_13, ZP_14, ZP_15, ZP_16, ZP_17, ZP_18, ZP_19,
+      ZP_20, ZP_21, ZP_22, ZP_23, ZP_24, ZP_25, ZP_26, ZP_27, ZP_28, ZP_29,
+      ZP_30, ZP_31, ZP_32, ZP_33, ZP_34, ZP_35, ZP_36, ZP_37, ZP_38, ZP_39,
+      ZP_40, ZP_41, ZP_42, ZP_43, ZP_44, ZP_45, ZP_46, ZP_47, ZP_48, ZP_49,
+      ZP_50, ZP_51, ZP_52, ZP_53, ZP_54, ZP_55, ZP_56, ZP_57, ZP_58, ZP_59,
+      ZP_60, ZP_61, ZP_62, ZP_63, ZP_64, ZP_65, ZP_66, ZP_67, ZP_68, ZP_69,
+      ZP_70, ZP_71, ZP_72, ZP_73, ZP_74, ZP_75, ZP_76, ZP_77, ZP_78, ZP_79,
+      ZP_80, ZP_81, ZP_82, ZP_83, ZP_84, ZP_85, ZP_86, ZP_87, ZP_88, ZP_89,
+      ZP_90, ZP_91, ZP_92, ZP_93, ZP_94, ZP_95, ZP_96, ZP_97, ZP_98, ZP_99,
+      ZP_100, ZP_101, ZP_102, ZP_103, ZP_104, ZP_105, ZP_106, ZP_107, ZP_108,
+      ZP_109, ZP_110, ZP_111, ZP_112, ZP_113, ZP_114, ZP_115, ZP_116, ZP_117,
+      ZP_118, ZP_119, ZP_120, ZP_121, ZP_122, ZP_123, ZP_124, ZP_125, ZP_126,
+      ZP_127, ZP_128, ZP_129, ZP_130, ZP_131, ZP_132, ZP_133, ZP_134, ZP_135,
+      ZP_136, ZP_137, ZP_138, ZP_139, ZP_140, ZP_141, ZP_142, ZP_143, ZP_144,
+      ZP_145, ZP_146, ZP_147, ZP_148, ZP_149, ZP_150, ZP_151, ZP_152, ZP_153,
+      ZP_154, ZP_155, ZP_156, ZP_157, ZP_158, ZP_159, ZP_160, ZP_161, ZP_162,
+      ZP_163, ZP_164, ZP_165, ZP_166, ZP_167, ZP_168, ZP_169, ZP_170, ZP_171,
+      ZP_172, ZP_173, ZP_174, ZP_175, ZP_176, ZP_177, ZP_178, ZP_179, ZP_180,
+      ZP_181, ZP_182, ZP_183, ZP_184, ZP_185, ZP_186, ZP_187, ZP_188, ZP_189,
+      ZP_190, ZP_191, ZP_192, ZP_193, ZP_194, ZP_195, ZP_196, ZP_197, ZP_198,
+      ZP_199, ZP_200, ZP_201, ZP_202, ZP_203, ZP_204, ZP_205, ZP_206, ZP_207,
+      ZP_208, ZP_209, ZP_210, ZP_211, ZP_212, ZP_213, ZP_214, ZP_215, ZP_216,
+      ZP_217, ZP_218, ZP_219, ZP_220, ZP_221, ZP_222, ZP_223, ZP_224, ZP_225,
+      ZP_226, ZP_227, ZP_228, ZP_229, ZP_230, ZP_231, ZP_232, ZP_233, ZP_234,
+      ZP_235, ZP_236, ZP_237, ZP_238, ZP_239, ZP_240, ZP_241, ZP_242, ZP_243,
+      ZP_244, ZP_245, ZP_246, ZP_247, ZP_248, ZP_249, ZP_250, ZP_251, ZP_252,
+      ZP_253,
+    ]>>,
+    CCIfType<[i8], CCAssignToStack<1, 1>>,
+  ]>;
 
-// Calling convention for variadic functions.
-def ArgCC_MOS_Vararg : CallingConv
-<[
-  // i16 are always passed through the stack with an alignment of 1.
-  CCAssignToStack<2, 1>
-]>;
+  def CC_MOS_VarArgs : CallingConv<[
+    CCIfType<[i8], CCAssignToStack<1, 1>>,
+    // Larger types are split to bytes before assignment.
+  ]>;
+}
 
+// All registers are caller saved except ZP_PTR_1 and ZP_PTR_3.
+def MOS_CSR : CalleeSavedRegs<(add ZP_2, ZP_3, ZP_6, ZP_7)>;

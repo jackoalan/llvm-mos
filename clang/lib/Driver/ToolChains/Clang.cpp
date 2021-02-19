@@ -1404,6 +1404,7 @@ static bool isSignedCharDefault(const llvm::Triple &Triple) {
     return false;
 
   case llvm::Triple::hexagon:
+  case llvm::Triple::mos:
   case llvm::Triple::ppcle:
   case llvm::Triple::mos:
   case llvm::Triple::ppc64le:
@@ -1621,8 +1622,8 @@ void Clang::RenderTargetOptions(const llvm::Triple &EffectiveTriple,
     AddMIPSTargetArgs(Args, CmdArgs);
     break;
 
-  case llvm::Triple::mos6502:
-    AddMOS6502TargetArgs(Args, CmdArgs);
+  case llvm::Triple::mos:
+    AddMOSTargetArgs(Args, CmdArgs);
     break;
 
   case llvm::Triple::ppc:
@@ -1920,7 +1921,7 @@ void Clang::AddMIPSTargetArgs(const ArgList &Args,
   }
 }
 
-void Clang::AddMOS6502TargetArgs(const ArgList &Args,
+void Clang::AddMOSTargetArgs(const ArgList &Args,
                                  ArgStringList &CmdArgs) const {
   // Give machine block placement an accurate cost assessment of branches and
   // fallthroughs. (By default, it considers unconditional branches cheaper than

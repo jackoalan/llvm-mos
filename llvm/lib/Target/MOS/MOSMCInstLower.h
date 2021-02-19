@@ -6,35 +6,30 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+#ifndef LLVM_LIB_TARGET_MOS_MOSMCINSTLOWER_H
+#define LLVM_LIB_TARGET_MOS_MOSMCINSTLOWER_H
 
-#ifndef LLVM_MOS_MCINST_LOWER_H
-#define LLVM_MOS_MCINST_LOWER_H
-
-#include "llvm/Support/Compiler.h"
+#include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/MC/MCContext.h"
 
 namespace llvm {
 
-class AsmPrinter;
-class MachineInstr;
-class MachineOperand;
-class MCContext;
-class MCInst;
-class MCOperand;
-class MCSymbol;
-
-/// Lowers `MachineInstr` objects into `MCInst` objects.
 class MOSMCInstLower {
+  MCContext &Ctx;
+  const AsmPrinter &AP;
+
 public:
-  MOSMCInstLower(MCContext &, AsmPrinter &) {}
-  //  MOSMCInstLower(MCContext &Ctx, AsmPrinter &Printer)
-  //      : Ctx(Ctx), Printer(Printer) {
-  //      }
+  MOSMCInstLower(MCContext &Ctx, const AsmPrinter &AP) : Ctx(Ctx), AP(AP) {}
+
+  void lower(const MachineInstr *MI, MCInst &OutMI);
 
 private:
-  // MCContext &Ctx;
-  // AsmPrinter &Printer;
+  bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp);
+  const MCExpr *applyTargetFlags(unsigned Flags, const MCExpr *Expr);
 };
 
-} // end namespace llvm
+} // namespace llvm
 
-#endif // LLVM_MOS_MCINST_LOWER_H
+#endif // not LLVM_LIB_TARGET_MOS_MOSMCINSTLOWER_H
+

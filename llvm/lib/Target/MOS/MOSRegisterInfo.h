@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MOS_REGISTER_INFO_H
-#define LLVM_MOS_REGISTER_INFO_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSREGISTERINFO_H
+#define LLVM_LIB_TARGET_MOS_MOSREGISTERINFO_H
 
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 
@@ -21,43 +21,43 @@
 
 namespace llvm {
 
-/// Utilities relating to MOS registers.
 class MOSRegisterInfo : public MOSGenRegisterInfo {
+  std::unique_ptr<std::string[]> ZPSymbolNames;
+  BitVector Reserved;
+
 public:
   MOSRegisterInfo();
 
-public:
-  /// Stack Frame Processing Methods
-  void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
-                           unsigned FIOperandNum,
-                           RegScavenger *RS = NULL) const override;
+  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
 
-  const uint16_t *
-  getCalleeSavedRegs(const MachineFunction *MF = 0) const override;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
-                                       CallingConv::ID CC) const override;
-  virtual Register getFrameRegister(const MachineFunction &MF) const override;
-
-  const TargetRegisterClass *
-  getLargestLegalSuperClass(const TargetRegisterClass *RC,
-                            const MachineFunction &MF) const override;
-
-  const TargetRegisterClass *
-  getPointerRegClass(const MachineFunction &MF,
-                     unsigned Kind = 0) const override;
+                                       CallingConv::ID) const override;
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 
-  /// Splits a 16-bit `DREGS` register into the lo/hi register pair.
-  /// \param Reg A 16-bit register to split.
-  // void splitReg(unsigned Reg, unsigned &LoReg, unsigned &HiReg) const;
+  unsigned getCSRFirstUseCost() const override;
 
-  bool trackLivenessAfterRegAlloc(const MachineFunction &) const override;
+  const TargetRegisterClass *
+  getLargestLegalSuperClass(const TargetRegisterClass *RC,
+                            const MachineFunction &) const override;
 
-protected:
-  
+  void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
+                           unsigned FIOperandNum,
+                           RegScavenger *RS = nullptr) const override;
+
+  Register getFrameRegister(const MachineFunction &MF) const override;
+
+  bool shouldCoalesce(MachineInstr *MI, const TargetRegisterClass *SrcRC,
+                      unsigned SubReg, const TargetRegisterClass *DstRC,
+                      unsigned DstSubReg, const TargetRegisterClass *NewRC,
+                      LiveIntervals &LIS) const override;
+
+  const char *getZPSymbolName(Register Reg) const {
+    return ZPSymbolNames[Reg].c_str();
+  }
 };
 
-} // end namespace llvm
+} // namespace llvm
 
-#endif // LLVM_MOS_REGISTER_INFO_H
+#endif // LLVM_LIB_TARGET_MOS_MOSREGISTERINFO_H
+

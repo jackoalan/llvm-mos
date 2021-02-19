@@ -18,6 +18,26 @@ include "llvm/Target/Target.td"
 //===---------------------------------------------------------------------===//
 // MOS Device Definitions
 //===---------------------------------------------------------------------===//
+include "llvm/Target/Target.td"
+include "llvm/Target/GlobalISel/Combine.td"
+
+include "MOSRegisterInfo.td"
+
+include "MOSCallingConv.td"
+include "MOSCombine.td"
+include "MOSRegisterBanks.td"
+include "MOSInstrInfo.td"
+
+def MOSSchedModel : SchedMachineModel {
+  // Prevent instructions from being added to the pending queue, since latency
+  // doesn't matter. The remaining latency concerns are disabled in the C++
+  // scheduling strategy.
+  let MicroOpBufferSize = 1;
+
+  let CompleteModel = false;
+}
+
+def : ProcessorModel<"generic", MOSSchedModel, []>;
 
 include "MOSDevices.td"
 include "MOSFeatures.td"
@@ -27,6 +47,15 @@ include "MOSInstrInfo.td"
 def MOSInstrInfo : InstrInfo;
 
 include "MOSCallingConv.td"
+
+def MOSInstrInfo : InstrInfo {
+  let guessInstructionProperties = 0;
+}
+
+def MOS : Target {
+  let InstructionSet = MOSInstrInfo;
+  let AllowRegisterRenaming = 1;
+}
 
 def MOSAsmWriter : AsmWriter {
  string AsmWriterClassName = "InstPrinter";

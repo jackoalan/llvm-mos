@@ -9,24 +9,24 @@
 
 #include "MOSTargetObjectFile.h"
 
-#include "llvm/BinaryFormat/ELF.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/GlobalValue.h"
-#include "llvm/IR/Mangler.h"
-#include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCSectionELF.h"
-
-#include "MOS.h"
-
-namespace llvm {
-
-void MOSTargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &TM) {
-  Base::Initialize(Ctx, TM);
-  ProgmemDataSection =
-      Ctx.getELFSection(".progmem.data", ELF::SHT_PROGBITS, ELF::SHF_ALLOC);
-}
-
 MCSection *MOSTargetObjectFile::SelectSectionForGlobal(
+    const GlobalObject *GO, SectionKind Kind, const TargetMachine &TM) const {
+  if (TM.getFunctionSections() || TM.getDataSections()) {
+    report_fatal_error("Unique sections not supported on MOS.");
+  }
+  if (GO->getAddressSpace() == 1) {
+    return getZPSection();
+  } else if (Kind.isText()) {
+    return getTextSection();
+  } else if (Kind.isData()) {
+    return getDataSection();
+  } else if (Kind.isReadOnly()) {
+    return getReadOnlySection();
+  } else if (Kind.isBSS()) {
+    return getBSSSection();
+  }
+  report_fatal_error("Section kind not supported.");
+}
     const GlobalObject *GO, SectionKind Kind, const TargetMachine &TM) const {
   // Global values in flash memory are placed in the progmem.data section
   // unless they already have a user assigned section.

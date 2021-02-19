@@ -10,60 +10,23 @@
 // This file declares MOS-specific per-machine-function information.
 //
 //===----------------------------------------------------------------------===//
-
-#ifndef LLVM_MOS_MACHINE_FUNCTION_INFO_H
-#define LLVM_MOS_MACHINE_FUNCTION_INFO_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSMACHINEFUNCTIONINFO_H
+#define LLVM_LIB_TARGET_MOS_MOSMACHINEFUNCTIONINFO_H
 
 #include "llvm/CodeGen/MachineFunction.h"
 
 namespace llvm {
 
-/// Contains MOS-specific information for each MachineFunction.
-class MOSMachineFunctionInfo : public MachineFunctionInfo {
-  /// Indicates if a register has been spilled by the register
-  /// allocator.
-  bool HasSpills;
-
-  /// Indicates if there are any fixed size allocas present.
-  /// Note that if there are only variable sized allocas this is set to false.
-  bool HasAllocas;
-
-  /// Indicates if arguments passed using the stack are being
-  /// used inside the function.
-  bool HasStackArgs;
-
-  /// Size of the callee-saved register portion of the
-  /// stack frame in bytes.
-  unsigned CalleeSavedFrameSize;
-
-  /// FrameIndex for start of varargs area.
-  int VarArgsFrameIndex;
+class MOSFunctionInfo : public MachineFunctionInfo {
+  int VarArgsStackIndex;
 
 public:
-  MOSMachineFunctionInfo()
-      : HasSpills(false), HasAllocas(false), HasStackArgs(false),
-        CalleeSavedFrameSize(0), VarArgsFrameIndex(0) {}
+  MOSFunctionInfo(MachineFunction& MF) {}
 
-  explicit MOSMachineFunctionInfo(MachineFunction &MF)
-      : HasSpills(false), HasAllocas(false), HasStackArgs(false),
-        CalleeSavedFrameSize(0), VarArgsFrameIndex(0) {}
-
-  bool getHasSpills() const { return HasSpills; }
-  void setHasSpills(bool B) { HasSpills = B; }
-
-  bool getHasAllocas() const { return HasAllocas; }
-  void setHasAllocas(bool B) { HasAllocas = B; }
-
-  bool getHasStackArgs() const { return HasStackArgs; }
-  void setHasStackArgs(bool B) { HasStackArgs = B; }
-
-  unsigned getCalleeSavedFrameSize() const { return CalleeSavedFrameSize; }
-  void setCalleeSavedFrameSize(unsigned Bytes) { CalleeSavedFrameSize = Bytes; }
-
-  int getVarArgsFrameIndex() const { return VarArgsFrameIndex; }
-  void setVarArgsFrameIndex(int Idx) { VarArgsFrameIndex = Idx; }
+  int getVarArgsStackIndex() const { return VarArgsStackIndex; }
+  void setVarArgsStackIndex(int Index) { VarArgsStackIndex = Index; }
 };
 
-} // end llvm namespace
+} // namespace llvm
 
-#endif // LLVM_MOS_MACHINE_FUNCTION_INFO_H
+#endif // not LLVM_LIB_TARGET_MOS_MOSMACHINEFUNCTIONINFO_H

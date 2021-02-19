@@ -10823,14 +10823,14 @@ public:
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
-// MOS6502 ABI Implementation
+// MOS ABI Implementation
 //===----------------------------------------------------------------------===//
 
 namespace {
 
-class MOS6502ABIInfo : public DefaultABIInfo {
+class MOSABIInfo : public DefaultABIInfo {
 public:
-  MOS6502ABIInfo(CodeGen::CodeGenTypes &CGT) : DefaultABIInfo(CGT) {}
+  MOSABIInfo(CodeGen::CodeGenTypes &CGT) : DefaultABIInfo(CGT) {}
 
   ABIArgInfo classifyArgumentType(QualType RetTy) const;
 
@@ -10847,13 +10847,13 @@ public:
   }
 };
 
-class MOS6502TargetCodeGenInfo : public TargetCodeGenInfo {
+class MOSTargetCodeGenInfo : public TargetCodeGenInfo {
 public:
-  MOS6502TargetCodeGenInfo(CodeGen::CodeGenTypes &CGT)
-      : TargetCodeGenInfo(std::make_unique<MOS6502ABIInfo>(CGT)) {}
+  MOSTargetCodeGenInfo(CodeGen::CodeGenTypes &CGT)
+      : TargetCodeGenInfo(std::make_unique<MOSABIInfo>(CGT)) {}
 };
 
-ABIArgInfo MOS6502ABIInfo::classifyArgumentType(QualType Ty) const {
+ABIArgInfo MOSABIInfo::classifyArgumentType(QualType Ty) const {
   ABIArgInfo Info = DefaultABIInfo::classifyArgumentType(Ty);
   // Byval is not supported; they must be passed by pointer to a copy made by
   // the caller in the frontend.
@@ -11073,8 +11073,8 @@ const TargetCodeGenInfo &CodeGenModule::getTargetCodeGenInfo() {
     return SetCGInfo(new SPIRTargetCodeGenInfo(Types));
   case llvm::Triple::ve:
     return SetCGInfo(new VETargetCodeGenInfo(Types));
-  case llvm::Triple::mos6502:
-    return SetCGInfo(new MOS6502TargetCodeGenInfo(Types));
+  case llvm::Triple::mos:
+    return SetCGInfo(new MOSTargetCodeGenInfo(Types));
   }
 }
 

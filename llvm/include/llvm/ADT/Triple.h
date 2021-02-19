@@ -238,7 +238,7 @@ public:
     MachO,
     Wasm,
     XCOFF,
-    MOS6502,
+    MOS,
   };
 
 private:

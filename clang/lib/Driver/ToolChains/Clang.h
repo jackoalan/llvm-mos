@@ -55,7 +55,7 @@ private:
                           llvm::opt::ArgStringList &CmdArgs) const;
   void AddMIPSTargetArgs(const llvm::opt::ArgList &Args,
                          llvm::opt::ArgStringList &CmdArgs) const;
-  void AddMOS6502TargetArgs(const llvm::opt::ArgList &Args,
+  void AddMOSTargetArgs(const llvm::opt::ArgList &Args,
                             llvm::opt::ArgStringList &CmdArgs) const;
   void AddPPCTargetArgs(const llvm::opt::ArgList &Args,
                         llvm::opt::ArgStringList &CmdArgs) const;

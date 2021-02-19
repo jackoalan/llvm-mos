@@ -29,8 +29,7 @@ public:
     VK_MOS_ADDR24_SEGMENT_HI
   };
 
-
-  /// Creates an AVR machine code expression.
+  /// Creates a MOS machine code expression.
   static const MOSMCExpr *create(VariantKind Kind, const MCExpr *Expr,
                                  bool isNegated, MCContext &Ctx);
 

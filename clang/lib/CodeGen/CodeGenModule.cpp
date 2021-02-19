@@ -5094,8 +5094,8 @@ CodeGenModule::GetAddrOfConstantCFString(const StringLiteral *Literal) {
     llvm_unreachable("GOFF is not yet implemented");
   case llvm::Triple::XCOFF:
     llvm_unreachable("XCOFF is not yet implemented");
-  case llvm::Triple::MOS6502:
-    llvm_unreachable("MOS6502 is not yet implemented");
+  case llvm::Triple::MOS:
+    llvm_unreachable("MOS is not yet implemented");
   case llvm::Triple::COFF:
   case llvm::Triple::ELF:
   case llvm::Triple::Wasm:

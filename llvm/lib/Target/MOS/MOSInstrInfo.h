@@ -11,105 +11,131 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MOS_INSTR_INFO_H
-#define LLVM_MOS_INSTR_INFO_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSINSTRINFO_H
+#define LLVM_LIB_TARGET_MOS_MOSINSTRINFO_H
 
+#include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
-
-#include "MOSRegisterInfo.h"
 
 #define GET_INSTRINFO_HEADER
 #include "MOSGenInstrInfo.inc"
-#undef GET_INSTRINFO_HEADER
 
 namespace llvm {
 
-namespace MOSCC {
-
-/// MOS specific condition codes.
-/// These correspond to `MOS_*_COND` in `MOSInstrInfo.td`.
-/// They must be kept in synch.
-enum CondCodes {
-  COND_EQ, //!< Equal
-  COND_NE, //!< Not equal
-  COND_GE, //!< Greater than or equal
-  COND_LT, //!< Less than
-  COND_SH, //!< Unsigned same or higher
-  COND_LO, //!< Unsigned lower
-  COND_MI, //!< Minus
-  COND_PL, //!< Plus
-  COND_INVALID
-};
-
-} // end of namespace MOSCC
-
-namespace MOS {
-
-/// Specifies a target operand flag.
-enum TOF {
-  MO_NO_FLAG,
-};
-
-} // namespace MOS
-
-/// Utilities related to the MOS instruction set.
 class MOSInstrInfo : public MOSGenInstrInfo {
 public:
-  explicit MOSInstrInfo();
+  MOSInstrInfo();
 
-  // Branch analysis.
+  bool isReallyTriviallyReMaterializable(const MachineInstr &MI,
+                                         AAResults *AA) const override;
+
+  MachineInstr *commuteInstructionImpl(MachineInstr &MI, bool NewMI,
+                                       unsigned OpIdx1,
+                                       unsigned OpIdx2) const override;
+
+  void reMaterialize(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                     Register DestReg, unsigned SubIdx,
+                     const MachineInstr &Orig,
+                     const TargetRegisterInfo &TRI) const override;
+
+  unsigned getInstSizeInBytes(const MachineInstr &MI) const override;
+
+  bool findCommutedOpIndices(const MachineInstr &MI, unsigned &SrcOpIdx1,
+                             unsigned &SrcOpIdx2) const override;
+
+  bool isBranchOffsetInRange(unsigned BranchOpc,
+                             int64_t BrOffset) const override;
+
+  MachineBasicBlock *getBranchDestBlock(const MachineInstr &MI) const override;
+
   bool analyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
                      MachineBasicBlock *&FBB,
                      SmallVectorImpl<MachineOperand> &Cond,
-                     bool AllowModify = false) const override {
-    return false;
-  }
-  MachineBasicBlock *getBranchDestBlock(const MachineInstr &MI) const override {
-    return nullptr;
-  }
+                     bool AllowModify = false) const override;
 
-  const MCInstrDesc &getBrCond(MOSCC::CondCodes CC) const { return ID; }
-  const MOSRegisterInfo &getRegisterInfo() const { return RI; }
-  MOSCC::CondCodes getCondFromBranchOpc(unsigned Opc) const {
-    return MOSCC::CondCodes::COND_INVALID;
-  };
-  MOSCC::CondCodes getOppositeCondition(MOSCC::CondCodes CC) const {
-    return MOSCC::CondCodes::COND_INVALID;
-  }
-  unsigned getInstSizeInBytes(const MachineInstr &MI) const override {
-    return 0;
-  }
+  unsigned removeBranch(MachineBasicBlock &MBB,
+                        int *BytesRemoved = nullptr) const override;
 
   unsigned insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                         MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
                         const DebugLoc &DL,
-                        int *BytesAdded = nullptr) const override {
-    return 0;
-  }
-  bool isBranchOffsetInRange(unsigned BranchOpc,
-                             int64_t BrOffset) const override {
-    return false;
-  }
+                        int *BytesAdded = nullptr) const override;
 
-  unsigned isLoadFromStackSlot(const MachineInstr &MI,
-                               int &FrameIndex) const override {
-    return 0;
-  }
-  unsigned isStoreToStackSlot(const MachineInstr &MI,
-                              int &FrameIndex) const override {
-    return 0;
-  }
+  void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
+                   bool KillSrc) const override;
+
+  void storeRegToStackSlot(MachineBasicBlock &MBB,
+                           MachineBasicBlock::iterator MI, Register SrcReg,
+                           bool isKill, int FrameIndex,
+                           const TargetRegisterClass *RC,
+                           const TargetRegisterInfo *TRI) const override;
+
+  void loadRegFromStackSlot(MachineBasicBlock &MBB,
+                            MachineBasicBlock::iterator MI, Register DestReg,
+                            int FrameIndex, const TargetRegisterClass *RC,
+                            const TargetRegisterInfo *TRI) const override;
+
+  bool expandPostRAPseudo(MachineInstr &MI) const override;
 
   bool
-  reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override {
-    return false;
-  }
+  reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
+
+  std::pair<unsigned, unsigned>
+  decomposeMachineOperandsTargetFlags(unsigned TF) const override;
+
+  ArrayRef<std::pair<int, const char *>>
+  getSerializableTargetIndices() const override;
+
+  ArrayRef<std::pair<unsigned, const char *>>
+  getSerializableDirectMachineOperandTargetFlags() const override;
 
 private:
-  const MOSRegisterInfo RI;
-  const MCInstrDesc ID;
+  // Various locations throughout codegen emit pseudo-instructions with very few
+  // implicit defs. This is required whenever LLVM codegen cannot handle
+  // emitting arbitrary physreg uses, for example, during COPY or
+  // saveRegToStack.
+  //
+  // Often, such pseudos cannot be expanded without producing significantly more
+  // side effects than the pseudo allows. This function takes a Builder pointing
+  // to a pseudo, then calls ExpandFn to expand the pseudo. Then, the physreg
+  // defs of the expanded instructions are measured, and save and restore code
+  // is emitted to ensure that the pseudo expansion region only modifies defs of
+  // the pseudo.
+  //
+  // ExpandFn must insert a contiguous range of instructions before the pseudo.
+  // Afterwards, the Builder must point to the location after the inserted
+  // range.
+  void preserveAroundPseudoExpansion(MachineIRBuilder &Builder,
+                                     std::function<void()> ExpandFn) const;
+
+  void copyPhysRegNoPreserve(MachineIRBuilder &Builder, MCRegister DestReg,
+                             MCRegister SrcReg) const;
+
+  bool expandPostRAPseudoNoPreserve(MachineIRBuilder &Builder) const;
+
+  void expandAddrLostk(MachineIRBuilder &Builder) const;
+  void expandAddrHistk(MachineIRBuilder &Builder) const;
+  void expandAddrstk(MachineIRBuilder &Builder) const;
+  void expandIncSP(MachineIRBuilder &Builder) const;
+  void expandLDSTstk(MachineIRBuilder &Builder) const;
+  void expandLDidx(MachineIRBuilder &Builder) const;
 };
 
-} // end namespace llvm
+namespace MOS {
 
-#endif // LLVM_MOS_INSTR_INFO_H
+enum TargetIndex {
+  TI_STATIC_STACK,
+};
+
+enum TOF {
+  MO_NO_FLAGS = 0,
+  MO_LO,
+  MO_HI,
+};
+
+} // namespace MOS
+
+} // namespace llvm
+
+#endif // not LLVM_LIB_TARGET_MOS_MOSINSTRINFO_H

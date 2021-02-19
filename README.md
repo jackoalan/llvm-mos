@@ -199,7 +199,7 @@ void char_stats() {
 <details>
 	<summary>Optimized (-O2/-Os)</summary>
 
-`$ clang --target=mos6502 -S -O2 char_stats.c`
+`$ clang --target=mos -S -O2 char_stats.c`
 
 ```asm
 .code
@@ -306,7 +306,7 @@ void char_stats() {
 <details>
 	<summary>Optimized (-O2/-Os)</summary>
 
-`$ clang --target=mos6502 -S -O2 char_stats.c`
+`$ clang --target=mos -S -O2 char_stats.c`
 
 ```asm
 .code
@@ -439,7 +439,7 @@ int main(void) {
 <details>
 	<summary>Size optimized (-Os)</summary>
 
-`$ clang --target=mos6502 -S -Os main.c`
+`$ clang --target=mos -S -Os main.c`
 
 ```asm
 .code
@@ -478,7 +478,7 @@ TODO:
 <details>
 	<summary>Speed optimized (-O2)</summary>
 
-`$ clang --target=mos6502 -S -O2 main.c`
+`$ clang --target=mos -S -O2 main.c`
 
 ```asm
 .code
@@ -581,7 +581,7 @@ void print_int(char x) {
 <details>
 	<summary>Optimized (-O2/-Os)</summary>
 
-`$ clang --target=mos6502 -S -O2 print_int.c`
+`$ clang --target=mos -S -O2 print_int.c`
 
 ```asm
 .code

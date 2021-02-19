@@ -28,7 +28,7 @@
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
-#include "llvm/MC/MCSectionMOS6502.h"
+#include "llvm/MC/MCSectionMOS.h"
 #include "llvm/MC/MCSectionWasm.h"
 #include "llvm/MC/MCSectionXCOFF.h"
 #include "llvm/MC/MCStreamer.h"
@@ -195,7 +195,7 @@ MCSymbol *MCContext::createSymbolImpl(const StringMapEntry<bool> *Name,
       return new (Name, *this) MCSymbolWasm(Name, IsTemporary);
     case MCObjectFileInfo::IsXCOFF:
       return createXCOFFSymbolImpl(Name, IsTemporary);
-    case MCObjectFileInfo::IsMOS6502:
+    case MCObjectFileInfo::IsMOS:
       return new (Name, *this)
         MCSymbol(MCSymbol::SymbolKindUnset, Name, IsTemporary);
     }
@@ -714,10 +714,10 @@ MCContext::getXCOFFSection(StringRef Section, XCOFF::StorageMappingClass SMC,
   return Result;
 }
 
-MCSectionMOS6502 *
-MCContext::getMOS6502Section(const Twine &Section, SectionKind Kind) {
+MCSectionMOS *
+MCContext::getMOSSection(const Twine &Section, SectionKind Kind) {
   // Do the lookup, if we have a hit, return it.
-  auto IterBool = MOS6502UniquingMap.insert(std::make_pair(Section.str(), nullptr));
+  auto IterBool = MOSUniquingMap.insert(std::make_pair(Section.str(), nullptr));
   auto &Entry = *IterBool.first;
   if (!IterBool.second)
     return Entry.second;
@@ -725,8 +725,8 @@ MCContext::getMOS6502Section(const Twine &Section, SectionKind Kind) {
   StringRef CachedName = Entry.first;
   MCSymbol *Begin = createSymbol(CachedName, false, false);
 
-  MCSectionMOS6502 *Result = new (MOS6502Allocator.Allocate())
-    MCSectionMOS6502(CachedName, Kind, Begin);
+  MCSectionMOS *Result = new (MOSAllocator.Allocate())
+    MCSectionMOS(CachedName, Kind, Begin);
   Entry.second = Result;
 
   auto *F = new MCDataFragment();

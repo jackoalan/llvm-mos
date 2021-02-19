@@ -11,47 +11,38 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MOS_TARGET_MACHINE_H
-#define LLVM_MOS_TARGET_MACHINE_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSTARGETMACHINE_H
+#define LLVM_LIB_TARGET_MOS_MOSTARGETMACHINE_H
 
-#include "llvm/IR/DataLayout.h"
-#include "llvm/Target/TargetMachine.h"
-
-#include "MOSFrameLowering.h"
-#include "MOSISelLowering.h"
-#include "MOSInstrInfo.h"
-#include "MOSSelectionDAGInfo.h"
 #include "MOSSubtarget.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
-/// A generic MOS implementation.
 class MOSTargetMachine : public LLVMTargetMachine {
-public:
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
+  std::unique_ptr<MOSSubtarget> Subtarget;
+
+ public:
   MOSTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
-                   StringRef FS, const TargetOptions &Options,
-                   Optional<Reloc::Model> RM,
-                   Optional<CodeModel::Model> CM,
-                   CodeGenOpt::Level OL, bool JIT);
+                       StringRef FS, const TargetOptions &Options,
+                       Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                       CodeGenOpt::Level OL, bool JIT);
 
-  const MOSSubtarget *getSubtargetImpl() const;
-  const MOSSubtarget *getSubtargetImpl(const Function &) const override;
-
-  TargetLoweringObjectFile *getObjFileLowering() const override {
-    return this->TLOF.get();
-  }
+  const MOSSubtarget *getSubtargetImpl(const Function &F) const override;
 
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
-  bool isMachineVerifierClean() const override {
-    return false;
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
   }
 
-private:
-  std::unique_ptr<TargetLoweringObjectFile> TLOF;
-  MOSSubtarget SubTarget;
+  TargetTransformInfo getTargetTransformInfo(const Function &F) override;
+
+  void adjustPassManager(PassManagerBuilder &) override;
 };
 
-} // end namespace llvm
+}  // namespace llvm
 
-#endif // LLVM_MOS_TARGET_MACHINE_H
+
+#endif  // not LLVM_LIB_TARGET_MOS_MOSTARGETMACHINE_H

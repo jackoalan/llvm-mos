@@ -12,31 +12,45 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MOS_ISEL_LOWERING_H
-#define LLVM_MOS_ISEL_LOWERING_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSISELLOWERING_H
+#define LLVM_LIB_TARGET_MOS_MOSISELLOWERING_H
 
-#include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/TargetLowering.h"
+
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
-namespace MOSISD {
+class MOSSubtarget;
 
-/// MOS Specific DAG Nodes
-enum NodeType {
-  /// Start the numbering where the builtin ops leave off.
-  FIRST_NUMBER = ISD::BUILTIN_OP_END,
-  /// Return from subroutine.
-  RET_FLAG,
+class MOSTargetLowering : public TargetLowering {
+public:
+  MOSTargetLowering(const TargetMachine &TM, const MOSSubtarget &STI);
+
+  MVT getRegisterTypeForCallingConv(LLVMContext &Context, CallingConv::ID CC,
+                                    EVT VT) const override;
+
+  unsigned getNumRegistersForCallingConv(LLVMContext &Context,
+                                         CallingConv::ID CC,
+                                         EVT VT) const override;
+
+  ConstraintType getConstraintType(StringRef Constraint) const override;
+
+  std::pair<unsigned, const TargetRegisterClass *>
+  getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                               StringRef Constraint, MVT VT) const override;
+
+  bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
+                             unsigned AddrSpace,
+                             Instruction *I = nullptr) const override;
+
+  bool shouldLocalize(const MachineInstr &MI,
+                      const TargetTransformInfo *TTI) const override;
 };
 
-} // end of namespace MOSISD
+} // namespace llvm
 
-class MOSSubtarget;
-class MOSTargetMachine;
-
-/// Performs target lowering for the MOS.
-class MOSTargetLowering : public TargetLowering {
+#endif // not LLVM_LIB_TARGET_MOS_MOSISELLOWERING_H
 public:
   explicit MOSTargetLowering(const MOSTargetMachine &TM,
                              const MOSSubtarget &STI);

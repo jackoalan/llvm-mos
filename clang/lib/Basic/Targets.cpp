@@ -24,7 +24,7 @@
 #include "Targets/Hexagon.h"
 #include "Targets/Lanai.h"
 #include "Targets/Le64.h"
-#include "Targets/MOS6502.h"
+#include "Targets/MOS.h"
 #include "Targets/MSP430.h"
 #include "Targets/Mips.h"
 #include "Targets/NVPTX.h"
@@ -241,8 +241,8 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
   case llvm::Triple::bpfel:
     return new BPFTargetInfo(Triple, Opts);
 
-  case llvm::Triple::mos6502:
-    return new MOS6502TargetInfo(Triple, Opts);
+  case llvm::Triple::mos:
+    return new MOSTargetInfo(Triple, Opts);
 
   case llvm::Triple::msp430:
     return new MSP430TargetInfo(Triple, Opts);

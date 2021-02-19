@@ -56,7 +56,7 @@ namespace llvm {
   class MCSectionMachO;
   class MCSectionWasm;
   class MCSectionXCOFF;
-  class MCSectionMOS6502;
+  class MCSectionMOS;
   class MCStreamer;
   class MCSymbol;
   class MCSymbolELF;
@@ -99,7 +99,7 @@ namespace llvm {
     SpecificBumpPtrAllocator<MCSectionCOFF> COFFAllocator;
     SpecificBumpPtrAllocator<MCSectionELF> ELFAllocator;
     SpecificBumpPtrAllocator<MCSectionMachO> MachOAllocator;
-    SpecificBumpPtrAllocator<MCSectionMOS6502> MOS6502Allocator;
+    SpecificBumpPtrAllocator<MCSectionMOS> MOSAllocator;
     SpecificBumpPtrAllocator<MCSectionWasm> WasmAllocator;
     SpecificBumpPtrAllocator<MCSectionXCOFF> XCOFFAllocator;
     SpecificBumpPtrAllocator<MCInst> MCInstAllocator;
@@ -287,7 +287,7 @@ namespace llvm {
       }
     };
 
-    typedef std::string MOS6502SectionKey;
+    typedef std::string MOSSectionKey;
 
 
     StringMap<MCSectionMachO *> MachOUniquingMap;
@@ -295,7 +295,7 @@ namespace llvm {
     std::map<COFFSectionKey, MCSectionCOFF *> COFFUniquingMap;
     std::map<WasmSectionKey, MCSectionWasm *> WasmUniquingMap;
     std::map<XCOFFSectionKey, MCSectionXCOFF *> XCOFFUniquingMap;
-    std::map<MOS6502SectionKey, MCSectionMOS6502 *> MOS6502UniquingMap;
+    std::map<MOSSectionKey, MCSectionMOS *> MOSUniquingMap;
     StringMap<bool> RelSecNames;
 
     SpecificBumpPtrAllocator<MCSubtargetInfo> MCSubtargetAllocator;
@@ -584,7 +584,7 @@ namespace llvm {
                                     bool MultiSymbolsAllowed = false,
                                     const char *BeginSymName = nullptr);
 
-    MCSectionMOS6502 *getMOS6502Section(const Twine &Section, SectionKind Kind);
+    MCSectionMOS *getMOSSection(const Twine &Section, SectionKind Kind);
 
     // Create and save a copy of STI and return a reference to the copy.
     MCSubtargetInfo &getSubtargetCopy(const MCSubtargetInfo &STI);

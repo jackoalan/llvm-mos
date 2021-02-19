@@ -19,7 +19,7 @@
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
-#include "llvm/MC/MCSectionMOS6502.h"
+#include "llvm/MC/MCSectionMOS.h"
 #include "llvm/MC/MCSectionWasm.h"
 #include "llvm/MC/MCSectionXCOFF.h"
 
@@ -915,12 +915,12 @@ void MCObjectFileInfo::initXCOFFMCObjectFileInfo(const Triple &T) {
   DwarfMacinfoSection = nullptr;  // SSUBTYP_DWMAC
 }
 
-void MCObjectFileInfo::initMOS6502MCObjectFileInfo() {
-  TextSection = Ctx->getMOS6502Section("CODE", SectionKind::getText());
-  DataSection = Ctx->getMOS6502Section("DATA", SectionKind::getData());
-  ReadOnlySection = Ctx->getMOS6502Section("RODATA", SectionKind::getReadOnly());
-  BSSSection = Ctx->getMOS6502Section("BSS", SectionKind::getBSS());
-  ZPSection = Ctx->getMOS6502Section("ZEROPAGE", SectionKind::getData());
+void MCObjectFileInfo::initMOSMCObjectFileInfo() {
+  TextSection = Ctx->getMOSSection("CODE", SectionKind::getText());
+  DataSection = Ctx->getMOSSection("DATA", SectionKind::getData());
+  ReadOnlySection = Ctx->getMOSSection("RODATA", SectionKind::getReadOnly());
+  BSSSection = Ctx->getMOSSection("BSS", SectionKind::getBSS());
+  ZPSection = Ctx->getMOSSection("ZEROPAGE", SectionKind::getData());
 }
 
 void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
@@ -976,9 +976,9 @@ void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
     Env = IsXCOFF;
     initXCOFFMCObjectFileInfo(TT);
     break;
-  case Triple::MOS6502:
-    Env = IsMOS6502;
-    initMOS6502MCObjectFileInfo();
+  case Triple::MOS:
+    Env = IsMOS;
+    initMOSMCObjectFileInfo();
     break;
   case Triple::UnknownObjectFormat:
     report_fatal_error("Cannot initialize MC for unknown object file format.");
@@ -999,7 +999,7 @@ MCSection *MCObjectFileInfo::getDwarfComdatSection(const char *Name,
   case Triple::COFF:
   case Triple::GOFF:
   case Triple::XCOFF:
-  case Triple::MOS6502:
+  case Triple::MOS:
   case Triple::UnknownObjectFormat:
     report_fatal_error("Cannot get DWARF comdat section for this object file "
                        "format: not implemented.");

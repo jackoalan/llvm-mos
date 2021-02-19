@@ -22,6 +22,28 @@
 
 #define DEBUG_TYPE "mos-subtarget"
 
+#include "MOSCallLowering.h"
+#include "MOSISelLowering.h"
+#include "MOSInstructionSelector.h"
+#include "MOSLegalizerInfo.h"
+#include "MOSRegisterBankInfo.h"
+#include "llvm/CodeGen/GlobalISel/InlineAsmLowering.h"
+#include "llvm/CodeGen/MachineScheduler.h"
+
+using namespace llvm;
+
+#define DEBUG_TYPE "mos-subtarget"
+
+#define GET_SUBTARGETINFO_CTOR
+#include "MOSGenSubtargetInfo.inc"
+
+MOSSubtarget::MOSSubtarget(const Triple &TT, StringRef CPU,
+                                   StringRef FS, const TargetMachine &TM)
+    : MOSGenSubtargetInfo(TT, CPU, /*TuneCPU=*/CPU, FS),
+      TLInfo(TM, initializeSubtargetDependencies(TT, CPU, CPU, FS)) {
+  CallLoweringInfo.reset(new MOSCallLowering(getTargetLowering()));
+  Legalizer.reset(new MOSLegalizerInfo);
+
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
 #include "MOSGenSubtargetInfo.inc"
@@ -47,6 +69,34 @@ MOSSubtarget::MOSSubtarget(const Triple &TT, const std::string &CPU,
       ELFArch(0), m_FeatureSetDummy(false) {
   // Parse features string.
   ParseSubtargetFeatures(CPU, /* TuneCPU */ CPU, FS);
+  CallLoweringInfo.reset(new MOSCallLowering(getTargetLowering()));
+  Legalizer.reset(new MOSLegalizerInfo);
+  auto *RBI = new MOSRegisterBankInfo;
+  RegBankInfo.reset(RBI);
+  InstSelector.reset(createMOSInstructionSelector(
+      *static_cast<const MOSTargetMachine *>(&TM), *this, *RBI));
+  InlineAsmLoweringInfo.reset(new InlineAsmLowering(getTargetLowering()));
+}
+
+MOSSubtarget &MOSSubtarget::initializeSubtargetDependencies(
+    const Triple &TT, StringRef CPU, StringRef TuneCPU, StringRef FS) {
+  ParseSubtargetFeatures(CPU, /* TuneCPU */ CPU, FS);
+  std::string CPUName = std::string(CPU);
+  std::string TuneCPUName = std::string(TuneCPU);
+  if (CPUName.empty())
+    CPUName = "generic";
+  if (TuneCPUName.empty())
+    TuneCPUName = CPUName;
+  InitMCProcessorInfo(CPUName, TuneCPUName, FS);
+
+  return *this;
+}
+
+void MOSSubtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,
+                                           unsigned NumRegionInstrs) const {
+  Policy.OnlyBottomUp = false;
+  Policy.OnlyTopDown = false;
+}
 }
 
 const llvm::TargetFrameLowering *MOSSubtarget::getFrameLowering() const {
@@ -67,14 +117,6 @@ const llvm::MOSSelectionDAGInfo *MOSSubtarget::getSelectionDAGInfo() const {
 
 const llvm::MOSTargetLowering *MOSSubtarget::getTargetLowering() const {
   return &TLInfo;
-}
-
-MOSSubtarget &
-MOSSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS,
-                                              const TargetMachine &TM) {
-  // Parse features string.
-  ParseSubtargetFeatures(CPU, /* TuneCPU */ CPU, FS);
-  return *this;
 }
 
 } // namespace llvm
