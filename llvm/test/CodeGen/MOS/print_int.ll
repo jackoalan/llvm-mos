@@ -1,6 +1,6 @@
 // RUN: split-file --no-leading-lines %s %t
 // RUN: llc -O2 -verify-machineinstrs -o %t/got.s %t/print_int.ll
-// RUN: diff -u %t/want.s %t/got.s
+// RUN: diff --strip-trailing-cr -u %t/want.s %t/got.s
 
 //--- print_int.ll
 target datalayout = "e-p:16:8:8-i16:8:8-i32:8:8-i64:8:8-f32:8:8-f64:8:8-a:8:8-Fi8-n8"
