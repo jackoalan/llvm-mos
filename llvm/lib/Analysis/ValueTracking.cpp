@@ -509,9 +509,7 @@ static bool isEphemeralValueOf(const Instruction *I, const Value *E) {
       if (V == I || isSafeToSpeculativelyExecute(V)) {
        EphValues.insert(V);
        if (const User *U = dyn_cast<User>(V))
-         for (User::const_op_iterator J = U->op_begin(), JE = U->op_end();
-              J != JE; ++J)
-           WorkSet.push_back(*J);
+         append_range(WorkSet, U->operands());
       }
     }
   }
@@ -536,6 +534,7 @@ bool llvm::isAssumeLikeIntrinsic(const Instruction *I) {
       case Intrinsic::invariant_end:
       case Intrinsic::lifetime_start:
       case Intrinsic::lifetime_end:
+      case Intrinsic::experimental_noalias_scope_decl:
       case Intrinsic::objectsize:
       case Intrinsic::ptr_annotation:
       case Intrinsic::var_annotation:
@@ -1337,8 +1336,8 @@ static void computeKnownBitsFromOperator(const Operator *I,
         AccConstIndices += IndexConst.sextOrTrunc(BitWidth);
         continue;
       } else {
-        ScalingFactor.Zero = ~TypeSizeInBytes;
-        ScalingFactor.One = TypeSizeInBytes;
+        ScalingFactor =
+            KnownBits::makeConstant(APInt(IndexBitWidth, TypeSizeInBytes));
       }
       IndexBits = KnownBits::computeForMul(IndexBits, ScalingFactor);
 
@@ -1353,9 +1352,7 @@ static void computeKnownBitsFromOperator(const Operator *I,
           /*Add=*/true, /*NSW=*/false, Known, IndexBits);
     }
     if (!Known.isUnknown() && !AccConstIndices.isNullValue()) {
-      KnownBits Index(BitWidth);
-      Index.Zero = ~AccConstIndices;
-      Index.One = AccConstIndices;
+      KnownBits Index = KnownBits::makeConstant(AccConstIndices);
       Known = KnownBits::computeForAddSub(
           /*Add=*/true, /*NSW=*/false, Known, Index);
     }
@@ -1818,8 +1815,7 @@ void computeKnownBits(const Value *V, const APInt &DemandedElts,
   const APInt *C;
   if (match(V, m_APInt(C))) {
     // We know all of the bits for a scalar constant or a splat vector constant!
-    Known.One = *C;
-    Known.Zero = ~Known.One;
+    Known = KnownBits::makeConstant(*C);
     return;
   }
   // Null and aggregate-zero are all-zeros.
@@ -2090,7 +2086,8 @@ static bool isKnownNonNullFromDominatingCondition(const Value *V,
       if (auto *CalledFunc = CB->getCalledFunction())
         for (const Argument &Arg : CalledFunc->args())
           if (CB->getArgOperand(Arg.getArgNo()) == V &&
-              Arg.hasNonNullAttr() && DT->dominates(CB, CtxI))
+              Arg.hasNonNullAttr(/* AllowUndefOrPoison */ false) &&
+              DT->dominates(CB, CtxI))
             return true;
 
     // If the value is used as a load/store, then the pointer must be non null.
@@ -2111,7 +2108,7 @@ static bool isKnownNonNullFromDominatingCondition(const Value *V,
     bool NonNullIfTrue;
     if (cmpExcludesZero(Pred, RHS))
       NonNullIfTrue = true;
-    else if (Pred == ICmpInst::ICMP_EQ && match(RHS, m_Zero()))
+    else if (cmpExcludesZero(CmpInst::getInversePredicate(Pred), RHS))
       NonNullIfTrue = false;
     else
       continue;
@@ -2131,13 +2128,12 @@ static bool isKnownNonNullFromDominatingCondition(const Value *V,
         // correct to assume that all conditions of AND are met in true branch.
         // TODO: Support similar logic of OR and EQ predicate?
         if (NonNullIfTrue)
-          if (auto *BO = dyn_cast<BinaryOperator>(Curr))
-            if (BO->getOpcode() == Instruction::And) {
-              for (auto *BOU : BO->users())
-                if (Visited.insert(BOU).second)
-                  WorkList.push_back(BOU);
-              continue;
-            }
+          if (match(Curr, m_LogicalAnd(m_Value(), m_Value()))) {
+            for (auto *CurrU : Curr->users())
+              if (Visited.insert(CurrU).second)
+                WorkList.push_back(CurrU);
+            continue;
+          }
 
         if (const BranchInst *BI = dyn_cast<BranchInst>(Curr)) {
           assert(BI->isConditional() && "uses a comparison!");
@@ -2530,14 +2526,14 @@ static bool isKnownNonEqual(const Value *V1, const Value *V2, unsigned Depth,
         return isKnownNonEqual(O1->getOperand(0), O2->getOperand(0),
                                Depth + 1, Q);
       break;
-    case Instruction::Mul:
+    case Instruction::Mul: {
       // invertible if A * B == (A * B) mod 2^N where A, and B are integers
       // and N is the bitwdith.  The nsw case is non-obvious, but proven by
       // alive2: https://alive2.llvm.org/ce/z/Z6D5qK
-      if ((!cast<BinaryOperator>(O1)->hasNoUnsignedWrap() ||
-           !cast<BinaryOperator>(O2)->hasNoUnsignedWrap()) &&
-          (!cast<BinaryOperator>(O1)->hasNoSignedWrap() ||
-           !cast<BinaryOperator>(O2)->hasNoSignedWrap()))
+      auto *OBO1 = cast<OverflowingBinaryOperator>(O1);
+      auto *OBO2 = cast<OverflowingBinaryOperator>(O2);
+      if ((!OBO1->hasNoUnsignedWrap() || !OBO2->hasNoUnsignedWrap()) &&
+          (!OBO1->hasNoSignedWrap() || !OBO2->hasNoSignedWrap()))
         break;
 
       // Assume operand order has been canonicalized
@@ -2547,6 +2543,7 @@ static bool isKnownNonEqual(const Value *V1, const Value *V2, unsigned Depth,
         return isKnownNonEqual(O1->getOperand(0), O2->getOperand(0),
                                Depth + 1, Q);
       break;
+    }
     case Instruction::SExt:
     case Instruction::ZExt:
       if (O1->getOperand(0)->getType() == O2->getOperand(0)->getType())
@@ -4210,8 +4207,7 @@ void llvm::getUnderlyingObjects(const Value *V,
       // underlying objects.
       if (!LI || !LI->isLoopHeader(PN->getParent()) ||
           isSameUnderlyingObjectInLoop(PN, LI))
-        for (Value *IncValue : PN->incoming_values())
-          Worklist.push_back(IncValue);
+        append_range(Worklist, PN->incoming_values());
       continue;
     }
 
@@ -4394,7 +4390,7 @@ bool llvm::isSafeToSpeculativelyExecute(const Value *V,
     if (*Denominator == 0)
       return false;
     // It's safe to hoist if the denominator is not 0 or -1.
-    if (*Denominator != -1)
+    if (!Denominator->isAllOnesValue())
       return true;
     // At this point we know that the denominator is -1.  It is safe to hoist as
     // long we know that the numerator is not INT_MIN.
@@ -4737,7 +4733,7 @@ static bool canCreateUndefOrPoison(const Operator *Op, bool PoisonOnly) {
         ShiftAmounts.push_back(C);
 
       bool Safe = llvm::all_of(ShiftAmounts, [](Constant *C) {
-        auto *CI = dyn_cast<ConstantInt>(C);
+        auto *CI = dyn_cast_or_null<ConstantInt>(C);
         return CI && CI->getValue().ult(C->getType()->getIntegerBitWidth());
       });
       return !Safe;
@@ -4809,6 +4805,49 @@ bool llvm::canCreatePoison(const Operator *Op) {
   return ::canCreateUndefOrPoison(Op, /*PoisonOnly=*/true);
 }
 
+static bool directlyImpliesPoison(const Value *ValAssumedPoison,
+                                  const Value *V, unsigned Depth) {
+  if (ValAssumedPoison == V)
+    return true;
+
+  const unsigned MaxDepth = 2;
+  if (Depth >= MaxDepth)
+    return false;
+
+  const auto *I = dyn_cast<Instruction>(V);
+  if (I && propagatesPoison(cast<Operator>(I))) {
+    return any_of(I->operands(), [=](const Value *Op) {
+      return directlyImpliesPoison(ValAssumedPoison, Op, Depth + 1);
+    });
+  }
+  return false;
+}
+
+static bool impliesPoison(const Value *ValAssumedPoison, const Value *V,
+                          unsigned Depth) {
+  if (isGuaranteedNotToBeUndefOrPoison(ValAssumedPoison))
+    return true;
+
+  if (directlyImpliesPoison(ValAssumedPoison, V, /* Depth */ 0))
+    return true;
+
+  const unsigned MaxDepth = 2;
+  if (Depth >= MaxDepth)
+    return false;
+
+  const auto *I = dyn_cast<Instruction>(ValAssumedPoison);
+  if (I && !canCreatePoison(cast<Operator>(I))) {
+    return all_of(I->operands(), [=](const Value *Op) {
+      return impliesPoison(Op, V, Depth + 1);
+    });
+  }
+  return false;
+}
+
+bool llvm::impliesPoison(const Value *ValAssumedPoison, const Value *V) {
+  return ::impliesPoison(ValAssumedPoison, V, /* Depth */ 0);
+}
+
 static bool programUndefinedIfUndefOrPoison(const Value *V,
                                             bool PoisonOnly);
 
@@ -4830,14 +4869,15 @@ static bool isGuaranteedNotToBeUndefOrPoison(const Value *V,
 
   if (auto *C = dyn_cast<Constant>(V)) {
     if (isa<UndefValue>(C))
-      return PoisonOnly;
+      return PoisonOnly && !isa<PoisonValue>(C);
 
     if (isa<ConstantInt>(C) || isa<GlobalVariable>(C) || isa<ConstantFP>(V) ||
         isa<ConstantPointerNull>(C) || isa<Function>(C))
       return true;
 
     if (C->getType()->isVectorTy() && !isa<ConstantExpr>(C))
-      return (PoisonOnly || !C->containsUndefElement()) &&
+      return (PoisonOnly ? !C->containsPoisonElement()
+                         : !C->containsUndefOrPoisonElement()) &&
              !C->containsConstantExpression();
   }
 
@@ -5000,23 +5040,10 @@ bool llvm::isGuaranteedToTransferExecutionToSuccessor(const Instruction *I) {
     if (CB->hasFnAttr(Attribute::WillReturn))
       return true;
 
-    // Non-throwing call sites can loop infinitely, call exit/pthread_exit
-    // etc. and thus not return.  However, LLVM already assumes that
-    //
-    //  - Thread exiting actions are modeled as writes to memory invisible to
-    //    the program.
-    //
-    //  - Loops that don't have side effects (side effects are volatile/atomic
-    //    stores and IO) always terminate (see http://llvm.org/PR965).
-    //    Furthermore IO itself is also modeled as writes to memory invisible to
-    //    the program.
-    //
-    // We rely on those assumptions here, and use the memory effects of the call
-    // target as a proxy for checking that it always returns.
-
-    // FIXME: This isn't aggressive enough; a call which only writes to a global
-    // is guaranteed to return.
-    return CB->onlyReadsMemory() || CB->onlyAccessesArgMemory();
+    // FIXME: Temporarily assume that all side-effect free intrinsics will
+    // return. Remove this workaround once all intrinsics are appropriately
+    // annotated.
+    return isa<IntrinsicInst>(CB) && CB->onlyReadsMemory();
   }
 
   // Other instructions return normally.
@@ -5578,10 +5605,10 @@ static SelectPatternResult matchSelectPattern(CmpInst::Predicate Pred,
     // elements because those can not be back-propagated for analysis.
     Value *OutputZeroVal = nullptr;
     if (match(TrueVal, m_AnyZeroFP()) && !match(FalseVal, m_AnyZeroFP()) &&
-        !cast<Constant>(TrueVal)->containsUndefElement())
+        !cast<Constant>(TrueVal)->containsUndefOrPoisonElement())
       OutputZeroVal = TrueVal;
     else if (match(FalseVal, m_AnyZeroFP()) && !match(TrueVal, m_AnyZeroFP()) &&
-             !cast<Constant>(FalseVal)->containsUndefElement())
+             !cast<Constant>(FalseVal)->containsUndefOrPoisonElement())
       OutputZeroVal = FalseVal;
 
     if (OutputZeroVal) {
@@ -6156,25 +6183,25 @@ static Optional<bool> isImpliedCondICmps(const ICmpInst *LHS,
 
 /// Return true if LHS implies RHS is true.  Return false if LHS implies RHS is
 /// false.  Otherwise, return None if we can't infer anything.  We expect the
-/// RHS to be an icmp and the LHS to be an 'and' or an 'or' instruction.
+/// RHS to be an icmp and the LHS to be an 'and', 'or', or a 'select' instruction.
 static Optional<bool>
-isImpliedCondAndOr(const BinaryOperator *LHS, CmpInst::Predicate RHSPred,
+isImpliedCondAndOr(const Instruction *LHS, CmpInst::Predicate RHSPred,
                    const Value *RHSOp0, const Value *RHSOp1,
-
                    const DataLayout &DL, bool LHSIsTrue, unsigned Depth) {
-  // The LHS must be an 'or' or an 'and' instruction.
+  // The LHS must be an 'or', 'and', or a 'select' instruction.
   assert((LHS->getOpcode() == Instruction::And ||
-          LHS->getOpcode() == Instruction::Or) &&
-         "Expected LHS to be 'and' or 'or'.");
+          LHS->getOpcode() == Instruction::Or ||
+          LHS->getOpcode() == Instruction::Select) &&
+         "Expected LHS to be 'and', 'or', or 'select'.");
 
   assert(Depth <= MaxAnalysisRecursionDepth && "Hit recursion limit");
 
   // If the result of an 'or' is false, then we know both legs of the 'or' are
   // false.  Similarly, if the result of an 'and' is true, then we know both
   // legs of the 'and' are true.
-  Value *ALHS, *ARHS;
-  if ((!LHSIsTrue && match(LHS, m_Or(m_Value(ALHS), m_Value(ARHS)))) ||
-      (LHSIsTrue && match(LHS, m_And(m_Value(ALHS), m_Value(ARHS))))) {
+  const Value *ALHS, *ARHS;
+  if ((!LHSIsTrue && match(LHS, m_LogicalOr(m_Value(ALHS), m_Value(ARHS)))) ||
+      (LHSIsTrue && match(LHS, m_LogicalAnd(m_Value(ALHS), m_Value(ARHS))))) {
     // FIXME: Make this non-recursion.
     if (Optional<bool> Implication = isImpliedCondition(
             ALHS, RHSPred, RHSOp0, RHSOp1, DL, LHSIsTrue, Depth + 1))
@@ -6215,13 +6242,14 @@ llvm::isImpliedCondition(const Value *LHS, CmpInst::Predicate RHSPred,
     return isImpliedCondICmps(LHSCmp, RHSPred, RHSOp0, RHSOp1, DL, LHSIsTrue,
                               Depth);
 
-  /// The LHS should be an 'or' or an 'and' instruction.  We expect the RHS to
-  /// be / an icmp. FIXME: Add support for and/or on the RHS.
-  const BinaryOperator *LHSBO = dyn_cast<BinaryOperator>(LHS);
-  if (LHSBO) {
-    if ((LHSBO->getOpcode() == Instruction::And ||
-         LHSBO->getOpcode() == Instruction::Or))
-      return isImpliedCondAndOr(LHSBO, RHSPred, RHSOp0, RHSOp1, DL, LHSIsTrue,
+  /// The LHS should be an 'or', 'and', or a 'select' instruction.  We expect
+  /// the RHS to be an icmp.
+  /// FIXME: Add support for and/or/select on the RHS.
+  if (const Instruction *LHSI = dyn_cast<Instruction>(LHS)) {
+    if ((LHSI->getOpcode() == Instruction::And ||
+         LHSI->getOpcode() == Instruction::Or ||
+         LHSI->getOpcode() == Instruction::Select))
+      return isImpliedCondAndOr(LHSI, RHSPred, RHSOp0, RHSOp1, DL, LHSIsTrue,
                                 Depth);
   }
   return None;

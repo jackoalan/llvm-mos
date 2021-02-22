@@ -5178,7 +5178,7 @@ template <typename Derived>
 QualType TreeTransform<Derived>::TransformDependentVectorType(
     TypeLocBuilder &TLB, DependentVectorTypeLoc TL) {
   const DependentVectorType *T = TL.getTypePtr();
-  QualType ElementType = getDerived().TransformType(T->getElementType());
+  QualType ElementType = getDerived().TransformType(TLB, TL.getElementLoc());
   if (ElementType.isNull())
     return QualType();
 
@@ -5219,7 +5219,7 @@ QualType TreeTransform<Derived>::TransformDependentSizedExtVectorType(
   const DependentSizedExtVectorType *T = TL.getTypePtr();
 
   // FIXME: ext vector locs should be nested
-  QualType ElementType = getDerived().TransformType(T->getElementType());
+  QualType ElementType = getDerived().TransformType(TLB, TL.getElementLoc());
   if (ElementType.isNull())
     return QualType();
 
@@ -5386,7 +5386,7 @@ template <typename Derived>
 QualType TreeTransform<Derived>::TransformVectorType(TypeLocBuilder &TLB,
                                                      VectorTypeLoc TL) {
   const VectorType *T = TL.getTypePtr();
-  QualType ElementType = getDerived().TransformType(T->getElementType());
+  QualType ElementType = getDerived().TransformType(TLB, TL.getElementLoc());
   if (ElementType.isNull())
     return QualType();
 
@@ -5409,7 +5409,7 @@ template<typename Derived>
 QualType TreeTransform<Derived>::TransformExtVectorType(TypeLocBuilder &TLB,
                                                         ExtVectorTypeLoc TL) {
   const VectorType *T = TL.getTypePtr();
-  QualType ElementType = getDerived().TransformType(T->getElementType());
+  QualType ElementType = getDerived().TransformType(TLB, TL.getElementLoc());
   if (ElementType.isNull())
     return QualType();
 
@@ -12241,7 +12241,8 @@ TreeTransform<Derived>::TransformCXXConstructExpr(CXXConstructExpr *E) {
         (E->getNumArgs() > 1 && getDerived().DropCallArgument(E->getArg(1)))) &&
        (!getDerived().DropCallArgument(E->getArg(0))) &&
        !E->isListInitialization()))
-    return getDerived().TransformExpr(E->getArg(0));
+    return getDerived().TransformInitializer(E->getArg(0),
+                                             /*DirectInit*/ false);
 
   TemporaryBase Rebase(*this, /*FIXME*/ E->getBeginLoc(), DeclarationName());
 
@@ -14334,11 +14335,9 @@ TreeTransform<Derived>::RebuildCXXOperatorCallExpr(OverloadedOperatorKind Op,
     SourceLocation RBrace;
 
     if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Callee)) {
-        DeclarationNameLoc NameLoc = DRE->getNameInfo().getInfo();
-        LBrace = SourceLocation::getFromRawEncoding(
-                    NameLoc.CXXOperatorName.BeginOpNameLoc);
-        RBrace = SourceLocation::getFromRawEncoding(
-                    NameLoc.CXXOperatorName.EndOpNameLoc);
+      DeclarationNameLoc NameLoc = DRE->getNameInfo().getInfo();
+      LBrace = NameLoc.getCXXOperatorNameBeginLoc();
+      RBrace = NameLoc.getCXXOperatorNameEndLoc();
     } else {
       LBrace = Callee->getBeginLoc();
       RBrace = OpLoc;

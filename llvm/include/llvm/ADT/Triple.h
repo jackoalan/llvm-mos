@@ -65,6 +65,7 @@ public:
 	  mos,			      // MOS: mos 65xx
     msp430,         // MSP430: msp430
     ppc,            // PPC: powerpc
+    ppcle,          // PPCLE: powerpc (little endian)
     ppc64,          // PPC64: powerpc64, ppu
     ppc64le,        // PPC64LE: powerpc64le
     r600,           // R600: AMD GPUs HD2XXX - HD6XXX
@@ -209,6 +210,7 @@ public:
     GNUEABI,
     GNUEABIHF,
     GNUX32,
+    GNUILP32,
     CODE16,
     EABI,
     EABIHF,
@@ -728,7 +730,10 @@ public:
     assert(PointerWidth == 64 || PointerWidth == 32);
     if (!isAArch64())
       return false;
-    return isArch64Bit() ? PointerWidth == 64 : PointerWidth == 32;
+    return getArch() == Triple::aarch64_32 ||
+                   getEnvironment() == Triple::GNUILP32
+               ? PointerWidth == 32
+               : PointerWidth == 64;
   }
 
   /// Tests whether the target is MIPS 32-bit (little and big endian).
@@ -744,6 +749,17 @@ public:
   /// Tests whether the target is MIPS (little and big endian, 32- or 64-bit).
   bool isMIPS() const {
     return isMIPS32() || isMIPS64();
+  }
+
+  /// Tests whether the target is PowerPC (32- or 64-bit LE or BE).
+  bool isPPC() const {
+    return getArch() == Triple::ppc || getArch() == Triple::ppc64 ||
+           getArch() == Triple::ppcle || getArch() == Triple::ppc64le;
+  }
+
+  /// Tests whether the target is 32-bit PowerPC (little and big endian).
+  bool isPPC32() const {
+    return getArch() == Triple::ppc || getArch() == Triple::ppcle;
   }
 
   /// Tests whether the target is 64-bit PowerPC (little and big endian).
