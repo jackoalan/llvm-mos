@@ -238,7 +238,6 @@ public:
     MachO,
     Wasm,
     XCOFF,
-    MOS,
   };
 
 private:

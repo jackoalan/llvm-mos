@@ -1,4 +1,3 @@
-<<<<<<< feature/jbyrd/assembly-backend
 //===-- MOSInstrInfo.td - MOS Instruction defs -------------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure

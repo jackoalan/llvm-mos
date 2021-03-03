@@ -4823,9 +4823,6 @@ static const char *getSectionNameForBitcode(const Triple &T) {
   case Triple::XCOFF:
     llvm_unreachable("XCOFF is not yet implemented");
     break;
-  case Triple::MOS:
-    llvm_unreachable("MOS is not yet implemented");
-    break;
   }
   llvm_unreachable("Unimplemented ObjectFormatType");
 }
@@ -4844,9 +4841,6 @@ static const char *getSectionNameForCommandline(const Triple &T) {
     break;
   case Triple::XCOFF:
     llvm_unreachable("XCOFF is not yet implemented");
-    break;
-  case Triple::MOS:
-    llvm_unreachable("MOS is not yet implemented");
     break;
   }
   llvm_unreachable("Unimplemented ObjectFormatType");

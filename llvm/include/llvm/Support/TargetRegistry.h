@@ -518,8 +518,6 @@ public:
       S = createXCOFFStreamer(Ctx, std::move(TAB), std::move(OW),
                               std::move(Emitter), RelaxAll);
       break;
-    case Triple::MOS:
-      report_fatal_error("MOS MCObjectStreamer not implemented yet");
     }
     if (ObjectTargetStreamerCtorFn)
       ObjectTargetStreamerCtorFn(*S, STI);

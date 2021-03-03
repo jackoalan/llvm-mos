@@ -418,10 +418,11 @@ public:
 
   MCSection *getZPSection() const { return ZPSection; }
 
+  MCSection *getEHFrameSection() const {
     return EHFrameSection;
   }
 
-  enum Environment { IsMachO, IsELF, IsCOFF, IsWasm, IsXCOFF, IsMOS };
+  enum Environment { IsMachO, IsELF, IsCOFF, IsWasm, IsXCOFF };
   Environment getObjectFileType() const { return Env; }
 
   bool isPositionIndependent() const { return PositionIndependent; }

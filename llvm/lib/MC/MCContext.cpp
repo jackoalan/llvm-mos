@@ -195,9 +195,6 @@ MCSymbol *MCContext::createSymbolImpl(const StringMapEntry<bool> *Name,
       return new (Name, *this) MCSymbolWasm(Name, IsTemporary);
     case MCObjectFileInfo::IsXCOFF:
       return createXCOFFSymbolImpl(Name, IsTemporary);
-    case MCObjectFileInfo::IsMOS:
-      return new (Name, *this)
-        MCSymbol(MCSymbol::SymbolKindUnset, Name, IsTemporary);
     }
   }
   return new (Name, *this) MCSymbol(MCSymbol::SymbolKindUnset, Name,

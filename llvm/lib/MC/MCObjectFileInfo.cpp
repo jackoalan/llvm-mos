@@ -976,10 +976,6 @@ void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
     Env = IsXCOFF;
     initXCOFFMCObjectFileInfo(TT);
     break;
-  case Triple::MOS:
-    Env = IsMOS;
-    initMOSMCObjectFileInfo();
-    break;
   case Triple::UnknownObjectFormat:
     report_fatal_error("Cannot initialize MC for unknown object file format.");
     break;
@@ -999,7 +995,6 @@ MCSection *MCObjectFileInfo::getDwarfComdatSection(const char *Name,
   case Triple::COFF:
   case Triple::GOFF:
   case Triple::XCOFF:
-  case Triple::MOS:
   case Triple::UnknownObjectFormat:
     report_fatal_error("Cannot get DWARF comdat section for this object file "
                        "format: not implemented.");

@@ -18,11 +18,13 @@ include "llvm/Target/Target.td"
 //===---------------------------------------------------------------------===//
 // MOS Device Definitions
 //===---------------------------------------------------------------------===//
-include "llvm/Target/Target.td"
+
+include "MOSDevices.td"
+include "MOSFeatures.td"
+
 include "llvm/Target/GlobalISel/Combine.td"
 
 include "MOSRegisterInfo.td"
-
 include "MOSCallingConv.td"
 include "MOSCombine.td"
 include "MOSRegisterBanks.td"
@@ -39,22 +41,8 @@ def MOSSchedModel : SchedMachineModel {
 
 def : ProcessorModel<"generic", MOSSchedModel, []>;
 
-include "MOSDevices.td"
-include "MOSFeatures.td"
-include "MOSRegisterInfo.td"
-include "MOSInstrInfo.td"
-
-def MOSInstrInfo : InstrInfo;
-
-include "MOSCallingConv.td"
-
 def MOSInstrInfo : InstrInfo {
   let guessInstructionProperties = 0;
-}
-
-def MOS : Target {
-  let InstructionSet = MOSInstrInfo;
-  let AllowRegisterRenaming = 1;
 }
 
 def MOSAsmWriter : AsmWriter {
@@ -96,5 +84,6 @@ def MOS : Target {
   let AssemblyParserVariants = [MOSAsmParserVariantDefault, 
                                 MOSAsmParserVariantCA65, 
                                 MOSAsmParserVariantXA65];
+  let AllowRegisterRenaming = 1;
 }
 
