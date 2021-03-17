@@ -207,10 +207,14 @@ void adjustArgFlags(CallLowering::ArgInfo &Arg, LLT Ty) {
 bool MOSCallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
                                   const Value *Val, ArrayRef<Register> VRegs,
                                   FunctionLoweringInfo &FLI) const {
-  auto Return = MIRBuilder.buildInstrNoInsert(MOS::RTS_Implied);
+  MachineFunction &MF = MIRBuilder.getMF();
+  const auto *MFI = MF.getInfo<MOSFunctionInfo>();
+
+  unsigned RetOpc =
+      MFI->isInterruptHandler() ? MOS::RTI_Implied : MOS::RTS_Implied;
+  auto Return = MIRBuilder.buildInstrNoInsert(RetOpc);
 
   if (Val) {
-    MachineFunction &MF = MIRBuilder.getMF();
     MachineRegisterInfo &MRI = MF.getRegInfo();
     const TargetLowering &TLI = *getTLI();
     const DataLayout &DL = MF.getDataLayout();

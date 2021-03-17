@@ -14,14 +14,20 @@
 #define LLVM_LIB_TARGET_MOS_MOSMACHINEFUNCTIONINFO_H
 
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/IR/Function.h"
 
 namespace llvm {
 
 class MOSFunctionInfo : public MachineFunctionInfo {
   int VarArgsStackIndex;
 
+  /// Whether or not the function is an interrupt handler.
+  bool IsInterruptHandler;
+
 public:
-  MOSFunctionInfo(MachineFunction& MF) {}
+  MOSFunctionInfo(MachineFunction &MF)
+      : VarArgsStackIndex(0),
+        IsInterruptHandler(MF.getFunction().hasFnAttribute("interrupt")) {}
 
   /// Returns the fake frame index indicating the start of the varargs region of
   /// the incoming call stack.
@@ -30,6 +36,8 @@ public:
   /// Sets the fake frame index indicating the start of the varargs region of the
   /// incoming call stack.
   void setVarArgsStackIndex(int Index) { VarArgsStackIndex = Index; }
+
+  bool isInterruptHandler() const { return IsInterruptHandler; }
 };
 
 } // namespace llvm

@@ -369,6 +369,7 @@ def TargetAVR : TargetArch<["avr"]>;
 def TargetBPF : TargetArch<["bpfel", "bpfeb"]>;
 def TargetMips32 : TargetArch<["mips", "mipsel"]>;
 def TargetAnyMips : TargetArch<["mips", "mipsel", "mips64", "mips64el"]>;
+def TargetMOS : TargetArch<["mos"]>;
 def TargetMSP430 : TargetArch<["msp430"]>;
 def TargetRISCV : TargetArch<["riscv32", "riscv64"]>;
 def TargetX86 : TargetArch<["x86"]>;
@@ -797,6 +798,13 @@ def AVRSignal : InheritableAttr, TargetSpecificAttr<TargetAVR> {
   let Spellings = [GCC<"signal">];
   let Subjects = SubjectList<[Function]>;
   let Documentation = [AVRSignalDocs];
+}
+
+def MOSInterrupt : InheritableAttr, TargetSpecificAttr<TargetMOS> {
+  let Spellings = [GCC<"interrupt">];
+  let Subjects = SubjectList<[Function]>;
+  let ParseKind = "Interrupt";
+  let Documentation = [MOSInterruptDocs];
 }
 
 def AsmLabel : InheritableAttr {

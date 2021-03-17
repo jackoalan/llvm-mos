@@ -75,8 +75,6 @@ public:
 
   MOSCombiner();
 
-  StringRef getPassName() const override { return "MOSCombiner"; }
-
   bool runOnMachineFunction(MachineFunction &MF) override;
 
   void getAnalysisUsage(AnalysisUsage &AU) const override;

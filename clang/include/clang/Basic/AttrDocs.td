@@ -2124,6 +2124,17 @@ Interrupt handler functions defined with the signal attribute do not re-enable i
 }];
 }
 
+def MOSInterruptDocs : Documentation {
+  let Category = DocCatFunction;
+  let Heading = "interrupt (MOS)";
+  let Content = [{
+Clang supports the GNU style ``__attribute__((interrupt))`` attribute on
+MOS targets. This attribute may be attached to a function definition and instructs
+the backend to generate appropriate function entry/exit code so that it can be used
+directly as an interrupt service routine.
+  }];
+}
+
 def TargetDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
