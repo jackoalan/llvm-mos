@@ -102,7 +102,10 @@ MOSSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS,
 }
 
 void MOSSubtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,
-                                           unsigned NumRegionInstrs) const {
+                                       unsigned NumRegionInstrs) const {
+  Policy.ShouldTrackPressure = true;
+  // TODO: LaneMasks enable tracking subregister pressure (enable for 65816?)
+  Policy.ShouldTrackLaneMasks = false;
   Policy.OnlyBottomUp = false;
   Policy.OnlyTopDown = false;
 }
