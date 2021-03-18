@@ -94,6 +94,13 @@ public:
                                     const bool WasForced) const override;
   unsigned getNumFixupKinds() const override;
   MCFixupKindInfo const &getFixupKindInfo(MCFixupKind Kind) const override;
+
+  /// Translates applicable zero page opcodes to absolute equivalent.
+  ///
+  /// \param Opcode - The zero page opcode to translate.
+  /// \return The absolute opcode or 0 if not applicable.
+  static unsigned relaxZeroPageOpcodeToAbsolute(unsigned Opcode);
+
   /// Check whether the given instruction may need relaxation.
   ///
   /// \param Inst - The instruction to test.

@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "MOSMCInstLower.h"
+#include "MCTargetDesc/MOSAsmBackend.h"
 #include "MCTargetDesc/MOSMCExpr.h"
 #include "MCTargetDesc/MOSMCTargetDesc.h"
 #include "MOSInstrInfo.h"
@@ -22,6 +23,24 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "mos-mcinstlower"
+
+// Keep zero page or switch to absolute opcodes based on the range of the
+// immediate. This is an early relaxation step that is applicable to immediate
+// operands. Fixup relaxations are handled in the usual way by MCAssembler.
+static void RelaxImmZeroPageInstruction(MCInst &OutMI) {
+  assert(OutMI.getNumOperands() >= 1);
+
+  const MCOperand &Operand = OutMI.getOperand(0);
+  int64_t Imm;
+  if (Operand.evaluateAsConstantImm(Imm) && (Imm < 0 || Imm > UCHAR_MAX)) {
+    // If a constant immediate evaluates out of the zero page range, relax to
+    // absolute mode.
+    unsigned AbsoluteOp =
+        MOSAsmBackend::relaxZeroPageOpcodeToAbsolute(OutMI.getOpcode());
+    if (AbsoluteOp)
+      OutMI.setOpcode(AbsoluteOp);
+  }
+}
 
 void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
   switch (MI->getOpcode()) {
@@ -99,13 +118,15 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
         OutMI.setOpcode(MOS::LDA_Immediate);
         break;
       case MOS::LDabs:
-        OutMI.setOpcode(MOS::LDA_Absolute);
+        // Relaxed to absolute mode if required
+        OutMI.setOpcode(MOS::LDA_ZeroPage);
         break;
       case MOS::LDzpr:
         OutMI.setOpcode(MOS::LDA_ZeroPage);
         break;
       case MOS::STabs:
-        OutMI.setOpcode(MOS::STA_Absolute);
+        // Relaxed to absolute mode if required
+        OutMI.setOpcode(MOS::STA_ZeroPage);
         break;
       }
       break;
@@ -118,13 +139,15 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
         OutMI.setOpcode(MOS::LDX_Immediate);
         break;
       case MOS::LDabs:
-        OutMI.setOpcode(MOS::LDX_Absolute);
+        // Relaxed to absolute mode if required
+        OutMI.setOpcode(MOS::LDX_ZeroPage);
         break;
       case MOS::LDzpr:
         OutMI.setOpcode(MOS::LDX_ZeroPage);
         break;
       case MOS::STabs:
-        OutMI.setOpcode(MOS::STX_Absolute);
+        // Relaxed to absolute mode if required
+        OutMI.setOpcode(MOS::STX_ZeroPage);
         break;
       }
       break;
@@ -137,13 +160,15 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
         OutMI.setOpcode(MOS::LDY_Immediate);
         break;
       case MOS::LDabs:
-        OutMI.setOpcode(MOS::LDY_Absolute);
+        // Relaxed to absolute mode if required
+        OutMI.setOpcode(MOS::LDY_ZeroPage);
         break;
       case MOS::LDzpr:
         OutMI.setOpcode(MOS::LDY_ZeroPage);
         break;
       case MOS::STabs:
-        OutMI.setOpcode(MOS::STY_Absolute);
+        // Relaxed to absolute mode if required
+        OutMI.setOpcode(MOS::STY_ZeroPage);
         break;
       }
       break;
@@ -152,6 +177,7 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
     if (!lowerOperand(MI->getOperand(1), Val))
       llvm_unreachable("Failed to lower operand");
     OutMI.addOperand(Val);
+    RelaxImmZeroPageInstruction(OutMI);
     return;
   }
   case MOS::LDAidx: {
@@ -159,7 +185,8 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
     default:
       llvm_unreachable("Unexpected LDAidx register.");
     case MOS::X:
-      OutMI.setOpcode(MOS::LDA_AbsoluteX);
+      // Relaxed to absolute mode if required
+      OutMI.setOpcode(MOS::LDA_ZeroPageX);
       break;
     case MOS::Y:
       OutMI.setOpcode(MOS::LDA_AbsoluteY);
@@ -169,6 +196,7 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
     if (!lowerOperand(MI->getOperand(0), Val))
       llvm_unreachable("Failed to lower operand");
     OutMI.addOperand(Val);
+    RelaxImmZeroPageInstruction(OutMI);
     return;
   }
   case MOS::LDCimm: {
@@ -223,7 +251,8 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
     default:
       llvm_unreachable("Unexpected register.");
     case MOS::X:
-      OutMI.setOpcode(MOS::STA_AbsoluteX);
+      // Relaxed to absolute mode if required
+      OutMI.setOpcode(MOS::STA_ZeroPageX);
       break;
     case MOS::Y:
       OutMI.setOpcode(MOS::STA_AbsoluteY);
@@ -233,6 +262,7 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
     if (!lowerOperand(MI->getOperand(1), Val))
       llvm_unreachable("Failed to lower operand");
     OutMI.addOperand(Val);
+    RelaxImmZeroPageInstruction(OutMI);
     return;
   }
   case MOS::STzpr: {

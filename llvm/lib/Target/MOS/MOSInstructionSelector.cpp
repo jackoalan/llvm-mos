@@ -341,7 +341,7 @@ bool MOSInstructionSelector::selectIntToPtr(MachineInstr &MI) {
 // is based on a constant value. Absolute or zero page addressing modes can
 // be used under this condition.
 static bool MatchConstantAddr(const MachineInstr &MI, MachineOperand &BaseOut,
-                              bool &InZeroPage, const DataLayout &DL) {
+                              const DataLayout &DL) {
   assert(MI.getOpcode() == MOS::G_LOAD || MI.getOpcode() == MOS::G_STORE);
   assert(!MI.memoperands_empty());
 
@@ -351,23 +351,29 @@ static bool MatchConstantAddr(const MachineInstr &MI, MachineOperand &BaseOut,
     return false;
 
   if (auto *CE = dyn_cast<ConstantExpr>(V)) {
-    if (CE->getOpcode() == Instruction::IntToPtr) {
+    switch (CE->getOpcode()) {
+    case Instruction::IntToPtr: {
       if (auto *ConstAddr = dyn_cast<ConstantInt>(CE->getOperand(0))) {
         BaseOut.ChangeToImmediate(MMO.getOffset() + ConstAddr->getSExtValue());
-        InZeroPage = ConstAddr->getZExtValue() < 256;
         return ConstAddr->getBitWidth() == 16;
       }
-    } else if (CE->getOpcode() == Instruction::GetElementPtr) {
+      break;
+    }
+    case Instruction::GetElementPtr: {
       APInt OffsetAI(DL.getPointerTypeSizeInBits(CE->getType()), 0);
       cast<GEPOperator>(CE)->accumulateConstantOffset(DL, OffsetAI);
 
       if (auto *GV = dyn_cast<GlobalValue>(CE->getOperand(0))) {
-        BaseOut.ChangeToGA(GV, MMO.getOffset() + OffsetAI.getSExtValue());
+        BaseOut.ChangeToGA(GV, MMO.getOffset() + OffsetAI.getSExtValue(), BaseOut.getTargetFlags());
         return true;
       }
+      break;
+    }
+    default:
+      break;
     }
   } else if (auto *GV = dyn_cast<GlobalValue>(V)) {
-    BaseOut.ChangeToGA(GV, MMO.getOffset());
+    BaseOut.ChangeToGA(GV, MMO.getOffset(), BaseOut.getTargetFlags());
     return true;
   }
 
@@ -447,9 +453,8 @@ bool MOSInstructionSelector::selectLoad(MachineInstr &MI) {
   MachineOperand Base = MachineOperand::CreateImm(0);
   MachineOperand Offset = MachineOperand::CreateImm(0);
 
-  bool InZeroPage = false;
-  if (MatchConstantAddr(MI, Base, InZeroPage, DL)) {
-    auto Load = Builder.buildInstr(InZeroPage ? MOS::LDzpr : MOS::LDabs)
+  if (MatchConstantAddr(MI, Base, DL)) {
+    auto Load = Builder.buildInstr(MOS::LDabs)
                     .addDef(Dst)
                     .add(Base)
                     .cloneMemRefs(MI);
@@ -619,9 +624,8 @@ bool MOSInstructionSelector::selectStore(MachineInstr &MI) {
   MachineOperand Base = MachineOperand::CreateImm(0);
   MachineOperand Offset = MachineOperand::CreateImm(0);
 
-  bool InZeroPage = false;
-  if (MatchConstantAddr(MI, Base, InZeroPage, DL)) {
-    auto Store = Builder.buildInstr(InZeroPage ? MOS::STzpr : MOS::STabs)
+  if (MatchConstantAddr(MI, Base, DL)) {
+    auto Store = Builder.buildInstr(MOS::STabs)
                      .addUse(Src)
                      .add(Base)
                      .cloneMemRefs(MI);

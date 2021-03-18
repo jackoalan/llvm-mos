@@ -300,13 +300,17 @@ unsigned MOSAsmBackend::getNumFixupKinds() const {
   return MOS::Fixups::NumTargetFixupKinds;
 }
 
-unsigned MOSAsmBackend::relaxInstructionTo(const MCInst &Inst) const {
+unsigned MOSAsmBackend::relaxZeroPageOpcodeToAbsolute(unsigned Opcode) {
   const auto *ZPIRE =
-      MOS::getZeroPageInstructionRelaxationEntry(Inst.getOpcode());
+      MOS::getZeroPageInstructionRelaxationEntry(Opcode);
   if (ZPIRE == nullptr) {
     return 0;
   }
   return ZPIRE->To;
+}
+
+unsigned MOSAsmBackend::relaxInstructionTo(const MCInst &Inst) const {
+  return relaxZeroPageOpcodeToAbsolute(Inst.getOpcode());
 }
 
 bool MOSAsmBackend::mayNeedRelaxation(const MCInst &Inst,
