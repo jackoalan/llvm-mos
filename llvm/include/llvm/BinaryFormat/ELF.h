@@ -513,8 +513,9 @@ enum : unsigned {
   EF_MOS_ARCH_W65C02 = 0x00000020, // WDC only 65C02 instructions
   EF_MOS_ARCH_W65816 = 0x00000100, // 65816 instructions
   EF_MOS_ARCH_65EL02 = 0x00000200, // 65EL02 instructions
-  EF_MOS_ARCH_65CE02 = 0x00000400,  // 65CE02 instructions
-  EF_MOS_ARCH_SWEET16 = 0x00010000  // SWEET16 instructions
+  EF_MOS_ARCH_65CE02 = 0x00000400, // 65CE02 instructions
+  EF_MOS_ARCH_SWEET16 = 0x00010000, // SWEET16 instructions
+  EF_MOS_ARCH_SPC700 = 0x00020000  // SPC700 instructions
 };
 
 // ELF Relocation types for AVR

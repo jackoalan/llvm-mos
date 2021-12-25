@@ -147,8 +147,9 @@ llvm::ArrayRef<const char *> MOSTargetInfo::getGCCRegNames() const {
 }
 
 static constexpr llvm::StringLiteral ValidCPUNames[] = {
-    {"mos6502"},   {"mos6502x"},   {"mos65c02"},   {"mosr65c02"}, {"mosw65c02"},
-    {"mosw65816"}, {"mosw65el02"}, {"mosw65ce02"}, {"mossweet16"}};
+    {"mos6502"},    {"mos6502x"},  {"mos65c02"},   {"mosr65c02"},
+    {"mosw65c02"},  {"mosw65816"}, {"mosw65el02"}, {"mosw65ce02"},
+    {"mossweet16"}, {"mosspc700"}};
 
 bool MOSTargetInfo::isValidCPUName(StringRef Name) const {
   return llvm::find(ValidCPUNames, Name) != std::end(ValidCPUNames);

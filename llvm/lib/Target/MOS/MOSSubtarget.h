@@ -98,6 +98,9 @@ public:
 
   bool has6502() const { return Has6502Insns; }
   bool has65C02() const { return Has65C02Insns; }
+  bool hasSPC700() const { return HasSPC700Insns; }
+  bool hasGPRStackRegs() const { return has65C02() || hasSPC700(); }
+  bool hasBRA() const { return has65C02() || hasSPC700(); }
 
 private:
   /// The ELF e_flags architecture features.
@@ -117,6 +120,7 @@ private:
   bool Has65EL02Insns = false;
   bool Has65CE02Insns = false;
   bool HasSWEET16Insns = false;
+  bool HasSPC700Insns = false;
 
   bool LongRegisterNames = false;
 

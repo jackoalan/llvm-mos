@@ -31,6 +31,19 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 
+namespace llvm {
+namespace MOS {
+struct MOSToSPC700MappingEntry {
+  unsigned From;
+  unsigned To;
+};
+
+#define GET_MOSToSPC700MappingTable_DECL
+#define GET_MOSToSPC700MappingTable_IMPL
+#include "MOSGenSearchableTables.inc"
+} // namespace MOS
+} // namespace llvm
+
 using namespace llvm;
 
 #define DEBUG_TYPE "asm-printer"
@@ -52,6 +65,7 @@ public:
   // Wrapper needed for tblgenned pseudo lowering.
   void lowerOperand(const MachineOperand &MO, MCOperand &MCOp);
 
+  void EmitToStreamer(MCStreamer &S, MCInst &Inst);
   void emitInstruction(const MachineInstr *MI) override;
 
   bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
@@ -66,6 +80,17 @@ public:
 
   const MCSymbol *getFunctionFrameSymbol(int FI) const override;
 };
+
+void MOSAsmPrinter::EmitToStreamer(MCStreamer &S, MCInst &Inst) {
+  if (MF->getSubtarget<MOSSubtarget>().hasSPC700()) {
+    const auto *SPC700 = MOS::getMOSToSPC700MappingEntry(Inst.getOpcode());
+    if (SPC700 == nullptr)
+      llvm_unreachable("Unable to translate opcode to SPC700.");
+    Inst.setOpcode(SPC700->To);
+  }
+
+  AsmPrinter::EmitToStreamer(*OutStreamer, Inst);
+}
 
 // Simple pseudo-instructions have their lowering (with expansion to real
 // instructions) auto-generated.

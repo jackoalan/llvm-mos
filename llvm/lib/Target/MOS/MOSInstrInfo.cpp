@@ -378,7 +378,7 @@ unsigned MOSInstrInfo::insertBranch(MachineBasicBlock &MBB,
     // For 65C02, assume BRA and relax into JMP in insertIndirectBranch if
     // necessary.
     auto JMP =
-        Builder.buildInstr(STI.has65C02() ? MOS::BRA : MOS::JMP).addMBB(UBB);
+        Builder.buildInstr(STI.hasBRA() ? MOS::BRA : MOS::JMP).addMBB(UBB);
     ++NumAdded;
     if (BytesAdded)
       *BytesAdded += getInstSizeInBytes(*JMP);
@@ -500,12 +500,20 @@ void MOSInstrInfo::copyPhysRegImpl(MachineIRBuilder &Builder, Register DestReg,
         } else {
           assert(DestReg == MOS::V);
           const TargetRegisterClass &StackRegClass =
-              STI.has65C02() ? MOS::GPRRegClass : MOS::AcRegClass;
+              STI.hasGPRStackRegs() ? MOS::GPRRegClass : MOS::AcRegClass;
 
           if (StackRegClass.contains(SrcReg)) {
-            Builder.buildInstr(MOS::PH, {}, {SrcReg});
-            Builder.buildInstr(MOS::PL, {SrcReg}, {})
-                .addDef(MOS::NZ, RegState::Implicit);
+            if (STI.hasSPC700()) {
+              // SPC700 pops do not set NZ flags, so use CMP instead.
+              // TODO: Investigate doing the same for MOS.
+              Builder.buildInstr(MOS::CMPImm, {MOS::C}, {SrcReg, INT64_C(0)})
+                  .addDef(MOS::NZ, RegState::Implicit)
+                  ->getOperand(0).setIsDead();
+            } else {
+              Builder.buildInstr(MOS::PH, {}, {SrcReg});
+              Builder.buildInstr(MOS::PL, {SrcReg}, {})
+                  .addDef(MOS::NZ, RegState::Implicit);
+            }
             Builder.buildInstr(MOS::SelectImm, {MOS::V},
                                {Register(MOS::Z), INT64_C(0), INT64_C(-1)});
           } else {
@@ -775,11 +783,15 @@ bool MOSInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
 
 void MOSInstrInfo::expandLDIdx(MachineIRBuilder &Builder) const {
   auto &MI = *Builder.getInsertPt();
+  const MOSSubtarget &STI = Builder.getMF().getSubtarget<MOSSubtarget>();
+  Register DestReg = MI.getOperand(0).getReg();
 
   // This occur when X or Y is both the destination and index register.
   // Since the 6502 has no instruction for this, use A as the destination
   // instead, then transfer to the real destination.
-  if (MI.getOperand(0).getReg() == MI.getOperand(2).getReg()) {
+  // SPC700 does not support absolute indexed loads into X or Y at all.
+  if (DestReg == MI.getOperand(2).getReg() ||
+      (STI.hasSPC700() && (DestReg == MOS::X || DestReg == MOS::Y))) {
     Register Tmp = createVReg(Builder, MOS::AcRegClass);
     Builder.buildInstr(MOS::LDAIdx)
         .addDef(Tmp)
@@ -791,7 +803,7 @@ void MOSInstrInfo::expandLDIdx(MachineIRBuilder &Builder) const {
   }
 
   unsigned Opcode;
-  switch (MI.getOperand(0).getReg()) {
+  switch (DestReg) {
   default:
     llvm_unreachable("Bad destination for LDIdx.");
   case MOS::A:
@@ -812,13 +824,13 @@ void MOSInstrInfo::expandLDImm1(MachineIRBuilder &Builder) const {
   auto &MI = *Builder.getInsertPt();
   Register DestReg = MI.getOperand(0).getReg();
   int64_t Val = MI.getOperand(1).getImm();
+  const MOSSubtarget &STI = Builder.getMF().getSubtarget<MOSSubtarget>();
 
   unsigned Opcode;
   switch (DestReg) {
   default: {
-    DestReg =
-        Builder.getMF().getSubtarget().getRegisterInfo()->getMatchingSuperReg(
-            DestReg, MOS::sublsb, &MOS::Anyi8RegClass);
+    DestReg = STI.getRegisterInfo()->getMatchingSuperReg(DestReg, MOS::sublsb,
+                                                         &MOS::Anyi8RegClass);
     assert(DestReg && "Unexpected destination for LDImm1");
     assert(MOS::GPRRegClass.contains(DestReg));
     Opcode = MOS::LDImm;
@@ -831,12 +843,31 @@ void MOSInstrInfo::expandLDImm1(MachineIRBuilder &Builder) const {
     break;
   case MOS::V:
     if (Val) {
-      auto Instr = Builder.buildInstr(MOS::BITAbs, {MOS::V}, {})
-                       .addUse(MOS::A, RegState::Undef)
-                       .addExternalSymbol("__set_v");
-      Instr->getOperand(1).setIsUndef();
-      MI.eraseFromParent();
-      return;
+      if (STI.hasSPC700()) {
+        // SPC700 does not have BIT, so we use accumulator ops to naturally
+        // set V.
+        // TODO: perhaps this should be done pre-ra to avoid stack-saving A
+        Register P = createVReg(Builder, MOS::PcRegClass);
+        Builder.buildInstr(MOS::PH, {}, {Register(MOS::A)});
+        Builder.buildInstr(MOS::LDImm, {MOS::A}, {INT64_C(0x80)})
+            .addDef(P, RegState::Implicit | RegState::Dead, MOS::subnz);
+        Builder.buildInstr(MOS::ADCImm)
+            .addDef(MOS::A, RegState::Dead)
+            .addDef(P, RegState::Dead, MOS::subcarry)
+            .addDef(MOS::V)
+            .addUse(MOS::A, RegState::Kill)
+            .addImm(0x80)
+            .addUse(P, RegState::Undef, MOS::subcarry);
+        Builder.buildInstr(MOS::PL, {MOS::A}, {});
+        MI.eraseFromParent();
+      } else {
+        auto Instr = Builder.buildInstr(MOS::BITAbs, {MOS::V}, {})
+                         .addUse(MOS::A, RegState::Undef)
+                         .addExternalSymbol("__set_v");
+        Instr->getOperand(1).setIsUndef();
+        MI.eraseFromParent();
+        return;
+      }
     }
     Opcode = MOS::CLV;
     // Remove imm.

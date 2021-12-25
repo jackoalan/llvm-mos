@@ -86,6 +86,7 @@ private:
   bool selectTrunc(MachineInstr &MI);
   bool selectAddE(MachineInstr &MI);
   bool selectUnMergeValues(MachineInstr &MI);
+  bool selectBrIndirect(MachineInstr &MI);
 
   // Select instructions that correspond 1:1 to a target instruction.
   bool selectGeneric(MachineInstr &MI);
@@ -200,8 +201,9 @@ bool MOSInstructionSelector::select(MachineInstr &MI) {
     return selectAddE(MI);
   case MOS::G_UNMERGE_VALUES:
     return selectUnMergeValues(MI);
-
   case MOS::G_BRINDIRECT:
+    return selectBrIndirect(MI);
+
   case MOS::G_IMPLICIT_DEF:
   case MOS::G_INTTOPTR:
   case MOS::G_LOAD_ABS:
@@ -928,6 +930,21 @@ bool MOSInstructionSelector::selectUnMergeValues(MachineInstr &MI) {
   constrainGenericOp(*HiCopy);
   MI.eraseFromParent();
   return true;
+}
+
+bool MOSInstructionSelector::selectBrIndirect(MachineInstr &MI) {
+  if (STI.hasSPC700()) {
+    // SPC700 indirect jumps are indexed by X. Since G_BRINDIRECT does not
+    // directly support indexed effective addresses, we simply make X zero.
+    // TODO: Combiner could detect indexed indirect jump addresses.
+    MachineIRBuilder Builder(MI);
+    Register XZero =
+        Builder.buildInstr(MOS::LDImm, {&MOS::XcRegClass}, {INT64_C(0)})
+            .getReg(0);
+    MI.addOperand(*MI.getMF(),
+                  MachineOperand::CreateReg(XZero, false, true, true));
+  }
+  return selectGeneric(MI);
 }
 
 bool MOSInstructionSelector::selectGeneric(MachineInstr &MI) {

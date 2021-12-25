@@ -97,11 +97,6 @@ def MOSZeroPageInstructionRelaxationTable : GenericTable {
   let PrimaryKeyName = "getZeroPageInstructionRelaxationEntry";
 }
 
-def MOSZeroPageInstructionLoweringIndex : SearchIndex {
-  let Table = MOSZeroPageInstructionRelaxationTable;
-  let Key = ["From"];
-}
-
 /// Zero page section entry.  If a symbol exists in one of these sections,
 /// it belongs in zero page.
 class MOSZeroPageSectionEntry< string name >
@@ -119,3 +114,5 @@ def MOSZeroPageSectionTable : GenericTable {
 	let FilterClass = "MOSZeroPageSectionEntry";
 	let Fields = ["Name"];
 }
+
+include "MOSInstrInfoTablesSPC700.td"

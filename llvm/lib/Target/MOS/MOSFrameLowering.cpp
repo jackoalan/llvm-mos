@@ -80,7 +80,7 @@ bool MOSFrameLowering::spillCalleeSavedRegisters(
   const MOSSubtarget &STI = MBB.getParent()->getSubtarget<MOSSubtarget>();
   const TargetInstrInfo &TII = *STI.getInstrInfo();
   const TargetRegisterClass &StackRegClass =
-      STI.has65C02() ? MOS::GPRRegClass : MOS::AcRegClass;
+      STI.hasGPRStackRegs() ? MOS::GPRRegClass : MOS::AcRegClass;
 
   // There are intentionally very few CSRs, few enough to place on the hard
   // stack without much risk of overflow. This is the only across-calls way
@@ -143,7 +143,7 @@ bool MOSFrameLowering::restoreCalleeSavedRegisters(
   const MOSSubtarget &STI = MBB.getParent()->getSubtarget<MOSSubtarget>();
   const TargetInstrInfo &TII = *STI.getInstrInfo();
   const TargetRegisterClass &StackRegClass =
-      STI.has65C02() ? MOS::GPRRegClass : MOS::AcRegClass;
+      STI.hasGPRStackRegs() ? MOS::GPRRegClass : MOS::AcRegClass;
 
   for (const CalleeSavedInfo &CI : reverse(CSI)) {
     Register Reg = CI.getReg();

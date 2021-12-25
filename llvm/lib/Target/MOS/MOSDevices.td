@@ -54,7 +54,11 @@ def Feature65CE02
 
 def FeatureSWEET16
     : SubtargetFeature<"mos-insns-sweet16", "HasSWEET16Insns", "true",
-                        "The SWEET16 instruction set">;
+                       "The SWEET16 instruction set">;
+
+def FeatureSPC700
+    : SubtargetFeature<"mos-insns-spc700", "HasSPC700Insns", "true",
+                       "The SPC700 instruction set">;
 
 // A feature set aggregates features, grouping them. We don't want to create a
 // new member in MOSSubtarget (to store a value) for each set because we do not
@@ -118,6 +122,11 @@ def FamilySWEET16
       "MOS 6502 compatible with SWEET16 virtual machine support", 
       [FeatureSWEET16]>;
 
+def FamilySPC700
+    : Family<"mosspc700",
+      "MOS 6502 aliased to SPC700 encodings",
+      [FeatureSPC700]>;
+
 //===---------------------------------------------------------------------===//
 // MOS Families
 //===---------------------------------------------------------------------===//
@@ -143,3 +152,4 @@ def : Device<"mosw65816", FamilyW65816>;
 def : Device<"mosw65el02", Family65EL02>;
 def : Device<"mosw65ce02", Family65CE02>;
 def : Device<"mossweet16", FamilySWEET16>;
+def : Device<"mosspc700", FamilySPC700>;

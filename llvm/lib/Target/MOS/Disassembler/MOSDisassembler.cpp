@@ -32,6 +32,7 @@ using DecodeStatus = MCDisassembler::DecodeStatus;
 namespace {
 /// A disassembler class for MOS.
 class MOSDisassembler : public MCDisassembler {
+  const uint8_t *getDecoderTable(size_t Size) const;
 public:
   MOSDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx)
       : MCDisassembler(STI, Ctx) {}
@@ -55,7 +56,19 @@ extern "C" void LLVM_EXTERNAL_VISIBILITY LLVMInitializeMOSDisassembler() {
 
 #include "MOSGenDisassemblerTables.inc"
 
-const uint8_t *getDecoderTable(size_t Size) {
+const uint8_t *MOSDisassembler::getDecoderTable(size_t Size) const {
+  if (STI.hasFeature(MOS::FeatureSPC700)) {
+    switch (Size) {
+    case 1:
+      return DecoderTableSPC7008;
+    case 2:
+      return DecoderTableSPC70016;
+    case 3:
+      return DecoderTableSPC70024;
+    default:
+      llvm_unreachable("instruction size must be between 1 and 3 bytes");
+    }
+  }
   switch (Size) {
   case 1:
     return DecoderTableMOS8;
@@ -84,8 +97,7 @@ DecodeStatus MOSDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
     }
     Result = decodeInstruction(getDecoderTable(InsnSize), Instr, Insn, Address,
                                this, STI);
-    if (Result != MCDisassembler::Fail)
-    {
+    if (Result != MCDisassembler::Fail) {
       Size = InsnSize;
       return Result;
     }

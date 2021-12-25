@@ -252,6 +252,8 @@ def STZ_AbsoluteX : Inst24<"stz", OpcodeC2<0b100, 0b111>, AbsoluteX>;
 // Operand type for basic block and function labels.
 def label : Operand<OtherVT>;
 
+include "MOSInstrInfoSPC700.td"
+
 include "MOSInstrInfoTables.td"
 include "MOSInstrPseudos.td"
 include "MOSInstrLogical.td"
