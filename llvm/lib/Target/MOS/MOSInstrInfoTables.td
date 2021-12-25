@@ -113,3 +113,5 @@ def MOSZeroPageSectionTable : GenericTable {
   let CppTypeName = "StringRef";
   let Fields = ["Name"];
 }
+
+include "MOSInstrInfoTablesSPC700.td"

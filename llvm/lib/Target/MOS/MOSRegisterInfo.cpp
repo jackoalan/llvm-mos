@@ -163,7 +163,7 @@ bool MOSRegisterInfo::saveScavengerRegister(MachineBasicBlock &MBB,
     // preferred.
     Register Save = Reg == MOS::A ? MOS::RC16 : MOS::RC17;
     bool UseHardStack =
-        (Reg == MOS::A || STI.has65C02()) && pushPullBalanced(I, UseMI);
+        (Reg == MOS::A || STI.hasGPRStackRegs()) && pushPullBalanced(I, UseMI);
 
     if (UseHardStack)
       Builder.buildInstr(MOS::PH, {}, {Reg});
@@ -654,7 +654,7 @@ int copyCost(Register DestReg, Register SrcReg, const MOSSubtarget &STI) {
       }
       assert(DestReg == MOS::V);
       const TargetRegisterClass &StackRegClass =
-          STI.has65C02() ? MOS::GPRRegClass : MOS::AcRegClass;
+          STI.hasGPRStackRegs() ? MOS::GPRRegClass : MOS::AcRegClass;
 
       if (StackRegClass.contains(SrcReg)) {
         // PHA; PLA; BNE; BIT setv; JMP; CLV

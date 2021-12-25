@@ -25,7 +25,8 @@ static const EnumEntry<unsigned> ElfHeaderMOSFlagsEntries[] = {
     ENUM_ENT(EF_MOS_ARCH_W65816, "mosw65816"),
     ENUM_ENT(EF_MOS_ARCH_65EL02, "mosw65el02"),
     ENUM_ENT(EF_MOS_ARCH_65CE02, "mosw65ce02"),
-    ENUM_ENT(EF_MOS_ARCH_SWEET16, "mossweet16")};
+    ENUM_ENT(EF_MOS_ARCH_SWEET16, "mossweet16"),
+    ENUM_ENT(EF_MOS_ARCH_SPC700, "mosspc700")};
 const ArrayRef<EnumEntry<unsigned>> ElfHeaderMOSFlags{ElfHeaderMOSFlagsEntries};
 
 std::string makeEFlagsString(unsigned EFlags) {
@@ -43,7 +44,9 @@ bool checkEFlagsCompatibility(unsigned EFlags, unsigned ModuleEFlags) {
   return (!(Flags & ELF::EF_MOS_ARCH_SWEET16) ||
           !(Flags & ~ELF::EF_MOS_ARCH_SWEET16)) &&
          (!(Flags & ELF::EF_MOS_ARCH_6502_BCD) ||
-          !(Flags & ELF::EF_MOS_ARCH_R65C02));
+          !(Flags & ELF::EF_MOS_ARCH_R65C02)) &&
+         (!(Flags & ELF::EF_MOS_ARCH_SPC700) ||
+          !(Flags & ~ELF::EF_MOS_ARCH_SPC700));
 }
 
 } // namespace MOS
