@@ -2103,12 +2103,15 @@ bool readConfigFile(StringRef CfgFileName, StringSaver &Saver,
 /// \param [in] FS File system used for all file access when running the tool.
 /// \param [in] CurrentDir Path used to resolve relative rsp files. If set to
 /// None, process' cwd is used instead.
+/// \param [in] ExpandBasePathToken If not empty, token which expands to the
+/// base path of the current response file.
 /// \return true if all @files were expanded successfully or there were none.
 bool ExpandResponseFiles(StringSaver &Saver, TokenizerCallback Tokenizer,
                          SmallVectorImpl<const char *> &Argv, bool MarkEOLs,
                          bool RelativeNames,
                          llvm::Optional<llvm::StringRef> CurrentDir,
-                         llvm::vfs::FileSystem &FS);
+                         llvm::vfs::FileSystem &FS,
+                         StringRef ExpandBasePathToken = {});
 
 /// An overload of ExpandResponseFiles() that uses
 /// llvm::vfs::getRealFileSystem().
@@ -2116,7 +2119,8 @@ bool ExpandResponseFiles(
     StringSaver &Saver, TokenizerCallback Tokenizer,
     SmallVectorImpl<const char *> &Argv, bool MarkEOLs = false,
     bool RelativeNames = false,
-    llvm::Optional<llvm::StringRef> CurrentDir = llvm::None);
+    llvm::Optional<llvm::StringRef> CurrentDir = llvm::None,
+    StringRef ExpandBasePathToken = {});
 
 /// A convenience helper which concatenates the options specified by the
 /// environment variable EnvVar and command line options, then expands response
