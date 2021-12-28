@@ -1,7 +1,7 @@
 name: Packaging
 on:
   push:
-    branches: [main]
+    branches: [ci-symlinks-test]
 jobs:
   package:
     runs-on: ${{ matrix.os }}
