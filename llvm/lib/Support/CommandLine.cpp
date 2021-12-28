@@ -1323,7 +1323,7 @@ bool cl::readConfigFile(StringRef CfgFile, StringSaver &Saver,
     llvm::sys::path::append(AbsPath, CfgFile);
     CfgFile = AbsPath.str();
   }
-  constexpr StringLiteral ExpandBasePathToken("<CONFIG>");
+  constexpr StringLiteral ExpandBasePathToken("<CFGDIR>");
   if (llvm::Error Err = ExpandResponseFile(
           CfgFile, Saver, cl::tokenizeConfigFile, Argv,
           /*MarkEOLs=*/false, /*RelativeNames=*/true,

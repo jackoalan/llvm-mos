@@ -1,7 +1,7 @@
 name: Packaging
 on:
   push:
-    branches: [main]
+    branches: [llvm-mos-sdk-refactor]
 jobs:
   package:
     runs-on: ${{ matrix.os }}
@@ -28,7 +28,7 @@ jobs:
       - name: Check out source code
         uses: actions/checkout@v2
         with:
-          repository: llvm-mos/continuous-release
+          repository: jackoalan/continuous-release
       - name: Inject slug/short variables
         uses: rlespinasse/github-slug-action@v3.x
       - name: Configure with cmake
