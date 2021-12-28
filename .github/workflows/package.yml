@@ -28,7 +28,7 @@ jobs:
       - name: Check out source code
         uses: actions/checkout@v2
         with:
-          repository: llvm-mos/continuous-release
+          repository: jackoalan/continuous-release
       - name: Inject slug/short variables
         uses: rlespinasse/github-slug-action@v3.x
       - name: Configure with cmake
