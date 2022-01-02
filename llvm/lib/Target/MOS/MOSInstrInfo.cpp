@@ -887,17 +887,15 @@ void MOSInstrInfo::expandLDImm1(MachineIRBuilder &Builder) const {
         // SPC700 does not have BIT, so we use accumulator ops to naturally
         // set V.
         // TODO: perhaps this should be done pre-ra to avoid stack-saving A
-        Register P = createVReg(Builder, MOS::PcRegClass);
         Builder.buildInstr(MOS::PH, {}, {Register(MOS::A)});
-        Builder.buildInstr(MOS::LDImm, {MOS::A}, {INT64_C(0x80)})
-            .addDef(P, RegState::Implicit | RegState::Dead, MOS::subnz);
+        Builder.buildInstr(MOS::LDImm, {MOS::A}, {INT64_C(0x80)});
         Builder.buildInstr(MOS::ADCImm)
             .addDef(MOS::A, RegState::Dead)
-            .addDef(P, RegState::Dead, MOS::subcarry)
+            .addDef(MOS::C, RegState::Dead)
             .addDef(MOS::V)
             .addUse(MOS::A, RegState::Kill)
             .addImm(0x80)
-            .addUse(P, RegState::Undef, MOS::subcarry);
+            .addUse(MOS::C, RegState::Undef);
         Builder.buildInstr(MOS::PL, {MOS::A}, {});
         MI.eraseFromParent();
       } else {

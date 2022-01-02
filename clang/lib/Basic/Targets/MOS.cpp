@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "MOS.h"
+#include "clang/Basic/MacroBuilder.h"
 
 using namespace clang::targets;
 
@@ -42,6 +43,17 @@ MOSTargetInfo::MOSTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
   WIntType = UnsignedLong;
   Char32Type = UnsignedLong;
   SigAtomicType = UnsignedChar;
+}
+
+void MOSTargetInfo::getTargetDefines(const LangOptions &Opts,
+                                     MacroBuilder &Builder) const {
+  // Target identification.
+  Builder.defineMacro("__mos");
+  Builder.defineMacro("__mos__");
+  Builder.defineMacro("__ELF__");
+
+  if (!CPU.empty())
+    Builder.defineMacro("__" + CPU + "__");
 }
 
 bool MOSTargetInfo::validateAsmConstraint(

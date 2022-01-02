@@ -6,8 +6,8 @@ body: |
   bb.0.entry:
     ; CHECK-LABEL: name: set_v
     ; CHECK: PH $a
-    ; CHECK: $a = LDImm 128, implicit-def dead %0.subnz
-    ; CHECK: dead $a, dead %0.subcarry:pc, $v = ADCImm killed $a, 128, undef %0.subcarry
+    ; CHECK: $a = LDImm 128
+    ; CHECK: dead $a, dead $c, $v = ADCImm killed $a, 128, undef $c
     ; CHECK: $a = PL
     $v = LDImm1 -1
 ...
