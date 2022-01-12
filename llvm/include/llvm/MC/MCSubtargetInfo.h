@@ -107,6 +107,8 @@ public:
   const Triple &getTargetTriple() const { return TargetTriple; }
   StringRef getCPU() const { return CPU; }
   StringRef getTuneCPU() const { return TuneCPU; }
+  ArrayRef<SubtargetFeatureKV> getProcFeatures() const { return ProcFeatures; }
+  ArrayRef<SubtargetSubTypeKV> getProcDesc() const { return ProcDesc; }
 
   const FeatureBitset& getFeatureBits() const { return FeatureBits; }
   void setFeatureBits(const FeatureBitset &FeatureBits_) {
