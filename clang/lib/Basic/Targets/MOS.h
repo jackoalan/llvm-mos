@@ -19,20 +19,11 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Support/Compiler.h"
 
-namespace llvm {
-class Target;
-class MCSubtargetInfo;
-class TargetMachine;
-} // namespace llvm
-
 namespace clang {
 namespace targets {
 
 class MOSTargetInfo : public TargetInfo {
-  const llvm::Target *TheTarget;
-  std::unique_ptr<llvm::MCSubtargetInfo> STI;
-  std::unique_ptr<llvm::TargetMachine> TM;
-  void resetBackendInfo(StringRef CPU);
+  std::string CPU;
 public:
   MOSTargetInfo(const llvm::Triple &Triple, const TargetOptions &);
 
@@ -68,7 +59,7 @@ public:
 
   bool setCPU(const std::string &Name) override {
     if (isValidCPUName(Name)) {
-      resetBackendInfo(Name);
+      CPU = Name;
       return true;
     }
     return false;

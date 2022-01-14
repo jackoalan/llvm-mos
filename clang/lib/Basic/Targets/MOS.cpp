@@ -12,19 +12,16 @@
 
 #include "MOS.h"
 #include "clang/Basic/MacroBuilder.h"
-#include "llvm/MC/TargetRegistry.h"
-#include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Target/TargetMachine.h"
 
 using namespace clang::targets;
 
 MOSTargetInfo::MOSTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
     : TargetInfo(Triple) {
-  std::string Error;
-  TheTarget = llvm::TargetRegistry::lookupTarget(Triple.getTriple(), Error);
-  assert(TheTarget);
-  resetBackendInfo("");
+  static const char Layout[] =
+      "e-m:e-p:16:8-i16:8-i32:8-i64:8-f32:8-f64:8-a:8-Fi8-n8";
+  resetDataLayout(Layout);
 
+  PointerWidth = 16;
   PointerAlign = 8;
   IntWidth = 16;
   IntAlign = 8;
@@ -48,32 +45,15 @@ MOSTargetInfo::MOSTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
   SigAtomicType = UnsignedChar;
 }
 
-void MOSTargetInfo::resetBackendInfo(StringRef CPU) {
-  const std::string &TT = getTriple().getTriple();
-  STI.reset(TheTarget->createMCSubtargetInfo(TT, CPU, ""));
-  assert(STI);
-  TM.reset(
-      TheTarget->createTargetMachine(TT, CPU, "", llvm::TargetOptions{}, {}));
-  assert(TM);
-
-  llvm::DataLayout DL = TM->createDataLayout();
-  resetDataLayout(DL.getStringRepresentation());
-
-  PointerWidth = DL.getPointerSizeInBits();
-}
-
 void MOSTargetInfo::getTargetDefines(const LangOptions &Opts,
                                      MacroBuilder &Builder) const {
-  for (const llvm::SubtargetFeatureKV &Feature : STI->getProcFeatures()) {
-    if (!STI->hasFeature(Feature.Value))
-      continue;
+  // Target identification.
+  Builder.defineMacro("__mos");
+  Builder.defineMacro("__mos__");
+  Builder.defineMacro("__ELF__");
 
-    StringRef FeatureStr = Feature.Key;
-    if (FeatureStr.startswith("mos-insns-")) {
-      Builder.defineMacro(Twine("__MOS_INSNS_") +
-                          FeatureStr.substr(10).upper());
-    }
-  }
+  if (!CPU.empty())
+    Builder.defineMacro("__" + CPU + "__");
 }
 
 bool MOSTargetInfo::validateAsmConstraint(
@@ -178,11 +158,15 @@ llvm::ArrayRef<const char *> MOSTargetInfo::getGCCRegNames() const {
   return llvm::makeArrayRef(GCCRegNames);
 }
 
+static constexpr llvm::StringLiteral ValidCPUNames[] = {
+    {"mos6502"},    {"mos6502x"},  {"mos65c02"},   {"mosr65c02"},
+    {"mosw65c02"},  {"mosw65816"}, {"mosw65el02"}, {"mosw65ce02"},
+    {"mossweet16"}, {"mosspc700"}};
+
 bool MOSTargetInfo::isValidCPUName(StringRef Name) const {
-  return STI->isCPUStringValid(Name);
+  return llvm::find(ValidCPUNames, Name) != std::end(ValidCPUNames);
 }
 
 void MOSTargetInfo::fillValidCPUList(SmallVectorImpl<StringRef> &Values) const {
-  for (const llvm::SubtargetSubTypeKV &Proc : STI->getProcDesc())
-    Values.push_back(Proc.Key);
+  Values.append(std::begin(ValidCPUNames), std::end(ValidCPUNames));
 }
