@@ -83,17 +83,6 @@ public:
   const MCSymbol *getFunctionFrameSymbol(int FI) const override;
 };
 
-void MOSAsmPrinter::EmitToStreamer(MCStreamer &S, MCInst &Inst) {
-  if (MF->getSubtarget<MOSSubtarget>().hasSPC700()) {
-    const auto *SPC700 = MOS::getMOSToSPC700MappingEntry(Inst.getOpcode());
-    if (SPC700 == nullptr)
-      llvm_unreachable("Unable to translate opcode to SPC700.");
-    Inst.setOpcode(SPC700->To);
-  }
-
-  AsmPrinter::EmitToStreamer(*OutStreamer, Inst);
-}
-
 // Simple pseudo-instructions have their lowering (with expansion to real
 // instructions) auto-generated.
 #include "MOSGenMCPseudoLowering.inc"
@@ -102,6 +91,15 @@ void MOSAsmPrinter::EmitToStreamer(MCStreamer &S, MCInst &Inst) {
   // If this instruction contains an out-of-range immediate address, perform an
   // early relax.
   MOSAsmBackend::relaxForImmediate(Inst);
+
+  // Map to SPC700 if it is the active subtarget.
+  if (MF->getSubtarget<MOSSubtarget>().hasSPC700()) {
+    const auto *SPC700 = MOS::getMOSToSPC700MappingEntry(Inst.getOpcode());
+    if (SPC700 == nullptr)
+      llvm_unreachable("Unable to translate opcode to SPC700.");
+    Inst.setOpcode(SPC700->To);
+  }
+
   AsmPrinter::EmitToStreamer(S, Inst);
 }
 
