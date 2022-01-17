@@ -20,7 +20,7 @@ body: |
     ; CHECK: [[LDAAbsIdx:%[0-9]+]]:ac = LDAAbsIdx 1234, $y
     ; CHECK-NEXT: $x = TA [[LDAAbsIdx]]
     ; CHECK-NEXT: $c = CMPImm $a, 0
-    $x = LDIdx 1234, $y
+    $x = LDAbsIdx 1234, $y
     $c = CMPImm $a, 0
 ...
 ---
@@ -32,6 +32,6 @@ body: |
     ; CHECK: [[LDAIdx:%[0-9]+]]:ac = LDAAbsIdx 1234, $x
     ; CHECK-NEXT: $y = TA [[LDAAbsIdx]]
     ; CHECK-NEXT: $c = CMPImm $a, 0
-    $y = LDIdx 1234, $x
+    $y = LDAbsIdx 1234, $x
     $c = CMPImm $a, 0
 ...
