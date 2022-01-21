@@ -1594,6 +1594,24 @@ bool MOSInstructionSelector::selectBrIndirect(MachineInstr &MI) {
     // directly support indexed effective addresses, we simply make X zero.
     // TODO: Combiner could detect indexed indirect jump addresses.
     MachineIRBuilder Builder(MI);
+    auto &MRI = *Builder.getMRI();
+
+    MachineOperand Addr = MachineOperand::CreateReg(0, false);
+    Register Idx;
+    if (mi_match(MI.getOperand(0).getReg(), MRI,
+                 m_FoldedLdIdx(MI, Addr, Idx, AA))) {
+      Addr.getParent()->eraseFromParent();
+      Idx = Builder.buildInstr(MOS::COPY, {MOS::X}, {Idx}).getReg(0);
+
+      MachineInstr &NewMI = *Builder.buildInstr(MOS::JMPIndirAbsIdx)
+                                 .add(Addr)
+                                 .addUse(Idx, RegState::Kill);
+      if (!constrainSelectedInstRegOperands(NewMI, TII, TRI, RBI))
+        return false;
+      MI.eraseFromParent();
+      return true;
+    }
+
     Register XZero =
         Builder.buildInstr(MOS::LDImm, {MOS::X}, {INT64_C(0)}).getReg(0);
     MI.addOperand(*MI.getMF(),

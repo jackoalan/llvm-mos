@@ -5,6 +5,10 @@
     entry:
       ret void
   }
+  define void @br_indirect_abs_idx() {
+    entry:
+      ret void
+  }
 ---
 name: br_indirect
 legalized: true
@@ -20,5 +24,25 @@ body: |
     ; CHECK-NEXT: RTS
     %0:any(p0) = G_BLOCK_ADDR blockaddress(@br_indirect, %ir-block.entry)
     G_BRINDIRECT %0
+    RTS
+...
+---
+name: br_indirect_abs_idx
+legalized: true
+regBankSelected: true
+body: |
+  bb.0.entry:
+    ; CHECK-LABEL: name: br_indirect_abs_idx
+    ; CHECK: [[LDImm:%[0-9]+]]:gpr = LDImm target-flags(lo) blockaddress(@br_indirect, %ir-block.entry)
+    ; CHECK-NEXT: [[LDImm1:%[0-9]+]]:gpr = LDImm target-flags(hi) blockaddress(@br_indirect, %ir-block.entry)
+    ; CHECK-NEXT: [[REG_SEQUENCE:%[0-9]+]]:imag16 = REG_SEQUENCE [[LDImm]], %subreg.sublo, [[LDImm1]], %subreg.subhi
+    ; CHECK-NEXT: [[LDImm2:%[0-9]+]]:gpr = LDImm 2
+    ; CHECK-NEXT: $x = COPY [[LDImm2]]
+    ; CHECK-NEXT: JMPIndirAbsIdx [[REG_SEQUENCE]], killed $x
+    ; CHECK-NEXT: RTS
+    %0:any(p0) = G_BLOCK_ADDR blockaddress(@br_indirect, %ir-block.entry)
+    %1:any(s8) = G_CONSTANT i8 2
+    %2:any(p0) = G_LOAD_ABS_IDX %0, %1
+    G_BRINDIRECT %2
     RTS
 ...

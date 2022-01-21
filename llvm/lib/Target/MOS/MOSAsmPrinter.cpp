@@ -11,9 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "MCTargetDesc/MOSAsmBackend.h"
 #include "MCTargetDesc/MOSMCExpr.h"
 #include "MCTargetDesc/MOSMCTargetDesc.h"
-#include "MCTargetDesc/MOSAsmBackend.h"
 #include "MOSMCInstLower.h"
 #include "MOSMachineFunctionInfo.h"
 #include "MOSRegisterInfo.h"
@@ -188,6 +188,7 @@ void MOSAsmPrinter::emitStartOfAsmFile(Module &M) {
 }
 
 void MOSAsmPrinter::emitJumpTableInfo() {
+  const MOSSubtarget &STI = MF->getSubtarget<MOSSubtarget>();
   const DataLayout &DL = MF->getDataLayout();
   const MachineJumpTableInfo *MJTI = MF->getJumpTableInfo();
   if (!MJTI)
@@ -226,20 +227,31 @@ void MOSAsmPrinter::emitJumpTableInfo() {
     MCSymbol *JTISymbol = GetJTISymbol(JTI.index());
     OutStreamer->emitLabel(JTISymbol);
 
-    // Emit an array of the low bytes of the target addresses.
-    for (const MachineBasicBlock *JTBB : JTBBs) {
-      OutStreamer->emitValue(
-          MCSymbolRefExpr::create(
-              JTBB->getSymbol(), MCSymbolRefExpr::VK_MOS_ADDR16_LO, OutContext),
-          1);
-    }
+    if (STI.hasSPC700() && JTBBs.size() <= 128) {
+      // Jump tables on SPC700 with 128 entries or less are accessed via
+      // indexed-indirect JMP. Emit the array of target addresses as-is.
+      for (const MachineBasicBlock *JTBB : JTBBs) {
+        OutStreamer->emitValue(
+            MCSymbolRefExpr::create(JTBB->getSymbol(), OutContext), 2);
+      }
+    } else {
+      // Emit an array of the low bytes of the target addresses.
+      for (const MachineBasicBlock *JTBB : JTBBs) {
+        OutStreamer->emitValue(
+            MCSymbolRefExpr::create(JTBB->getSymbol(),
+                                    MCSymbolRefExpr::VK_MOS_ADDR16_LO,
+                                    OutContext),
+            1);
+      }
 
-    // Emit an array of the high bytes of the target addresses.
-    for (const MachineBasicBlock *JTBB : JTBBs) {
-      OutStreamer->emitValue(
-          MCSymbolRefExpr::create(
-              JTBB->getSymbol(), MCSymbolRefExpr::VK_MOS_ADDR16_HI, OutContext),
-          1);
+      // Emit an array of the high bytes of the target addresses.
+      for (const MachineBasicBlock *JTBB : JTBBs) {
+        OutStreamer->emitValue(
+            MCSymbolRefExpr::create(JTBB->getSymbol(),
+                                    MCSymbolRefExpr::VK_MOS_ADDR16_HI,
+                                    OutContext),
+            1);
+      }
     }
   }
   if (!JTInDiffSection)

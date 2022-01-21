@@ -21,6 +21,7 @@ namespace llvm {
 class MOSSubtarget;
 
 class MOSLegalizerInfo : public LegalizerInfo {
+  const MOSSubtarget &STI;
 public:
   MOSLegalizerInfo(const MOSSubtarget &STI);
 

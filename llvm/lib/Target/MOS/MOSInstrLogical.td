@@ -276,6 +276,12 @@ def JMPIndir : MOSUnconditionalBranch, PseudoInstExpansion<(JMP_Indirect addr16:
   let isIndirectBranch = true;
 }
 
+def JMPIndirAbsIdx : MOSUnconditionalBranch, PseudoInstExpansion<(JMP_Indirect addr16:$tgt)> {
+  let Predicates = [HasSPC700];
+  let InOperandList = (ins addr16:$tgt, Xc:$idx);
+  let isIndirectBranch = true;
+}
+
 def JSR : MOSLogicalInstr, PseudoInstExpansion<(JSR_Absolute addr16:$tgt)> {
   dag InOperandList = (ins label:$tgt);
 
