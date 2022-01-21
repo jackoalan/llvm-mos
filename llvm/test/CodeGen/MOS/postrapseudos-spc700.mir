@@ -6,9 +6,12 @@ body: |
   bb.0.entry:
     ; CHECK-LABEL: name: set_v
     ; CHECK: PH $a
-    ; CHECK: $a = LDImm 128
-    ; CHECK: dead $a, dead $c, $v = ADCImm killed $a, 128, undef $c
-    ; CHECK: $a = PL
+    ; CHECK-NEXT: PH $p
+    ; CHECK-NEXT: $a = PL
+    ; CHECK-NEXT: $a = ORAImm $a, 64
+    ; CHECK-NEXT: PH $a
+    ; CHECK-NEXT: $p = PL
+    ; CHECK-NEXT: $a = PL
     $v = LDImm1 -1
 ...
 ---
@@ -29,7 +32,7 @@ body: |
   bb.0.entry:
     liveins: $x
     ; CHECK-LABEL: name: ldyidx_x
-    ; CHECK: [[LDAIdx:%[0-9]+]]:ac = LDAAbsIdx 1234, $x
+    ; CHECK: [[LDAAbsIdx:%[0-9]+]]:ac = LDAAbsIdx 1234, $x
     ; CHECK-NEXT: $y = TA [[LDAAbsIdx]]
     ; CHECK-NEXT: $c = CMPImm $a, 0
     $y = LDAbsIdx 1234, $x

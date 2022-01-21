@@ -261,7 +261,7 @@ class MOSUnconditionalBranch : MOSBranch {
 }
 
 def BRA : MOSUnconditionalBranch, PseudoInstExpansion<(BRA_Relative pcrel8:$tgt)> {
-  let Predicates = [Has65C02];
+  let Predicates = [HasBRA];
 
   let InOperandList = (ins label:$tgt);
   let Pattern = [(br bb:$tgt)];

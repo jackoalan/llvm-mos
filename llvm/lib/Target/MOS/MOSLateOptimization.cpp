@@ -19,6 +19,7 @@
 #include "MCTargetDesc/MOSMCTargetDesc.h"
 #include "MOS.h"
 #include "MOSRegisterInfo.h"
+#include "MOSSubtarget.h"
 
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/LivePhysRegs.h"
@@ -56,8 +57,9 @@ bool MOSLateOptimization::runOnMachineFunction(MachineFunction &MF) {
   return Changed;
 }
 
-static bool definesNZ(const MachineInstr &MI, Register Val) {
-  if (MI.getOpcode() == MOS::STImag8)
+static bool definesNZ(const MachineInstr &MI, Register Val, bool HasSPC700) {
+  if (MI.getOpcode() == MOS::STImag8 ||
+      (HasSPC700 && MI.getOpcode() == MOS::PL))
     return false;
   if (MI.definesRegister(Val))
     return true;
@@ -72,6 +74,7 @@ static bool definesNZ(const MachineInstr &MI, Register Val) {
 }
 
 bool MOSLateOptimization::lowerCMPTermZs(MachineBasicBlock &MBB) const {
+  const auto &STI = MBB.getParent()->getSubtarget<MOSSubtarget>();
   const auto &MRI = MBB.getParent()->getRegInfo();
   const auto *TRI = MRI.getTargetRegisterInfo();
   bool Changed = false;
@@ -85,7 +88,7 @@ bool MOSLateOptimization::lowerCMPTermZs(MachineBasicBlock &MBB) const {
     for (auto &J : mbb_reverse(MBB.begin(), MI)) {
       if (J.isCall())
         break;
-      if (definesNZ(J, Val)) {
+      if (definesNZ(J, Val, STI.hasSPC700())) {
         Changed = true;
         J.addOperand(MachineOperand::CreateReg(MOS::NZ, /*isDef=*/true,
                                                /*isImp=*/true));
@@ -105,6 +108,11 @@ bool MOSLateOptimization::lowerCMPTermZs(MachineBasicBlock &MBB) const {
         case MOS::PH:
           ClobbersNZ = false;
           break;
+        default:
+          if (STI.hasSPC700() && J->getOpcode() == MOS::PL) {
+            ClobbersNZ = false;
+            break;
+          }
         }
       if (ClobbersNZ)
         break;

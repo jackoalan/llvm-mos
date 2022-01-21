@@ -884,28 +884,24 @@ void MOSInstrInfo::expandLDImm1(MachineIRBuilder &Builder) const {
   case MOS::V:
     if (Val) {
       if (STI.hasSPC700()) {
-        // SPC700 does not have BIT, so we use accumulator ops to naturally
+        // SPC700 does not have BIT, so we use stack operations to specifically
         // set V.
-        // TODO: perhaps this should be done pre-ra to avoid stack-saving A
         Builder.buildInstr(MOS::PH, {}, {Register(MOS::A)});
-        Builder.buildInstr(MOS::LDImm, {MOS::A}, {INT64_C(0x80)});
-        Builder.buildInstr(MOS::ADCImm)
-            .addDef(MOS::A, RegState::Dead)
-            .addDef(MOS::C, RegState::Dead)
-            .addDef(MOS::V)
-            .addUse(MOS::A, RegState::Kill)
-            .addImm(0x80)
-            .addUse(MOS::C, RegState::Undef);
+        Builder.buildInstr(MOS::PH, {}, {Register(MOS::P)});
         Builder.buildInstr(MOS::PL, {MOS::A}, {});
-        MI.eraseFromParent();
+        Builder.buildInstr(MOS::ORAImm, {MOS::A},
+                           {Register(MOS::A), INT64_C(0x40)});
+        Builder.buildInstr(MOS::PH, {}, {Register(MOS::A)});
+        Builder.buildInstr(MOS::PL, {MOS::P}, {});
+        Builder.buildInstr(MOS::PL, {MOS::A}, {});
       } else {
         auto Instr = Builder.buildInstr(MOS::BITAbs, {MOS::V}, {})
                          .addUse(MOS::A, RegState::Undef)
                          .addExternalSymbol("__set_v");
         Instr->getOperand(1).setIsUndef();
-        MI.eraseFromParent();
-        return;
       }
+      MI.eraseFromParent();
+      return;
     }
     Opcode = MOS::CLV;
     // Remove imm.

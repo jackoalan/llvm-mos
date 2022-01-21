@@ -15,8 +15,8 @@ body: |
     ; CHECK: [[LDImm:%[0-9]+]]:gpr = LDImm target-flags(lo) blockaddress(@br_indirect, %ir-block.entry)
     ; CHECK-NEXT: [[LDImm1:%[0-9]+]]:gpr = LDImm target-flags(hi) blockaddress(@br_indirect, %ir-block.entry)
     ; CHECK-NEXT: [[REG_SEQUENCE:%[0-9]+]]:imag16 = REG_SEQUENCE [[LDImm]], %subreg.sublo, [[LDImm1]], %subreg.subhi
-    ; CHECK-NEXT: [[LDImm2:%[0-9]+]]:xc = LDImm 0
-    ; CHECK-NEXT: JMPIndir [[REG_SEQUENCE]], implicit killed [[LDImm2]]
+    ; CHECK-NEXT: $x = LDImm 0
+    ; CHECK-NEXT: JMPIndir [[REG_SEQUENCE]], implicit killed $x
     ; CHECK-NEXT: RTS
     %0:any(p0) = G_BLOCK_ADDR blockaddress(@br_indirect, %ir-block.entry)
     G_BRINDIRECT %0

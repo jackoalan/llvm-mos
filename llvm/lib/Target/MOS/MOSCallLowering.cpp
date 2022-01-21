@@ -33,6 +33,7 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/Target/TargetMachine.h"
+#include "MOSSubtarget.h"
 #include <memory>
 
 using namespace llvm;
@@ -384,7 +385,8 @@ bool MOSCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   MachineFunction &MF = MIRBuilder.getMF();
   MachineRegisterInfo &MRI = MF.getRegInfo();
   const DataLayout &DL = MF.getDataLayout();
-  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
+  const MOSSubtarget &STI = MF.getSubtarget<MOSSubtarget>();
+  const TargetRegisterInfo &TRI = *STI.getRegisterInfo();
 
   bool IsIndirect = Info.Callee.isReg();
   if (IsIndirect) {
@@ -394,8 +396,22 @@ bool MOSCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
     // call, and no specific arguments or stack pointer state are required.
     MIRBuilder.buildCopy(MOS::RS9, Info.Callee);
 
-    // Call __call_indir to execute the indirect call.
-    Info.Callee.ChangeToES("__call_indir");
+    if (STI.hasSPC700()) {
+      // SPC700 lacks a non-indexed indirect jump, yet we must preserve the X
+      // register to meet the requirements of the calling convention.
+      //
+      // Instead, we use this sneaky approach of writing the opcode for an
+      // absolute JMP in RC17 (immediately before the address in RS9). Now
+      // it is a simple matter of JSR to RC17 which serves as an indirect thunk.
+      MIRBuilder.buildCopy(MOS::RC17,
+                           MIRBuilder.buildConstant(LLT::scalar(8), 0x5F));
+
+      // Call __rc17 to execute the indirect call.
+      Info.Callee.ChangeToES("__rc17");
+    } else {
+      // Call __call_indir to execute the indirect call.
+      Info.Callee.ChangeToES("__call_indir");
+    }
   }
 
   // Generate the setup call frame pseudo instruction. This will record the size
@@ -409,8 +425,11 @@ bool MOSCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
                   .addRegMask(TRI.getCallPreservedMask(MF, Info.CallConv));
 
   // Indirect calls store the callee in RS9.
-  if (IsIndirect)
+  if (IsIndirect) {
     Call.addUse(MOS::RS9, RegState::Implicit);
+    if (STI.hasSPC700())
+      Call.addUse(MOS::RC17, RegState::Implicit);
+  }
 
   SmallVector<ArgInfo, 8> OutArgs;
   for (auto &OrigArg : Info.OrigArgs) {
