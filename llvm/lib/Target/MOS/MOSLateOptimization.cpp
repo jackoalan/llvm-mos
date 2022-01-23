@@ -109,10 +109,9 @@ bool MOSLateOptimization::lowerCMPTermZs(MachineBasicBlock &MBB) const {
           ClobbersNZ = false;
           break;
         default:
-          if (STI.hasSPC700() && J->getOpcode() == MOS::PL) {
+          if (STI.hasSPC700() && J.getOpcode() == MOS::PL)
             ClobbersNZ = false;
-            break;
-          }
+          break;
         }
       if (ClobbersNZ)
         break;
