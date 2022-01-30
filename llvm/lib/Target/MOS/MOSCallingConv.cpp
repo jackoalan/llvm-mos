@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "MOSCallingConv.h"
+#include "MOSSubtarget.h"
 
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/IR/DataLayout.h"

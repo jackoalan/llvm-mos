@@ -65,6 +65,9 @@ class MOSLogicalInstr : Instruction {
   let isPseudo = true;
   let isCodeGenOnly = true;
   let isReMaterializable = true;
+
+  field bit UsesMX = 0;
+  let TSFlags{0} = UsesMX;
 }
 
 //===---------------------------------------------------------------------===//
@@ -271,7 +274,7 @@ def JMP : MOSUnconditionalBranch, PseudoInstExpansion<(JMP_Absolute addr16:$tgt)
   let Pattern = [(br bb:$tgt)];
 }
 
-def JMPIndir : MOSUnconditionalBranch, PseudoInstExpansion<(JMP_Indirect addr16:$tgt)> {
+def JMPIndir : MOSUnconditionalBranch, PseudoInstExpansion<(JMP_Indirect16 addr16:$tgt)> {
   let InOperandList = (ins Imag16:$tgt);
   let isIndirectBranch = true;
 }
@@ -312,6 +315,10 @@ def LDCImm : MOSImmediateLoad<Cc, i1imm>;
 
 // LDA imm, LDX imm, LDY imm
 def LDImm : MOSImmediateLoad<GPR, i8imm>;
+def LDImm16Native : MOSImmediateLoad<GPR16, i16imm> {
+  let Predicates = [HasW65816];
+  let UsesMX = 1;
+}
 
 //===---------------------------------------------------------------------===//
 // Comparison Instructions
@@ -382,6 +389,10 @@ class MOSTransfer<RegisterClass dst, RegisterClass src> : MOSLogicalInstr {
 
 // LDA zp, LDX zp, LDY zp
 def LDImag8 : MOSTransfer<GPR, Imag8>;
+def LDImag16 : MOSTransfer<GPR16, Imag16> {
+  let Predicates = [HasW65816];
+  let UsesMX = 1;
+}
 // STA zp, STX zp, STY zp
 def STImag8 : MOSTransfer<Imag8, GPR>;
 
@@ -501,3 +512,4 @@ def : Pat<(i8 (trunc Imag16:$s)), (EXTRACT_SUBREG Imag16:$s, sublo)>;
 
 def : Pat<(i1 imm:$s), (LDImm1 imm:$s)>;
 def : Pat<(i8 imm:$s), (LDImm imm:$s)>;
+def : Pat<(i16 imm:$s), (LDImm16Native imm:$s)>;

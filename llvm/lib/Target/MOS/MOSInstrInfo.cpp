@@ -487,6 +487,8 @@ void MOSInstrInfo::copyPhysRegImpl(MachineIRBuilder &Builder, Register DestReg,
     Builder.buildInstr(MOS::STImag8).addDef(DestReg).addUse(SrcReg);
   } else if (AreClasses(MOS::GPRRegClass, MOS::Imag8RegClass)) {
     Builder.buildInstr(MOS::LDImag8).addDef(DestReg).addUse(SrcReg);
+  } else if (STI.hasW65816() && AreClasses(MOS::GPR16RegClass, MOS::Imag16RegClass)) {
+    Builder.buildInstr(MOS::LDImag16).addDef(DestReg).addUse(SrcReg);
   } else if (AreClasses(MOS::Imag8RegClass, MOS::Imag8RegClass)) {
     Register Tmp = createVReg(Builder, MOS::GPRRegClass);
     copyPhysRegImpl(Builder, Tmp, SrcReg);

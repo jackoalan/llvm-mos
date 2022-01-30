@@ -28,6 +28,7 @@ add_llvm_target(MOSCodeGen
   MOSISelLowering.cpp
   MOSIndexIV.cpp
   MOSInsertCopies.cpp
+  MOSInsertMX.cpp
   MOSInstrInfo.cpp
   MOSInstructionSelector.cpp
   MOSLateOptimization.cpp

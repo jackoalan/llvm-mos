@@ -86,11 +86,16 @@ BitVector MOSRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
 const TargetRegisterClass *
 MOSRegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC,
-                                           const MachineFunction &) const {
+                                           const MachineFunction &MF) const {
   if (RC->hasSuperClass(&MOS::Anyi1RegClass))
     return &MOS::Anyi1RegClass;
   if (RC->hasSuperClass(&MOS::Anyi8RegClass))
     return &MOS::Anyi8RegClass;
+  if (RC->hasSuperClass(&MOS::Anyi16RegClass)) {
+    if (MF.getSubtarget<MOSSubtarget>().hasW65816())
+      return &MOS::Anyi16RegClass;
+    return &MOS::Imag16RegClass;
+  }
   return RC;
 }
 
@@ -98,8 +103,12 @@ const TargetRegisterClass *
 MOSRegisterInfo::getCrossCopyRegClass(const TargetRegisterClass *RC) const {
   if (RC == &MOS::Imag8RegClass)
     return &MOS::GPRRegClass;
+  if (RC == &MOS::Imag16RegClass)
+    return &MOS::GPR16RegClass;
   if (RC == &MOS::YcRegClass || RC == &MOS::XYRegClass)
     return &MOS::AImag8RegClass;
+  if (RC == &MOS::EYcRegClass || RC == &MOS::EXYRegClass)
+    return &MOS::EAImag16RegClass;
   return RC;
 }
 
@@ -624,6 +633,10 @@ int copyCost(Register DestReg, Register SrcReg, const MOSSubtarget &STI) {
   }
   if (AreClasses(MOS::GPRRegClass, MOS::Imag8RegClass)) {
     // LDImag8
+    return 5;
+  }
+  if (STI.hasW65816() && AreClasses(MOS::GPR16RegClass, MOS::Imag16RegClass)) {
+    // LDImag16
     return 5;
   }
   if (AreClasses(MOS::Imag8RegClass, MOS::Imag8RegClass)) {

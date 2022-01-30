@@ -33,6 +33,7 @@
 #include "MOSCombiner.h"
 #include "MOSIndexIV.h"
 #include "MOSInsertCopies.h"
+#include "MOSInsertMX.h"
 #include "MOSLateOptimization.h"
 #include "MOSLowerSelect.h"
 #include "MOSMachineScheduler.h"
@@ -52,6 +53,7 @@ extern "C" void LLVM_EXTERNAL_VISIBILITY LLVMInitializeMOSTarget() {
   initializeGlobalISel(PR);
   initializeMOSCombinerPass(PR);
   initializeMOSInsertCopiesPass(PR);
+  initializeMOSInsertMXPass(PR);
   initializeMOSLateOptimizationPass(PR);
   initializeMOSLowerSelectPass(PR);
   initializeMOSNoRecursePass(PR);
@@ -150,6 +152,10 @@ public:
 
   MOSTargetMachine &getMOSTargetMachine() const {
     return getTM<MOSTargetMachine>();
+  }
+
+  const MOSSubtarget &getMOSSubtarget() const {
+    return *getMOSTargetMachine().getSubtargetImpl();
   }
 
   void addIRPasses() override;
@@ -252,7 +258,11 @@ void MOSPassConfig::addPreSched2() {
   addPass(createMOSStaticStackAllocPass());
 }
 
-void MOSPassConfig::addPreEmitPass() { addPass(&BranchRelaxationPassID); }
+void MOSPassConfig::addPreEmitPass() {
+  addPass(&BranchRelaxationPassID);
+  if (getMOSSubtarget().hasW65816())
+    addPass(createMOSInsertMXPass());
+}
 
 ScheduleDAGInstrs *
 MOSPassConfig::createMachineScheduler(MachineSchedContext *C) const {

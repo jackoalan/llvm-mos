@@ -27,6 +27,158 @@ using namespace llvm;
 #define DEBUG_TYPE "mos-mcinstlower"
 
 void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
+#if 0
+// M flag
+def ADCImm : MOSAddSubOp<i8imm>, PseudoInstExpansion<(ADC_Immediate imm8:$r)>;
+def ADCImag8 : MOSAddSubRC<Imag8>, PseudoInstExpansion<(ADC_ZeroPage addr8:$r)> {
+def ADCAbs : MOSAddSubOp<i16imm>, PseudoInstExpansion<(ADC_ZeroPage addr8:$r)>;
+def ADCIndirIdx : MOSAddSub, PseudoInstExpansion<(ADC_IndirectIndexed addr8:$addr)> {
+def SBCImm : MOSAddSubOp<i8imm>, PseudoInstExpansion<(SBC_Immediate imm8:$r)>;
+def SBCImag8 : MOSAddSubRC<Imag8>, PseudoInstExpansion<(SBC_ZeroPage addr8:$r)>;
+def SBCAbs : MOSAddSubOp<i16imm>, PseudoInstExpansion<(SBC_ZeroPage addr8:$r)>;
+def SBCIndirIdx : MOSAddSub, PseudoInstExpansion<(SBC_IndirectIndexed addr8:$addr)> {
+multiclass MOSBitwiseInstr<SDNode node> {
+def Imm : MOSBitwiseBase, PseudoInstExpansion<(!cast<Instruction>(NAME#"_Immediate") imm8:$r)> {
+def Imag8 : MOSBitwiseBase, PseudoInstExpansion<(!cast<Instruction>(NAME#"_ZeroPage") addr8:$r)> {
+def Abs : MOSBitwiseBase, PseudoInstExpansion<(!cast<Instruction>(NAME#"_ZeroPage") addr8:$r)> {
+def IndirIdx : MOSBitwiseBase, PseudoInstExpansion<(!cast<Instruction>(NAME#"_IndirectIndexed") addr8:$addr)> {
+} AND, EOR, ORA
+def ASLAbs : MOSShiftRMW, PseudoInstExpansion<(ASL_ZeroPage addr8:$addr)> {
+def ASLAbsIdx : MOSShiftRMW, PseudoInstExpansion<(ASL_ZeroPageX addr8:$addr)> {
+def LSRAbs : MOSShiftRMW, PseudoInstExpansion<(LSR_ZeroPage addr8:$addr)> {
+def LSRAbsIdx : MOSShiftRMW, PseudoInstExpansion<(LSR_ZeroPageX addr8:$addr)> {
+def ROLAbs : MOSRotateRMW, PseudoInstExpansion<(ROL_ZeroPage addr8:$addr)> {
+def ROLAbsIdx : MOSRotateRMW, PseudoInstExpansion<(ROL_ZeroPageX addr8:$addr)> {
+def RORAbs : MOSRotateRMW, PseudoInstExpansion<(ROR_ZeroPage addr8:$addr)> {
+def RORAbsIdx : MOSRotateRMW, PseudoInstExpansion<(ROR_ZeroPageX addr8:$addr)> {
+def BITAbs : MOSLogicalInstr, PseudoInstExpansion<(BIT_ZeroPage addr8:$r)> {
+def BRA : MOSUnconditionalBranch, PseudoInstExpansion<(BRA_Relative pcrel8:$tgt)> {
+def JMP : MOSUnconditionalBranch, PseudoInstExpansion<(JMP_Absolute addr16:$tgt)> {
+def JMPIndir : MOSUnconditionalBranch, PseudoInstExpansion<(JMP_Indirect addr16:$tgt)> {
+def JSR : MOSLogicalInstr, PseudoInstExpansion<(JSR_Absolute addr16:$tgt)> {
+class MOSReturn<Instruction Opcode> : MOSLogicalInstr, PseudoInstExpansion<(Opcode)> {
+def CLV : MOSImmediateLoad<Vc, i1imm>, PseudoInstExpansion<(CLV_Implied)> {
+def CMPIndirIdx : MOSCMP, PseudoInstExpansion<(CMP_IndirectIndexed addr8:$addr)> {
+multiclass MOSIncDec {
+def CImag8 : MOSLogicalInstr, PseudoInstExpansion<(!cast<Instruction>(NAME # C_ZeroPage) addr8:$dst)> {
+def CAbs : MOSLogicalInstr, PseudoInstExpansion<(!cast<Instruction>(NAME # C_ZeroPage) addr8:$addr)> {
+def CAbsIdx : MOSLogicalInstr, PseudoInstExpansion<(!cast<Instruction>(NAME # C_ZeroPageX) addr8:$addr)> {
+} DE, IN
+def LDIndirIdx : MOSLoad, PseudoInstExpansion<(LDA_IndirectIndexed addr8:$addr)> {
+def STIndirIdx : MOSStore, PseudoInstExpansion<(STA_IndirectIndexed addr8:$addr)> {
+def STZAbs : MOSStore, PseudoInstExpansion<(STZ_ZeroPage addr8:$addr)> {
+def STZAbsIdx : MOSStore, PseudoInstExpansion<(STZ_ZeroPageX addr8:$addr)> {
+def STZImag8 : MOSStore, PseudoInstExpansion<(STZ_ZeroPage addr8:$addr)> {
+// X flag
+def LDXAbsIdx : MOSLoadIndexed<Xc, Yc>, PseudoInstExpansion<(LDX_ZeroPageY addr8:$addr)>;
+def LDYAbsIdx : MOSLoadIndexed<Yc, Xc>, PseudoInstExpansion<(LDY_ZeroPageX addr8:$addr)>;
+#endif
+#if 0
+  switch (MI->getOpcode()) {
+  default:
+    OutMI.setOpcode(MI->getOpcode());
+    break;
+  case MOS::ADCAbsIdx:
+  case MOS::SBCAbsIdx:
+    // M flag
+  case MOS::ANDAbsIdx:
+  case MOS::EORAbsIdx:
+  case MOS::ORAAbsIdx:
+    // M flag
+  case MOS::ASL:
+  case MOS::LSR:
+  case MOS::ROL:
+  case MOS::ROR:
+    // M flag
+  case MOS::BR:
+    // No flag
+  case MOS::CMPImm:
+  case MOS::CMPImag8:
+  case MOS::CMPAbs:
+  case MOS::CMPAbsIdx: {
+    switch (MI->getOpcode()) {
+    case MOS::CMPImm:
+      switch (MI->getOperand(1).getReg()) {
+      default:
+        llvm_unreachable("Unexpected register.");
+      case MOS::A:
+        // M flag
+      case MOS::X:
+      case MOS::Y:
+        // X flag
+      }
+    case MOS::CMPImag8:
+    case MOS::CMPAbs:
+      switch (MI->getOperand(1).getReg()) {
+      default:
+        llvm_unreachable("Unexpected register.");
+      case MOS::A:
+        // M flag
+      case MOS::X:
+      case MOS::Y:
+        // X flag
+      }
+    case MOS::CMPAbsIdx:
+      // M flag
+    }
+  }
+  case MOS::LDImm:
+  case MOS::LDAbs:
+  case MOS::LDImag8:
+  case MOS::STAbs: {
+    switch (MI->getOperand(0).getReg()) {
+    default:
+      llvm_unreachable("Unexpected register.");
+    case MOS::A:
+    case MOS::EA:
+      // M flag
+    case MOS::X:
+    case MOS::EX:
+    case MOS::Y:
+    case MOS::EY:
+      // X flag
+    }
+  }
+  case MOS::LDAAbsIdx: {
+    // M flag
+  }
+  case MOS::LDCImm:
+    // No flag
+  case MOS::DE:
+  case MOS::IN:
+  case MOS::TA:
+    // X flag
+  case MOS::PH:
+  case MOS::PL: {
+    switch (MI->getOperand(0).getReg()) {
+    default:
+      llvm_unreachable("Unexpected register.");
+    case MOS::A:
+      // M flag
+    case MOS::X:
+    case MOS::Y:
+      // X flag
+    }
+  }
+  case MOS::STAbsIdx: {
+    // M flag
+  }
+  case MOS::STImag8: {
+    switch (MI->getOperand(1).getReg()) {
+    default:
+      llvm_unreachable("Unexpected register.");
+    case MOS::A:
+      // M flag
+    case MOS::X:
+    case MOS::Y:
+      // X flag
+    }
+  }
+  case MOS::T_A:
+    // M flag
+  }
+#endif
+
   switch (MI->getOpcode()) {
   default:
     OutMI.setOpcode(MI->getOpcode());
@@ -238,6 +390,7 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
     return;
   }
   case MOS::LDImm:
+  case MOS::LDImm16Native:
   case MOS::LDAbs:
   case MOS::LDImag8:
   case MOS::STAbs: {
@@ -245,8 +398,10 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
     default:
       llvm_unreachable("Unexpected register.");
     case MOS::A:
+    case MOS::EA:
       switch (MI->getOpcode()) {
       case MOS::LDImm:
+      case MOS::LDImm16Native:
         OutMI.setOpcode(MOS::LDA_Immediate);
         break;
       case MOS::LDAbs:
@@ -259,8 +414,10 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
       }
       break;
     case MOS::X:
+    case MOS::EX:
       switch (MI->getOpcode()) {
       case MOS::LDImm:
+      case MOS::LDImm16Native:
         OutMI.setOpcode(MOS::LDX_Immediate);
         break;
       case MOS::LDAbs:
@@ -273,8 +430,10 @@ void MOSMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) {
       }
       break;
     case MOS::Y:
+    case MOS::EY:
       switch (MI->getOpcode()) {
       case MOS::LDImm:
+      case MOS::LDImm16Native:
         OutMI.setOpcode(MOS::LDY_Immediate);
         break;
       case MOS::LDAbs:

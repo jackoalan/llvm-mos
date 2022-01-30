@@ -38,6 +38,8 @@ MOSTargetLowering::MOSTargetLowering(const MOSTargetMachine &TM,
   // primitive types for the calling convention. All need to be split to 8 bits,
   // so that's all that we report here. The register class is irrelevant.
   addRegisterClass(MVT::i8, &MOS::Anyi8RegClass);
+  if (STI.hasW65816())
+    addRegisterClass(MVT::i16, &MOS::Anyi16RegClass);
   computeRegisterProperties(STI.getRegisterInfo());
 
   // The memset intrinsic takes an char, while the C memset takes an int. These

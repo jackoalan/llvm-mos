@@ -54,6 +54,18 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// CCIfSubtarget - Match if the current subtarget has a feature F.
+class CCIfSubtarget<string F, CCAction A>
+    : CCIf<!strconcat("static_cast<const MOSSubtarget&>"
+                       "(State.getMachineFunction().getSubtarget()).",
+                     F),
+          A>;
+class CCIfNotSubtarget<string F, CCAction A>
+    : CCIf<!strconcat("!static_cast<const MOSSubtarget&>"
+                       "(State.getMachineFunction().getSubtarget()).",
+                     F),
+          A>;
+
 let Entry = 1 in {
 def CC_MOS : CallingConv<[
   // Pointers are preferentially assigned to imaginary registers so indirect
@@ -67,6 +79,10 @@ def CC_MOS : CallingConv<[
     A, X, RC2, RC3, RC4, RC5, RC6, RC7, RC8, RC9, RC10, RC11, RC12, RC13, RC14,
     RC15
   ]>>,
+
+  CCIfSubtarget<"hasW65816()", CCIfType<[i16], CCAssignToReg<[
+    EA, EX, RS1, RS2, RS3, RS4, RS5, RS6, RS7
+  ]>>>,
 
   // Values that wouldn't fit anywhere else are passed directly on the stack.
   CCAssignToStack<0, 1>,

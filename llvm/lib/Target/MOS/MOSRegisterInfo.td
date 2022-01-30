@@ -67,25 +67,35 @@ multiclass MOSReg8<bits<16> num, string name> {
   }
 }
 
-defm A : MOSReg8<0, "a">;
-defm X : MOSReg8<2, "x">;
-defm Y : MOSReg8<4, "y">;
-def S : MOSReg<6, "s">;
+// 16-bit value registers for 65816.
+class MOSReg16<bits<16> num, string name, Register loreg>
+    : MOSReg<num, name> {
+  let SubRegs = [loreg];
+  let SubRegIndices = [sublo];
+}
 
-def C : MOSReg<7, "C">;
-def N : MOSReg<8, "N">;
-def V : MOSReg<9, "V">;
-def Z : MOSReg<10, "Z">;
+defm A : MOSReg8<0, "a">;
+def EA : MOSReg16<2, "ea", A>;
+defm X : MOSReg8<3, "x">;
+def EX : MOSReg16<5, "ex", X>;
+defm Y : MOSReg8<6, "y">;
+def EY : MOSReg16<8, "ey", Y>;
+def S : MOSReg<9, "s">;
+
+def C : MOSReg<10, "C">;
+def N : MOSReg<11, "N">;
+def V : MOSReg<12, "V">;
+def Z : MOSReg<13, "Z">;
 
 // N and Z are always set together, so model them as one register with two
 // one-bit subregisters.
-def NZ : MOSReg<11, "NZ"> {
+def NZ : MOSReg<14, "NZ"> {
   let SubRegs = [N, Z];
   let SubRegIndices = [subn, subz];
   let CoveredBySubRegs = true;
 }
 
-def P : MOSReg<12, "P"> {
+def P : MOSReg<15, "P"> {
   let SubRegs = [C, NZ, V];
   let SubRegIndices = [subcarry, subnz, subv];
 }
@@ -166,6 +176,9 @@ let isPressureFineGrained = true in {
   def Ac : MOSReg8Class<(add A)>;
   def Xc : MOSReg8Class<(add X)>;
   def Yc : MOSReg8Class<(add Y)>;
+  def EAc : MOSReg16Class<(add EA)>;
+  def EXc : MOSReg16Class<(add EX)>;
+  def EYc : MOSReg16Class<(add EY)>;
   def Cc : MOSReg1Class<(add C)>;
   def Vc : MOSReg1Class<(add V)>;
   def Pc : MOSReg8Class<(add P)>;
@@ -174,6 +187,7 @@ let isPressureFineGrained = true in {
 // "General purpose" register classes.
 let isPressureFineGrained = true in {
   def GPR : MOSReg8Class<(add X, Y, A)>;
+  def GPR16 : MOSReg16Class<(add EX, EY, EA)>;
   def GPR_LSB : MOSReg1Class<(add XLSB, YLSB, ALSB)>;
   def CV_GPR_LSB : MOSReg1Class<(add Cc, GPR_LSB, Vc)>;
 }
@@ -182,8 +196,10 @@ def Imag16 : MOSReg16Class<(sequence "RS%u", 0, !add(MaxImag16Regs, -1))>;
 
 // Instruction-specific register classes.
 def AImag8 : MOSReg8Class<(add Imag8, A)>;
+def EAImag16 : MOSReg16Class<(add Imag16, EA)>;
 let isPressureFineGrained = true in {
   def XY : MOSReg8Class<(add X, Y)>;
+  def EXY : MOSReg16Class<(add EX, EY)>;
 }
 let isAllocatable = false in {
   def Flag : MOSReg1Class<(add C, N, V, Z)>;
@@ -203,3 +219,4 @@ def MOSAsmParamRegClass : MOSReg8Class<(add X, Y, S)>;
 
 def Anyi1 : MOSReg1Class<(add (sequence "RC%uLSB", 0, !add(MaxImag8Regs, -1)), CV_GPR_LSB)>;
 def Anyi8 : MOSReg8Class<(add Imag8, GPR)>;
+def Anyi16 : MOSReg16Class<(add Imag16, GPR16)>;

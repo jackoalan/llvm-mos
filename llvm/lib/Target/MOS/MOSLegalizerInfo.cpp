@@ -58,13 +58,24 @@ MOSLegalizerInfo::MOSLegalizerInfo(const MOSSubtarget &STI) {
   LLT S64 = LLT::scalar(64);
   LLT P = LLT::pointer(0, 16);
 
+  std::initializer_list<LLT> ScalarTypes;
+  LLT MaxScalarType;
+
+  if (STI.hasW65816()) {
+    ScalarTypes = {S1, S8, S16};
+    MaxScalarType = S16;
+  } else {
+    ScalarTypes = {S1, S8};
+    MaxScalarType = S8;
+  }
+
   // Constants
 
   getActionDefinitionsBuilder(G_CONSTANT)
-      .legalFor({S1, S8})
+      .legalFor(ScalarTypes)
       .customFor({P})
       .widenScalarToNextMultipleOf(0, 8)
-      .maxScalar(0, S8)
+      .maxScalar(0, MaxScalarType)
       .unsupported();
 
   getActionDefinitionsBuilder(G_IMPLICIT_DEF)
